@@ -37,7 +37,6 @@ venv.bak/
 uv.lock
 
 # IDEs
-.vscode/
 .idea/
 *.swp
 *.swo
