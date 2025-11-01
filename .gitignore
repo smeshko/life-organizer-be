@@ -90,3 +90,4 @@ Thumbs.db
 .ruff_cache/
 .worktrees/
 .vscode/
+docs/planning/work/*
