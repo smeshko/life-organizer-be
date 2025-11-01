@@ -115,9 +115,9 @@ Scaffold the complete project directory structure and create foundational Pydant
 **Files:** `src/life_organizer/schemas/classification.py`, `tests/schemas/test_classification.py`
 
 **Implementation:**
-- [ ] Define ClassifiedInput model (category, confidence, extracted_data, raw_input)
-- [ ] Add confidence score validation (0.0-1.0)
-- [ ] Write tests for classification scenarios
+- [x] Define ClassifiedInput model (category, confidence, extracted_data, raw_input)
+- [x] Add confidence score validation (0.0-1.0)
+- [x] Write tests for classification scenarios
 
 **Verification:**
 ✓ Build succeeds | ✓ Tests pass | ✓ Confidence validation works

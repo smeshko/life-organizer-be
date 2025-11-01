@@ -1,7 +1,7 @@
 ## TASK-005: Implement ClassifiedInput Schema
 
 ---
-**Status:** OPEN
+**Status:** COMPLETE
 **Branch:** feature/project-scaffold-models
 **Type:** IMPLEMENTATION
 **Phase:** 1
@@ -20,17 +20,17 @@ Create the ClassifiedInput Pydantic model that the classification engine will re
 
 ### Implementation Steps
 
-- [ ] Create `src/life_organizer/schemas/classification.py`
-- [ ] Import BaseModel, Field from pydantic
-- [ ] Import Category enum from schemas.enums
-- [ ] Define ClassifiedInput model with fields: category, confidence, extracted_data, raw_input
-- [ ] Add Field() descriptions and validation (confidence 0.0-1.0)
-- [ ] Add comprehensive docstring explaining model purpose
-- [ ] Create `tests/schemas/test_classification.py`
-- [ ] Write test for valid classification with extracted data
-- [ ] Write test for confidence score validation (must be 0.0-1.0)
-- [ ] Write test for unknown category with low confidence
-- [ ] Write test for JSON serialization
+- [x] Create `src/life_organizer/schemas/classification.py`
+- [x] Import BaseModel, Field from pydantic
+- [x] Import Category enum from schemas.enums
+- [x] Define ClassifiedInput model with fields: category, confidence, extracted_data, raw_input
+- [x] Add Field() descriptions and validation (confidence 0.0-1.0)
+- [x] Add comprehensive docstring explaining model purpose
+- [x] Create `tests/schemas/test_classification.py`
+- [x] Write test for valid classification with extracted data
+- [x] Write test for confidence score validation (must be 0.0-1.0)
+- [x] Write test for unknown category with low confidence
+- [x] Write test for JSON serialization
 
 ### Code Example
 
@@ -79,12 +79,12 @@ Similar to the ConfirmationData.confidence field, we use `ge=0.0, le=1.0` to enf
 
 ### Success Criteria
 
-- [ ] Build succeeds: `make lint`
-- [ ] All tests pass: `pytest tests/schemas/test_classification.py`
-- [ ] mypy type checking passes
-- [ ] Confidence field rejects values <0.0 or >1.0
-- [ ] extracted_data defaults to empty dict if not provided
-- [ ] Schema serializes to/from JSON correctly
+- [x] Build succeeds: `make lint`
+- [x] All tests pass: `pytest tests/schemas/test_classification.py`
+- [x] mypy type checking passes
+- [x] Confidence field rejects values <0.0 or >1.0
+- [x] extracted_data defaults to empty dict if not provided
+- [x] Schema serializes to/from JSON correctly
 
 ### Verification Commands
 
