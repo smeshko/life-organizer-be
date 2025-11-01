@@ -1,7 +1,7 @@
 ## TASK-006: Implement AppAction Models with Inheritance
 
 ---
-**Status:** OPEN
+**Status:** COMPLETE
 **Branch:** feature/project-scaffold-models
 **Type:** IMPLEMENTATION
 **Phase:** 1
@@ -22,19 +22,19 @@ This provides type safety while allowing the iOS app to determine which action t
 
 ### Implementation Steps
 
-- [ ] Create `src/life_organizer/schemas/actions.py`
-- [ ] Import BaseModel, Field, Literal from pydantic
-- [ ] Import datetime from Python standard library
-- [ ] Define BaseAppAction base class with type field
-- [ ] Define CreateReminderAction subclass (title, due_date, list_id, notes)
-- [ ] Define AddToShoppingListAction subclass (item, quantity, list_id, notes)
-- [ ] Define CreateCalendarEventAction subclass (title, start_time, end_time, location, notes)
-- [ ] Add comprehensive docstrings for all models
-- [ ] Create `tests/schemas/test_actions.py`
-- [ ] Write test for CreateReminderAction validation
-- [ ] Write test for AddToShoppingListAction validation
-- [ ] Write test for CreateCalendarEventAction validation
-- [ ] Write test for Pydantic discriminated union (parsing JSON with type field)
+- [x] Create `src/life_organizer/schemas/actions.py`
+- [x] Import BaseModel, Field, Literal from pydantic
+- [x] Import datetime from Python standard library
+- [x] Define BaseAppAction base class with type field
+- [x] Define CreateReminderAction subclass (title, due_date, list_id, notes)
+- [x] Define AddToShoppingListAction subclass (item, quantity, list_id, notes)
+- [x] Define CreateCalendarEventAction subclass (title, start_time, end_time, location, notes)
+- [x] Add comprehensive docstrings for all models
+- [x] Create `tests/schemas/test_actions.py`
+- [x] Write test for CreateReminderAction validation
+- [x] Write test for AddToShoppingListAction validation
+- [x] Write test for CreateCalendarEventAction validation
+- [x] Write test for Pydantic discriminated union (parsing JSON with type field)
 
 ### Code Example
 
@@ -133,13 +133,13 @@ Pydantic automatically handles discrimination based on the `type` field using Li
 
 ### Success Criteria
 
-- [ ] Build succeeds: `make lint`
-- [ ] All tests pass: `pytest tests/schemas/test_actions.py`
-- [ ] mypy type checking passes
-- [ ] Each action subclass validates its specific fields correctly
-- [ ] Pydantic discriminated union works (parses JSON to correct subclass)
-- [ ] All three action types (reminder, shopping, calendar) work correctly
-- [ ] Type alias AppAction exports correctly for use in ActionResult
+- [x] Build succeeds: `make lint`
+- [x] All tests pass: `pytest tests/schemas/test_actions.py`
+- [x] mypy type checking passes
+- [x] Each action subclass validates its specific fields correctly
+- [x] Pydantic discriminated union works (parses JSON to correct subclass)
+- [x] All three action types (reminder, shopping, calendar) work correctly
+- [x] Type alias AppAction exports correctly for use in ActionResult
 
 ### Verification Commands
 

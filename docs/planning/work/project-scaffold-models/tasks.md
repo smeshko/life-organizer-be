@@ -132,12 +132,12 @@ Scaffold the complete project directory structure and create foundational Pydant
 **Files:** `src/life_organizer/schemas/actions.py`, `tests/schemas/test_actions.py`
 
 **Implementation:**
-- [ ] Define BaseAppAction base class with type discriminator
-- [ ] Define CreateReminderAction (title, due_date, list_id, notes)
-- [ ] Define AddToShoppingListAction (item, quantity, list_id, notes)
-- [ ] Define CreateCalendarEventAction (title, start_time, end_time, location, notes)
-- [ ] Create AppAction type alias for discriminated union
-- [ ] Write tests for each action type and discrimination
+- [x] Define BaseAppAction base class with type discriminator
+- [x] Define CreateReminderAction (title, due_date, list_id, notes)
+- [x] Define AddToShoppingListAction (item, quantity, list_id, notes)
+- [x] Define CreateCalendarEventAction (title, start_time, end_time, location, notes)
+- [x] Create AppAction type alias for discriminated union
+- [x] Write tests for each action type and discrimination
 
 **Verification:**
 ✓ Build succeeds | ✓ Tests pass | ✓ Discriminated union works | ✓ All three action types validate
