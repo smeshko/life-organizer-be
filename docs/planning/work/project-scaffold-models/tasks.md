@@ -63,9 +63,9 @@ Scaffold the complete project directory structure and create foundational Pydant
 **Files:** `src/life_organizer/schemas/enums.py`, `tests/schemas/test_enums.py`
 
 **Implementation:**
-- [ ] Define ActionType enum (BACKEND_HANDLED, APP_ACTION_REQUIRED, CONFIRMATION_NEEDED)
-- [ ] Define Category enum (EXPENSE, SHOPPING, REMINDER, CALENDAR, UNKNOWN)
-- [ ] Write tests for enum validation
+- [x] Define ActionType enum (BACKEND_HANDLED, APP_ACTION_REQUIRED, CONFIRMATION_NEEDED)
+- [x] Define Category enum (EXPENSE, SHOPPING, REMINDER, CALENDAR, UNKNOWN)
+- [x] Write tests for enum validation
 
 **Verification:**
 ✓ Build succeeds | ✓ Tests pass | ✓ mypy passes
