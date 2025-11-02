@@ -88,3 +88,6 @@ Thumbs.db
 # Project specific
 *.pyc
 .ruff_cache/
+.worktrees/
+.vscode/
+docs/planning/work/*
