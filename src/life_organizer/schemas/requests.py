@@ -28,3 +28,21 @@ class ProcessInputRequest(BaseModel):
         min_length=1,
     )
     timestamp: datetime = Field(..., description="When the input was captured (ISO 8601 format)")
+
+
+class ClassifyRequest(BaseModel):
+    """Request model for classifying user input.
+
+    Simplified request for the classification endpoint that only requires
+    the text input without user context or timestamp.
+
+    Attributes:
+        input: Text input to classify (e.g., 'Spent 45 euros at restaurant')
+    """
+
+    input: str = Field(
+        ...,
+        description="Text input to classify",
+        min_length=1,
+        max_length=1000,
+    )
