@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from life_organizer.api.routes import classifier
 from life_organizer.config import get_settings
 from life_organizer.logging_config import get_logger, setup_logging
 
@@ -56,6 +57,13 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# Include routers
+app.include_router(
+    classifier.router,
+    prefix=f"/api/{settings.api_version}",
+    tags=["classification"],
 )
 
 
