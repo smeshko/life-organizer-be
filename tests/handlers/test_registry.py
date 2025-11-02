@@ -1,6 +1,6 @@
 """Tests for handler registry system."""
 
-from life_organizer.handlers import HANDLERS, BaseHandler, get_handler
+from life_organizer.handlers import HANDLERS, get_handler
 from life_organizer.schemas.classification import ClassifiedInput
 from life_organizer.schemas.enums import Category
 from tests.handlers.dummy_handler import DummyHandler, ExpenseDummyHandler
@@ -153,71 +153,3 @@ class TestHandlerRegistry:
             # Restore original handlers
             HANDLERS.clear()
             HANDLERS.extend(original_handlers)
-
-
-class TestDummyHandler:
-    """Tests for DummyHandler test fixture."""
-
-    def test_dummy_handler_implements_contract(self):
-        """Test that DummyHandler properly implements BaseHandler."""
-        handler = DummyHandler()
-        assert isinstance(handler, BaseHandler)
-
-    def test_dummy_handler_can_handle(self):
-        """Test DummyHandler's can_handle logic."""
-        handler = DummyHandler()
-
-        # Should handle UNKNOWN
-        unknown_input = ClassifiedInput(
-            category=Category.UNKNOWN,
-            confidence=0.5,
-            raw_input="Random text",
-        )
-        assert handler.can_handle(unknown_input) is True
-
-        # Should not handle EXPENSE
-        expense_input = ClassifiedInput(
-            category=Category.EXPENSE,
-            confidence=0.9,
-            raw_input="Spent $20",
-        )
-        assert handler.can_handle(expense_input) is False
-
-    def test_dummy_handler_requires_app_action(self):
-        """Test DummyHandler requires_app_action returns False."""
-        handler = DummyHandler()
-        assert handler.requires_app_action() is False
-
-    def test_dummy_handler_execute(self):
-        """Test DummyHandler execute returns expected result."""
-        handler = DummyHandler()
-
-        classified = ClassifiedInput(
-            category=Category.UNKNOWN,
-            confidence=0.5,
-            raw_input="Test input",
-        )
-
-        result = handler.execute(classified)
-        assert result.success is True
-        assert result.message == "Handled by dummy handler"
-
-    def test_expense_dummy_handler_can_handle(self):
-        """Test ExpenseDummyHandler handles EXPENSE category."""
-        handler = ExpenseDummyHandler()
-
-        # Should handle EXPENSE
-        expense_input = ClassifiedInput(
-            category=Category.EXPENSE,
-            confidence=0.9,
-            raw_input="Spent $20",
-        )
-        assert handler.can_handle(expense_input) is True
-
-        # Should not handle UNKNOWN
-        unknown_input = ClassifiedInput(
-            category=Category.UNKNOWN,
-            confidence=0.5,
-            raw_input="Random text",
-        )
-        assert handler.can_handle(unknown_input) is False
