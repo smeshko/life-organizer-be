@@ -35,7 +35,7 @@ class Settings(BaseSettings):
 
     # External Services (to be configured later)
     openai_api_key: str | None = Field(default=None, description="OpenAI API key")
-    claude_api_key: str | None = Field(default=None, description="Claude API key")
+    claude_api_key: str = Field(..., description="Anthropic Claude API key")
 
     # Database (future)
     database_url: str | None = Field(default=None, description="Database connection URL")
@@ -55,7 +55,8 @@ def get_settings() -> Settings:
     Returns:
         Settings: Application settings
     """
-    return Settings()
+    # claude_api_key required, always set in .env
+    return Settings()  # type: ignore[call-arg]
 
 
 # Keyword-based classification configuration

@@ -2,15 +2,25 @@
 
 from fastapi import APIRouter, HTTPException
 
-from life_organizer.config import KEYWORD_CONFIG
+from life_organizer.config import KEYWORD_CONFIG, get_settings
 from life_organizer.schemas.classification import ClassifiedInput
 from life_organizer.schemas.requests import ClassifyRequest
 from life_organizer.services.classifier import KeywordClassifier
+from life_organizer.services.classifier_orchestrator import ClassifierOrchestrator
+from life_organizer.services.claude_classifier import ClaudeClassifier
 
 router = APIRouter()
 
-# Initialize classifier with keyword config
-classifier = KeywordClassifier(keyword_config=KEYWORD_CONFIG)
+# Initialize classifiers
+settings = get_settings()
+keyword_classifier = KeywordClassifier(keyword_config=KEYWORD_CONFIG)
+claude_classifier = ClaudeClassifier(api_key=settings.claude_api_key)
+
+# Initialize orchestrator
+classifier = ClassifierOrchestrator(
+    keyword_classifier=keyword_classifier,
+    llm_classifier=claude_classifier,
+)
 
 
 @router.post("/classify", response_model=ClassifiedInput)
@@ -52,8 +62,8 @@ async def classify_input(request: ClassifyRequest) -> ClassifiedInput:
         if not request.input.strip():
             raise HTTPException(status_code=422, detail="Input cannot be empty or whitespace only")
 
-        # Classify the input
-        result = classifier.classify(request.input)
+        # Classify the input using orchestrator
+        result = await classifier.classify(request.input)
 
         return result
 
