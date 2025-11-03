@@ -22,6 +22,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "anthropic>=0.40.0",  # Added for Claude integration
     "tenacity>=8.0.0",  # Added for retry logic
+    "python-dateutil>=2.8.2",  # Added for date parsing
 ]
 
 [project.optional-dependencies]
