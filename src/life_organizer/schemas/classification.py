@@ -1,5 +1,7 @@
 """Classification schemas for processed user input."""
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from life_organizer.schemas.enums import Category
@@ -30,3 +32,6 @@ class ClassifiedInput(BaseModel):
         description="Extracted structured data (amounts, items, categories, etc.)",
     )
     raw_input: str = Field(..., description="Original raw input text")
+    classifier_source: Literal["keyword", "llm"] = Field(
+        ..., description="Source classifier that produced this result"
+    )
