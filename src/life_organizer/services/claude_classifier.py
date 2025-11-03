@@ -7,6 +7,7 @@ from typing import Any
 import anthropic
 from anthropic.types import TextBlock
 from pydantic import ValidationError
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from life_organizer.schemas.classification import ClassifiedInput
 from life_organizer.schemas.enums import Category
@@ -72,6 +73,11 @@ Return ONLY the JSON, no additional text."""
         self.model = model
         logger.info(f"Initialized ClaudeClassifier with model: {model}")
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=5),
+        reraise=True,
+    )
     async def classify(self, text: str) -> ClassifiedInput:
         """
         Classify input text using Claude Haiku.
@@ -85,12 +91,29 @@ Return ONLY the JSON, no additional text."""
         Raises:
             anthropic.APIError: On API communication errors
         """
+        # Validate input to avoid wasting API calls
+        if not text or not text.strip():
+            logger.debug("Empty or whitespace-only input, returning UNKNOWN")
+            return ClassifiedInput(
+                category=Category.UNKNOWN,
+                confidence=0.0,
+                extracted_data={},
+                raw_input=text,
+                classifier_source="llm",
+            )
+
         try:
-            # Call Claude API
+            # Call Claude API with prompt caching for system prompt
             message = await self.client.messages.create(
                 model=self.model,
                 max_tokens=500,
-                system=self.SYSTEM_PROMPT,
+                system=[
+                    {
+                        "type": "text",
+                        "text": self.SYSTEM_PROMPT,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ],
                 messages=[{"role": "user", "content": text}],
             )
 
@@ -101,6 +124,18 @@ Return ONLY the JSON, no additional text."""
                 raise ValueError(f"Expected TextBlock, got {type(first_block)}")
             response_text = first_block.text
             logger.debug(f"Claude response: {response_text}")
+
+            # Strip markdown code fences if present
+            response_text = response_text.strip()
+            if response_text.startswith("```"):
+                # Remove first line (```json or ```)
+                lines = response_text.split("\n", 1)
+                if len(lines) > 1:
+                    response_text = lines[1]
+                # Remove last line (```)
+                if response_text.endswith("```"):
+                    response_text = response_text.rsplit("```", 1)[0]
+                response_text = response_text.strip()
 
             # Parse JSON
             data = json.loads(response_text)
@@ -153,10 +188,21 @@ Return ONLY the JSON, no additional text."""
 
     def _ensure_extracted_data_fields(
         self,
-        category: Category,  # noqa: ARG002
+        category: Category,
         extracted_data: dict[str, Any],
     ) -> dict[str, Any]:
         """Ensure extracted_data has expected fields for category."""
-        # Return as-is for now; LLM should populate correctly
-        # Future: Add validation/defaults per category
+        # Validate and add defaults for category-specific fields
+        if category == Category.EXPENSE:
+            if "amount" not in extracted_data:
+                logger.warning("LLM returned EXPENSE without amount field")
+        elif category == Category.SHOPPING:
+            if "items" not in extracted_data or not isinstance(extracted_data["items"], list):
+                logger.warning("LLM returned SHOPPING without items list, adding empty list")
+                extracted_data["items"] = []
+        elif category == Category.REMINDER and "action" not in extracted_data:
+            logger.debug("LLM returned REMINDER without action field")
+        elif category == Category.CALENDAR and "time_reference" not in extracted_data:
+            logger.debug("LLM returned CALENDAR without time_reference field")
+
         return extracted_data

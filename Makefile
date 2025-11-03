@@ -1,4 +1,4 @@
-.PHONY: help install dev run test lint format type-check clean pre-commit
+.PHONY: help install dev run stop restart test lint format type-check clean pre-commit
 
 # Default target
 help:
@@ -6,7 +6,9 @@ help:
 	@echo ""
 	@echo "  make install      - Install production dependencies"
 	@echo "  make dev          - Install all dependencies including dev tools"
-	@echo "  make run          - Run the development server"
+	@echo "  make run          - Run the development server (auto-stops existing server)"
+	@echo "  make stop         - Stop the development server"
+	@echo "  make restart      - Restart the development server"
 	@echo "  make test         - Run tests with coverage"
 	@echo "  make lint         - Run linter (Ruff)"
 	@echo "  make format       - Format code with Ruff"
@@ -24,9 +26,18 @@ dev:
 	uv sync --all-extras
 	uv run pre-commit install
 
-# Run the development server
-run:
+# Stop the development server
+stop:
+	@echo "Stopping development server on port 8000..."
+	@lsof -ti:8000 | xargs kill -9 2>/dev/null || echo "No server running on port 8000"
+
+# Run the development server (auto-stops existing server)
+run: stop
+	@echo "Starting development server..."
 	uv run uvicorn life_organizer.main:app --reload --host 0.0.0.0 --port 8000
+
+# Restart the development server
+restart: stop run
 
 # Run tests with coverage
 test:

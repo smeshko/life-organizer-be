@@ -55,6 +55,7 @@ def get_settings() -> Settings:
     Returns:
         Settings: Application settings
     """
+    # claude_api_key required, always set in .env
     return Settings()  # type: ignore[call-arg]
 
 

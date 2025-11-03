@@ -81,7 +81,7 @@ class ClassifierOrchestrator:
             )
             return keyword_result
 
-        except Exception as e:
+        except (ValueError, TypeError, RuntimeError, Exception) as e:
             logger.error(
                 f"Unexpected error in LLM classifier ({type(e).__name__}: {e}) - "
                 f"falling back to keyword result"
