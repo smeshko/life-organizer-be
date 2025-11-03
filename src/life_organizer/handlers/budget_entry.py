@@ -3,7 +3,7 @@
 import logging
 import re
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
 from dateutil import parser as date_parser
 
@@ -15,6 +15,9 @@ from life_organizer.schemas.enums import ActionType, Category
 from life_organizer.schemas.responses import ActionResult
 
 logger = logging.getLogger(__name__)
+
+# Type alias for transaction types
+TransactionType = Literal["Expenses", "Income", "Savings"]
 
 # Constants
 EUR_TO_BGN_RATE = 1.955
@@ -181,17 +184,56 @@ def _parse_date(classified_input: ClassifiedInput) -> str:
             date = today + timedelta(days=days_ahead)
             return date.strftime("%Y-%m-%d")
 
-    # Try parsing absolute dates with dateutil
+    # Try parsing absolute dates with dateutil (only if clear date pattern exists)
     try:
-        parsed_date = date_parser.parse(text, fuzzy=True, default=datetime.now())
-        result: str = parsed_date.strftime("%Y-%m-%d")
-        return result
+        # Month name patterns (helps avoid parsing random numbers as years)
+        date_keywords = [
+            "january",
+            "february",
+            "march",
+            "april",
+            "may",
+            "june",
+            "july",
+            "august",
+            "september",
+            "october",
+            "november",
+            "december",
+            "jan",
+            "feb",
+            "mar",
+            "apr",
+            "jun",
+            "jul",
+            "aug",
+            "sep",
+            "oct",
+            "nov",
+            "dec",
+        ]
+
+        # Check for ISO date format (YYYY-MM-DD) or month names
+        has_date_pattern = re.search(r"\d{4}-\d{2}-\d{2}", text) is not None or any(
+            keyword in text for keyword in date_keywords
+        )
+
+        if has_date_pattern:
+            parsed_date = date_parser.parse(text, fuzzy=True, default=datetime.now())
+
+            # Sanity check: year should be reasonable (avoid "7" or "1220" becoming years)
+            current_year = datetime.now().year
+            if current_year - 1 <= parsed_date.year <= current_year + 1:
+                result: str = parsed_date.strftime("%Y-%m-%d")
+                return result
     except Exception:
-        # Default to today
-        return datetime.now().strftime("%Y-%m-%d")
+        pass
+
+    # Default to today
+    return datetime.now().strftime("%Y-%m-%d")
 
 
-def _classify_transaction_type(classified_input: ClassifiedInput) -> str:
+def _classify_transaction_type(classified_input: ClassifiedInput) -> TransactionType:
     """Classify transaction type based on keywords.
 
     Priority: Income > Savings > Expenses (default)
@@ -207,8 +249,8 @@ def _classify_transaction_type(classified_input: ClassifiedInput) -> str:
     # Check extracted_data first (if classifier detected type)
     if "transaction_type" in classified_input.extracted_data:
         trans_type = classified_input.extracted_data["transaction_type"]
-        if isinstance(trans_type, str):
-            return trans_type
+        if isinstance(trans_type, str) and trans_type in ("Expenses", "Income", "Savings"):
+            return trans_type  # type: ignore[return-value]
 
     # Income keywords (highest priority)
     income_keywords = ["received", "got", "earned", "salary", "rent", "income"]
@@ -384,7 +426,7 @@ class BudgetEntryHandler(BaseHandler):
             action = LogBudgetEntryAction(
                 amount=amount_bgn,
                 date=date_iso,
-                transaction_type=transaction_type,  # type: ignore[arg-type]
+                transaction_type=transaction_type,
                 category=category,
                 details=details,
             )
