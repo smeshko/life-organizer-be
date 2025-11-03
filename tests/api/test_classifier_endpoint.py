@@ -1,9 +1,12 @@
 """Tests for the classifier API endpoint."""
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
 
 from life_organizer.main import app
+from life_organizer.schemas.classification import ClassifiedInput
 from life_organizer.schemas.enums import Category
 
 
@@ -11,6 +14,26 @@ from life_organizer.schemas.enums import Category
 def client() -> TestClient:
     """Create a test client for the FastAPI app."""
     return TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def mock_claude_classifier():
+    """Mock Claude classifier to prevent real API calls in all tests."""
+    with patch("life_organizer.api.routes.classifier.claude_classifier") as mock:
+        # Create a mock classify method that returns appropriate responses
+        async def mock_classify(text: str) -> ClassifiedInput:
+            # Return a generic mock response - orchestrator will use keyword result instead
+            # because this mock will only be called if keyword confidence is low
+            return ClassifiedInput(
+                category=Category.UNKNOWN,
+                confidence=0.5,
+                extracted_data={},
+                raw_input=text,
+                classifier_source="llm",
+            )
+
+        mock.classify = AsyncMock(side_effect=mock_classify)
+        yield mock
 
 
 class TestClassifyEndpoint:
