@@ -58,6 +58,7 @@ class KeywordClassifier:
                 confidence=0.0,
                 extracted_data={},
                 raw_input=input_text,
+                classifier_source="keyword",
             )
 
         # Get category with highest score
@@ -77,6 +78,7 @@ class KeywordClassifier:
             confidence=confidence,
             extracted_data=extracted_data,
             raw_input=input_text,
+            classifier_source="keyword",
         )
 
     def _match_keywords(self, text: str, category: Category) -> float:
