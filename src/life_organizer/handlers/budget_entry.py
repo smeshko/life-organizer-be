@@ -127,6 +127,39 @@ def _parse_date(classified_input: ClassifiedInput) -> str:
         return datetime.now().strftime("%Y-%m-%d")
 
 
+def _classify_transaction_type(classified_input: ClassifiedInput) -> str:
+    """Classify transaction type based on keywords.
+
+    Priority: Income > Savings > Expenses (default)
+
+    Args:
+        classified_input: Classified user input
+
+    Returns:
+        One of: "Income", "Savings", "Expenses"
+    """
+    text = classified_input.raw_input.lower()
+
+    # Check extracted_data first (if classifier detected type)
+    if "transaction_type" in classified_input.extracted_data:
+        trans_type = classified_input.extracted_data["transaction_type"]
+        if isinstance(trans_type, str):
+            return trans_type
+
+    # Income keywords (highest priority)
+    income_keywords = ["received", "got", "earned", "salary", "rent", "income"]
+    if any(keyword in text for keyword in income_keywords):
+        return "Income"
+
+    # Savings keywords
+    savings_keywords = ["saved", "invested", "saving", "deposit"]
+    if any(keyword in text for keyword in savings_keywords):
+        return "Savings"
+
+    # Default to Expenses
+    return "Expenses"
+
+
 def _extract_details(classified_input: ClassifiedInput) -> str | None:
     """Extract merchant/details from input.
 
