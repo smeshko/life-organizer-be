@@ -2,6 +2,7 @@
 
 import json
 import logging
+from pathlib import Path
 from typing import Any
 
 import anthropic
@@ -14,6 +15,13 @@ from life_organizer.schemas.enums import Category
 
 logger = logging.getLogger(__name__)
 
+# Load system prompt from file
+_PROMPT_DIR = Path(__file__).parent.parent / "prompts"
+_SYSTEM_PROMPT_FILE = _PROMPT_DIR / "classifier_system_prompt.txt"
+
+with _SYSTEM_PROMPT_FILE.open(encoding="utf-8") as f:
+    SYSTEM_PROMPT = f.read()
+
 
 class ClaudeClassifier:
     """
@@ -23,43 +31,6 @@ class ClaudeClassifier:
     and extract structured data. Designed as fallback for low-confidence
     keyword classifications.
     """
-
-    SYSTEM_PROMPT = """You are a classification assistant for a life organizer app.
-
-Classify user input into ONE category and extract relevant structured data.
-
-**Categories:**
-- expense: Financial transactions (purchases, bills, payments)
-- shopping: Items to buy or shopping lists
-- reminder: Tasks, actions to remember
-- calendar: Events, appointments, time-based activities
-- unknown: Unclear or unclassifiable input
-
-**Return ONLY valid JSON matching this schema:**
-{
-  "category": "expense" | "shopping" | "reminder" | "calendar" | "unknown",
-  "confidence": 0.0-1.0,
-  "extracted_data": {
-    // For expense: {"amount": number, "currency": "EUR"|"USD", "merchant_hint": string}
-    // For shopping: {"items": [string, ...]}
-    // For reminder: {"action": string}
-    // For calendar: {"time_reference": string}
-  },
-  "raw_input": "original input text"
-}
-
-**Examples:**
-
-Input: "Spent 45 EUR at restaurant"
-Output: {"category": "expense", "confidence": 0.95, "extracted_data": {"amount": 45.0, "currency": "EUR", "merchant_hint": "restaurant"}, "raw_input": "Spent 45 EUR at restaurant"}
-
-Input: "Buy milk and eggs"
-Output: {"category": "shopping", "confidence": 0.9, "extracted_data": {"items": ["milk", "eggs"]}, "raw_input": "Buy milk and eggs"}
-
-Input: "Call dentist tomorrow"
-Output: {"category": "reminder", "confidence": 0.85, "extracted_data": {"action": "call dentist"}, "raw_input": "Call dentist tomorrow"}
-
-Return ONLY the JSON, no additional text."""
 
     def __init__(self, api_key: str, model: str = "claude-haiku-4-5") -> None:
         """
@@ -110,7 +81,7 @@ Return ONLY the JSON, no additional text."""
                 system=[
                     {
                         "type": "text",
-                        "text": self.SYSTEM_PROMPT,
+                        "text": SYSTEM_PROMPT,
                         "cache_control": {"type": "ephemeral"},
                     }
                 ],
