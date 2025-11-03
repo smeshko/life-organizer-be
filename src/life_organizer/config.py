@@ -71,6 +71,18 @@ KEYWORD_CONFIG: dict[Category, dict[str, float | dict[str, float]]] = {
             "bought": 0.9,
             "charge": 0.8,
             "charged": 0.8,
+            # Income keywords
+            "received": 1.0,
+            "got": 0.9,
+            "earned": 0.9,
+            "salary": 0.9,
+            "rent": 0.8,
+            "income": 0.8,
+            # Savings keywords
+            "saved": 1.0,
+            "invested": 0.9,
+            "saving": 0.8,
+            "deposit": 0.8,
             # Currency indicators
             "eur": 0.7,
             "euro": 0.7,
@@ -80,6 +92,9 @@ KEYWORD_CONFIG: dict[Category, dict[str, float | dict[str, float]]] = {
             "dollars": 0.7,
             "$": 0.7,
             "€": 0.7,
+            "bgn": 0.7,
+            "lev": 0.7,
+            "leva": 0.7,
             # Merchant/context keywords
             "restaurant": 0.6,
             "cafe": 0.6,
