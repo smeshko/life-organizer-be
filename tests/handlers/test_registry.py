@@ -20,6 +20,7 @@ class TestHandlerRegistry:
                 category=Category.EXPENSE,
                 confidence=0.9,
                 raw_input="Spent $20 on lunch",
+                classifier_source="keyword",
             )
 
             result = get_handler(classified)
@@ -45,6 +46,7 @@ class TestHandlerRegistry:
                 category=Category.UNKNOWN,
                 confidence=0.5,
                 raw_input="Some random text",
+                classifier_source="keyword",
             )
 
             result = get_handler(classified)
@@ -71,6 +73,7 @@ class TestHandlerRegistry:
                 category=Category.EXPENSE,
                 confidence=0.9,
                 raw_input="Spent $20",
+                classifier_source="keyword",
             )
 
             result = get_handler(classified)
@@ -98,6 +101,7 @@ class TestHandlerRegistry:
                 category=Category.EXPENSE,
                 confidence=0.9,
                 raw_input="Spent $20",
+                classifier_source="keyword",
             )
 
             result = get_handler(classified)
@@ -128,6 +132,7 @@ class TestHandlerRegistry:
                 category=Category.UNKNOWN,
                 confidence=0.5,
                 raw_input="Random text",
+                classifier_source="keyword",
             )
             result = get_handler(unknown_input)
             assert result is unknown_handler
@@ -137,6 +142,7 @@ class TestHandlerRegistry:
                 category=Category.EXPENSE,
                 confidence=0.9,
                 raw_input="Spent $20",
+                classifier_source="keyword",
             )
             result = get_handler(expense_input)
             assert result is expense_handler
@@ -146,6 +152,7 @@ class TestHandlerRegistry:
                 category=Category.SHOPPING,
                 confidence=0.8,
                 raw_input="Buy milk",
+                classifier_source="keyword",
             )
             result = get_handler(shopping_input)
             assert result is None

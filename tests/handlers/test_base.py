@@ -112,6 +112,7 @@ class TestConcreteHandlerImplementation:
             category=Category.EXPENSE,
             confidence=0.9,
             raw_input="Spent $20 on lunch",
+            classifier_source="keyword",
         )
         assert handler.can_handle(expense_input) is True
 
@@ -120,6 +121,7 @@ class TestConcreteHandlerImplementation:
             category=Category.SHOPPING,
             confidence=0.9,
             raw_input="Buy milk",
+            classifier_source="keyword",
         )
         assert handler.can_handle(shopping_input) is False
 
@@ -145,6 +147,7 @@ class TestConcreteHandlerImplementation:
             category=Category.EXPENSE,
             confidence=0.8,
             raw_input="Test input",
+            classifier_source="keyword",
         )
 
         result = handler.execute(classified)
