@@ -18,12 +18,13 @@ Example:
 """
 
 from life_organizer.handlers.base import BaseHandler
+from life_organizer.handlers.budget_entry import BudgetEntryHandler
 from life_organizer.schemas.classification import ClassifiedInput
 
 # Handler registry - add concrete handlers here as they're implemented
 # Order matters: first matching handler is selected
 HANDLERS: list[BaseHandler] = [
-    # Future: ExpenseHandler(),
+    BudgetEntryHandler(),  # Budget entries (expenses/income/savings)
     # Future: ShoppingHandler(),
     # Future: ReminderHandler(),
 ]
@@ -52,4 +53,4 @@ def get_handler(classified_input: ClassifiedInput) -> BaseHandler | None:
     return None
 
 
-__all__ = ["HANDLERS", "BaseHandler", "get_handler"]
+__all__ = ["HANDLERS", "BaseHandler", "BudgetEntryHandler", "get_handler"]

@@ -1,13 +1,20 @@
 """Budget entry handler for expenses, income, and savings transactions."""
 
+import logging
 import re
 from datetime import datetime, timedelta
 from typing import Any
 
 from dateutil import parser as date_parser
 
+from life_organizer.handlers.base import BaseHandler
+from life_organizer.schemas.actions import LogBudgetEntryAction
 from life_organizer.schemas.budget import ExpenseCategory, IncomeCategory, SavingsCategory
 from life_organizer.schemas.classification import ClassifiedInput
+from life_organizer.schemas.enums import ActionType, Category
+from life_organizer.schemas.responses import ActionResult
+
+logger = logging.getLogger(__name__)
 
 # Constants
 EUR_TO_BGN_RATE = 1.955
@@ -299,3 +306,110 @@ async def _classify_category(
 
     # Fallback to "Other"
     return "Other"
+
+
+class BudgetEntryHandler(BaseHandler):
+    """Handler for budget entries (expenses, income, savings).
+
+    Processes natural language financial transactions, extracts structured data,
+    converts currencies, classifies transaction types and categories, and generates
+    app actions for iOS to populate the Excel budget sheet.
+
+    Handles:
+    - Expenses: "spent 120eur at next"
+    - Income: "received 250bgn rent"
+    - Savings: "saved 1220 in ibkr"
+    """
+
+    def __init__(self, claude_classifier: Any | None = None):
+        """Initialize budget entry handler.
+
+        Args:
+            claude_classifier: Optional Claude classifier for category classification
+        """
+        self.claude_classifier = claude_classifier
+
+    def can_handle(self, classified_input: ClassifiedInput) -> bool:
+        """Determine if this handler can process the input.
+
+        Args:
+            classified_input: Classified user input
+
+        Returns:
+            True if category is EXPENSE (used for all budget entries)
+        """
+        return classified_input.category == Category.EXPENSE
+
+    def requires_app_action(self) -> bool:
+        """Determine if this handler requires iOS app involvement.
+
+        Returns:
+            True (always delegates to iOS for Excel population)
+        """
+        return True
+
+    async def execute(self, classified_input: ClassifiedInput) -> ActionResult:
+        """Process budget entry and generate app action.
+
+        Args:
+            classified_input: Classified user input with extracted data
+
+        Returns:
+            ActionResult with LogBudgetEntryAction for iOS app
+        """
+        try:
+            # 1. Extract amount and currency
+            amount, currency = _extract_amount_currency(classified_input)
+
+            # 2. Convert to BGN
+            amount_bgn = _convert_to_bgn(amount, currency)
+
+            # 3. Classify transaction type
+            transaction_type = _classify_transaction_type(classified_input)
+
+            # 4. Classify category (async LLM fallback)
+            category = await _classify_category(
+                classified_input,
+                transaction_type,
+                self.claude_classifier,
+            )
+
+            # 5. Parse date
+            date_iso = _parse_date(classified_input)
+
+            # 6. Extract details
+            details = _extract_details(classified_input)
+
+            # 7. Generate app action
+            action = LogBudgetEntryAction(
+                amount=amount_bgn,
+                date=date_iso,
+                transaction_type=transaction_type,  # type: ignore[arg-type]
+                category=category,
+                details=details,
+            )
+
+            # 8. Return result
+            return ActionResult(
+                success=True,
+                action_type=ActionType.APP_ACTION_REQUIRED,
+                message=f"Logged {transaction_type.lower()}: {amount_bgn} BGN in {category}",
+                app_action=action,
+            )
+
+        except ValueError as e:
+            # Invalid amount or parsing error
+            return ActionResult(
+                success=False,
+                action_type=ActionType.CONFIRMATION_NEEDED,
+                message=f"Could not parse budget entry: {e!s}",
+            )
+
+        except Exception as e:
+            # Unexpected error
+            logger.exception("Budget entry handler error: %s", e)
+            return ActionResult(
+                success=False,
+                action_type=ActionType.CONFIRMATION_NEEDED,
+                message="An error occurred processing your budget entry",
+            )
