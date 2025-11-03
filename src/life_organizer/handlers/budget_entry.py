@@ -2,9 +2,11 @@
 
 import re
 from datetime import datetime, timedelta
+from typing import Any
 
 from dateutil import parser as date_parser
 
+from life_organizer.schemas.budget import ExpenseCategory, IncomeCategory, SavingsCategory
 from life_organizer.schemas.classification import ClassifiedInput
 
 # Constants
@@ -19,6 +21,61 @@ CURRENCY_MAP = {
     "bgn": "BGN",
     "lev": "BGN",
     "leva": "BGN",
+}
+
+# Merchant to category mapping (high-confidence keyword matches)
+MERCHANT_CATEGORY_MAP = {
+    # Subscriptions
+    "spotify": "Subscriptions",
+    "netflix": "Subscriptions",
+    "youtube": "Subscriptions",
+    "apple music": "Subscriptions",
+    "amazon prime": "Subscriptions",
+    "hbo": "Subscriptions",
+    # Groceries
+    "billa": "Groceries",
+    "kaufland": "Groceries",
+    "lidl": "Groceries",
+    "fantastico": "Groceries",
+    "boliarci": "Groceries",
+    "metro": "Groceries",
+    "carrefour": "Groceries",
+    # Home improvements
+    "ikea": "Home improvements",
+    "baumax": "Home improvements",
+    "praktiker": "Home improvements",
+    # Clothing
+    "next": "Clothes",
+    "mango": "Clothes",
+    "reserved": "Clothes",
+    "zara": "Clothes",
+    "h&m": "Clothes",
+    "hm": "Clothes",
+    # Body care / Baby
+    "dm": "Body care",
+    "pharmacy": "Medical",
+    "apteka": "Medical",
+    # Utilities
+    "a1": "Utilities",
+    "vivacom": "Utilities",
+    "cez": "Utilities",
+    "toplofikatsiya": "Utilities",
+    # Savings
+    "metlife": "Metlife",
+    "ibkr": "Savings",
+    # Transport
+    "eko": "Transport",
+    "lukoil": "Transport",
+    "omv": "Transport",
+    "taxi": "Transport",
+    "uber": "Transport",
+    "bolt": "Transport",
+    # Eat out
+    "restaurant": "Eat out",
+    "cafe": "Eat out",
+    "coffee": "Eat out",
+    "banitsa": "Eat out",
+    "pizza": "Eat out",
 }
 
 
@@ -190,3 +247,55 @@ def _extract_details(classified_input: ClassifiedInput) -> str | None:
     text = re.sub(r"\s+", " ", text).strip()
 
     return text if text else None
+
+
+def _get_categories_for_type(transaction_type: str) -> list[str]:
+    """Get available category names for transaction type.
+
+    Args:
+        transaction_type: One of "Expenses", "Income", "Savings"
+
+    Returns:
+        List of category names
+    """
+    if transaction_type == "Expenses":
+        return [cat.value for cat in ExpenseCategory]
+    if transaction_type == "Income":
+        return [cat.value for cat in IncomeCategory]
+    if transaction_type == "Savings":
+        return [cat.value for cat in SavingsCategory]
+    return ["Other"]
+
+
+async def _classify_category(
+    classified_input: ClassifiedInput,
+    transaction_type: str,  # noqa: ARG001 - Will be used in Phase 2 for LLM fallback
+    claude_classifier: Any | None = None,  # noqa: ARG001 - Will be used in Phase 2
+) -> str:
+    """Classify budget category using hybrid approach.
+
+    Uses keyword mapping for high-confidence cases, LLM fallback for ambiguous.
+
+    Args:
+        classified_input: Classified user input
+        transaction_type: One of "Expenses", "Income", "Savings" (used for LLM fallback in Phase 2)
+        claude_classifier: Optional Claude classifier for LLM fallback (Phase 2 integration)
+
+    Returns:
+        Category name string
+    """
+    details = _extract_details(classified_input)
+    if not details:
+        return "Other"
+
+    # Check merchant keyword map (case-insensitive)
+    details_lower = details.lower()
+    for merchant, category in MERCHANT_CATEGORY_MAP.items():
+        if merchant.lower() in details_lower:
+            return category
+
+    # LLM fallback would go here (T007 will implement full handler with LLM integration)
+    # For Phase 1, we just fallback to "Other" for unmapped merchants
+
+    # Fallback to "Other"
+    return "Other"
