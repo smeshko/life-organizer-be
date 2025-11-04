@@ -30,7 +30,7 @@ def orchestrator(
 ) -> ClassifierOrchestrator:
     """Create orchestrator with mocked classifiers."""
     return ClassifierOrchestrator(
-        keyword_classifier=mock_keyword_classifier,
+        keyword_classifier=None,  # Temporarily disabled in Phase 1
         llm_classifier=mock_llm_classifier,
     )
 
@@ -38,6 +38,9 @@ def orchestrator(
 class TestClassifierOrchestrator:
     """Test suite for ClassifierOrchestrator routing logic."""
 
+    @pytest.mark.skip(
+        reason="Keyword routing removed in Phase 1, will be updated in Phase 3 (T007)"
+    )
     @pytest.mark.asyncio
     async def test_high_confidence_uses_keyword(
         self,
@@ -65,6 +68,9 @@ class TestClassifierOrchestrator:
         mock_keyword_classifier.classify.assert_called_once_with("Spent 45 EUR")
         mock_llm_classifier.classify.assert_not_called()
 
+    @pytest.mark.skip(
+        reason="Keyword routing removed in Phase 1, will be updated in Phase 3 (T007)"
+    )
     @pytest.mark.asyncio
     async def test_low_confidence_uses_llm(
         self,
@@ -102,6 +108,9 @@ class TestClassifierOrchestrator:
         mock_keyword_classifier.classify.assert_called_once()
         mock_llm_classifier.classify.assert_called_once_with("ambiguous input")
 
+    @pytest.mark.skip(
+        reason="Keyword routing removed in Phase 1, will be updated in Phase 3 (T007)"
+    )
     @pytest.mark.asyncio
     async def test_llm_timeout_fallback_to_keyword(
         self,
@@ -131,6 +140,9 @@ class TestClassifierOrchestrator:
         assert result.classifier_source == "keyword"
         mock_llm_classifier.classify.assert_called_once()
 
+    @pytest.mark.skip(
+        reason="Keyword routing removed in Phase 1, will be updated in Phase 3 (T007)"
+    )
     @pytest.mark.asyncio
     async def test_llm_rate_limit_fallback_to_keyword(
         self,
@@ -160,6 +172,9 @@ class TestClassifierOrchestrator:
         assert result == keyword_result
         assert result.classifier_source == "keyword"
 
+    @pytest.mark.skip(
+        reason="Keyword routing removed in Phase 1, will be updated in Phase 3 (T007)"
+    )
     @pytest.mark.asyncio
     async def test_llm_auth_error_fallback_to_keyword(
         self,
@@ -188,6 +203,9 @@ class TestClassifierOrchestrator:
 
         assert result == keyword_result
 
+    @pytest.mark.skip(
+        reason="Keyword routing removed in Phase 1, will be updated in Phase 3 (T007)"
+    )
     @pytest.mark.asyncio
     async def test_llm_generic_error_fallback_to_keyword(
         self,
@@ -211,6 +229,9 @@ class TestClassifierOrchestrator:
 
         assert result == keyword_result
 
+    @pytest.mark.skip(
+        reason="Keyword routing removed in Phase 1, will be updated in Phase 3 (T007)"
+    )
     @pytest.mark.asyncio
     async def test_threshold_boundary_75_percent(
         self,

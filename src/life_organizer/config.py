@@ -1,13 +1,9 @@
 """Configuration management using Pydantic Settings."""
 
-import json
 from functools import lru_cache
-from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-from life_organizer.schemas.enums import Category
 
 
 class Settings(BaseSettings):
@@ -59,25 +55,3 @@ def get_settings() -> Settings:
     """
     # claude_api_key required, always set in .env
     return Settings()  # type: ignore[call-arg]
-
-
-def _load_keyword_config() -> dict[Category, dict[str, float | dict[str, float]]]:
-    """Load keyword configuration from JSON file.
-
-    Returns:
-        dict mapping Category to keyword configuration
-    """
-    config_path = Path(__file__).parent.parent.parent / "config" / "keyword_config.json"
-    with config_path.open() as f:
-        data = json.load(f)
-
-    return {
-        Category.BUDGET: data["expense"],
-        Category.SHOPPING: data["shopping"],
-        Category.REMINDER: data["reminder"],
-        Category.CALENDAR: data["calendar"],
-    }
-
-
-# Keyword-based classification configuration
-KEYWORD_CONFIG = _load_keyword_config()
