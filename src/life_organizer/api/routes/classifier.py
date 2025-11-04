@@ -18,7 +18,7 @@ keyword_classifier = KeywordClassifier(keyword_config=KEYWORD_CONFIG)
 claude_classifier = ClaudeClassifier(api_key=settings.claude_api_key)
 
 # Initialize orchestrator
-classifier = ClassifierOrchestrator(
+orchestrator = ClassifierOrchestrator(
     keyword_classifier=keyword_classifier,
     llm_classifier=claude_classifier,
 )
@@ -67,7 +67,7 @@ async def process_input(request: ClassifyRequest) -> ActionResult:
             raise HTTPException(status_code=422, detail="Input cannot be empty or whitespace only")
 
         # Classify the input using orchestrator
-        classified = await classifier.classify(request.input)
+        classified = await orchestrator.classify(request.input)
 
         # Find appropriate handler
         handler = get_handler(classified)

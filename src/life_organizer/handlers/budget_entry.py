@@ -1,9 +1,11 @@
 """Budget entry handler for expenses, income, and savings transactions."""
 
+import json
 import logging
 import re
 from datetime import datetime, timedelta
-from typing import Any, Literal
+from pathlib import Path
+from typing import Literal
 
 from dateutil import parser as date_parser
 
@@ -33,60 +35,137 @@ CURRENCY_MAP = {
     "leva": "BGN",
 }
 
+
+def _load_merchant_category_map() -> dict[str, str]:
+    """Load merchant to category mapping from JSON file.
+
+    Returns:
+        dict mapping merchant names to budget categories
+    """
+    config_path = (
+        Path(__file__).parent.parent.parent.parent / "config" / "merchant_category_map.json"
+    )
+    with config_path.open() as f:
+        return json.load(f)  # type: ignore[no-any-return]
+
+
+def _load_transaction_type_keywords() -> dict[str, list[str]]:
+    """Load transaction type keywords from JSON file.
+
+    Returns:
+        dict with 'income' and 'savings' keyword lists
+    """
+    config_path = (
+        Path(__file__).parent.parent.parent.parent / "config" / "transaction_type_keywords.json"
+    )
+    with config_path.open() as f:
+        return json.load(f)  # type: ignore[no-any-return]
+
+
 # Merchant to category mapping (high-confidence keyword matches)
-MERCHANT_CATEGORY_MAP = {
-    # Subscriptions
-    "spotify": "Subscriptions",
-    "netflix": "Subscriptions",
-    "youtube": "Subscriptions",
-    "apple music": "Subscriptions",
-    "amazon prime": "Subscriptions",
-    "hbo": "Subscriptions",
-    # Groceries
-    "billa": "Groceries",
-    "kaufland": "Groceries",
-    "lidl": "Groceries",
-    "fantastico": "Groceries",
-    "boliarci": "Groceries",
-    "metro": "Groceries",
-    "carrefour": "Groceries",
-    # Home improvements
-    "ikea": "Home improvements",
-    "baumax": "Home improvements",
-    "praktiker": "Home improvements",
-    # Clothing
-    "next": "Clothes",
-    "mango": "Clothes",
-    "reserved": "Clothes",
-    "zara": "Clothes",
-    "h&m": "Clothes",
-    "hm": "Clothes",
-    # Body care / Baby
-    "dm": "Body care",
-    "pharmacy": "Medical",
-    "apteka": "Medical",
-    # Utilities
-    "a1": "Utilities",
-    "vivacom": "Utilities",
-    "cez": "Utilities",
-    "toplofikatsiya": "Utilities",
-    # Savings
-    "metlife": "Metlife",
-    "ibkr": "Savings",
-    # Transport
-    "eko": "Transport",
-    "lukoil": "Transport",
-    "omv": "Transport",
-    "taxi": "Transport",
-    "uber": "Transport",
-    "bolt": "Transport",
-    # Eat out
-    "restaurant": "Eat out",
-    "cafe": "Eat out",
-    "coffee": "Eat out",
-    "banitsa": "Eat out",
-    "pizza": "Eat out",
-}
+MERCHANT_CATEGORY_MAP = _load_merchant_category_map()
+TRANSACTION_TYPE_KEYWORDS = _load_transaction_type_keywords()
+
+
+class BudgetEntryHandler(BaseHandler):
+    """Handler for budget entries (expenses, income, savings).
+
+    Processes natural language financial transactions, extracts structured data,
+    converts currencies, classifies transaction types and categories, and generates
+    app actions for iOS to populate the Excel budget sheet.
+
+    Handles:
+    - Expenses: "spent 120eur at next"
+    - Income: "received 250bgn rent"
+    - Savings: "saved 1220 in ibkr"
+    """
+
+    def can_handle(self, classified_input: ClassifiedInput) -> bool:
+        """Determine if this handler can process the input.
+
+        Args:
+            classified_input: Classified user input
+
+        Returns:
+            True if category is EXPENSE (used for all budget entries)
+        """
+        return classified_input.category == Category.EXPENSE
+
+    def requires_app_action(self) -> bool:
+        """Determine if this handler requires iOS app involvement.
+
+        Returns:
+            True (always delegates to iOS for Excel population)
+        """
+        return True
+
+    async def execute(self, classified_input: ClassifiedInput) -> ActionResult:
+        """Process budget entry and generate app action.
+
+        Args:
+            classified_input: Classified user input with extracted data
+
+        Returns:
+            ActionResult with LogBudgetEntryAction for iOS app
+        """
+        try:
+            # 1. Extract amount and currency
+            amount, currency = _extract_amount_currency(classified_input)
+
+            # 2. Convert to BGN
+            amount_bgn = _convert_to_bgn(amount, currency)
+
+            # 3. Classify transaction type
+            transaction_type = _classify_transaction_type(classified_input)
+
+            # 4. Classify category
+            category = await _classify_category(
+                classified_input,
+                transaction_type,
+            )
+
+            # 5. Parse date
+            date_iso = _parse_date(classified_input)
+
+            # 6. Extract details
+            details = _extract_details(classified_input)
+
+            # 7. Generate app action
+            action = LogBudgetEntryAction(
+                amount=amount_bgn,
+                date=date_iso,
+                transaction_type=transaction_type,
+                category=category,
+                details=details,
+            )
+
+            # 8. Return result
+            return ActionResult(
+                success=True,
+                action_type=ActionType.APP_ACTION_REQUIRED,
+                message=f"Logged {transaction_type.lower()}: {amount_bgn} BGN in {category}",
+                app_action=action,
+            )
+
+        except ValueError as e:
+            # Invalid amount or parsing error
+            return ActionResult(
+                success=False,
+                action_type=ActionType.CONFIRMATION_NEEDED,
+                message=f"Could not parse budget entry: {e!s}",
+            )
+
+        except Exception as e:
+            # Unexpected error
+            logger.exception("Budget entry handler error: %s", e)
+            return ActionResult(
+                success=False,
+                action_type=ActionType.CONFIRMATION_NEEDED,
+                message="An error occurred processing your budget entry",
+            )
+
+
+# Private helper functions
 
 
 def _extract_amount_currency(classified_input: ClassifiedInput) -> tuple[float, str]:
@@ -253,13 +332,11 @@ def _classify_transaction_type(classified_input: ClassifiedInput) -> Transaction
             return trans_type  # type: ignore[return-value]
 
     # Income keywords (highest priority)
-    income_keywords = ["received", "got", "earned", "salary", "rent", "income"]
-    if any(keyword in text for keyword in income_keywords):
+    if any(keyword in text for keyword in TRANSACTION_TYPE_KEYWORDS["income"]):
         return "Income"
 
     # Savings keywords
-    savings_keywords = ["saved", "invested", "saving", "deposit"]
-    if any(keyword in text for keyword in savings_keywords):
+    if any(keyword in text for keyword in TRANSACTION_TYPE_KEYWORDS["savings"]):
         return "Savings"
 
     # Default to Expenses
@@ -319,7 +396,6 @@ def _get_categories_for_type(transaction_type: str) -> list[str]:
 async def _classify_category(
     classified_input: ClassifiedInput,
     transaction_type: str,  # noqa: ARG001 - Will be used in Phase 2 for LLM fallback
-    claude_classifier: Any | None = None,  # noqa: ARG001 - Will be used in Phase 2
 ) -> str:
     """Classify budget category using hybrid approach.
 
@@ -328,7 +404,6 @@ async def _classify_category(
     Args:
         classified_input: Classified user input
         transaction_type: One of "Expenses", "Income", "Savings" (used for LLM fallback in Phase 2)
-        claude_classifier: Optional Claude classifier for LLM fallback (Phase 2 integration)
 
     Returns:
         Category name string
@@ -343,115 +418,8 @@ async def _classify_category(
         if merchant.lower() in details_lower:
             return category
 
-    # LLM fallback would go here (T007 will implement full handler with LLM integration)
+    # LLM fallback would go here (Phase 2 integration)
     # For Phase 1, we just fallback to "Other" for unmapped merchants
 
     # Fallback to "Other"
     return "Other"
-
-
-class BudgetEntryHandler(BaseHandler):
-    """Handler for budget entries (expenses, income, savings).
-
-    Processes natural language financial transactions, extracts structured data,
-    converts currencies, classifies transaction types and categories, and generates
-    app actions for iOS to populate the Excel budget sheet.
-
-    Handles:
-    - Expenses: "spent 120eur at next"
-    - Income: "received 250bgn rent"
-    - Savings: "saved 1220 in ibkr"
-    """
-
-    def __init__(self, claude_classifier: Any | None = None):
-        """Initialize budget entry handler.
-
-        Args:
-            claude_classifier: Optional Claude classifier for category classification
-        """
-        self.claude_classifier = claude_classifier
-
-    def can_handle(self, classified_input: ClassifiedInput) -> bool:
-        """Determine if this handler can process the input.
-
-        Args:
-            classified_input: Classified user input
-
-        Returns:
-            True if category is EXPENSE (used for all budget entries)
-        """
-        return classified_input.category == Category.EXPENSE
-
-    def requires_app_action(self) -> bool:
-        """Determine if this handler requires iOS app involvement.
-
-        Returns:
-            True (always delegates to iOS for Excel population)
-        """
-        return True
-
-    async def execute(self, classified_input: ClassifiedInput) -> ActionResult:
-        """Process budget entry and generate app action.
-
-        Args:
-            classified_input: Classified user input with extracted data
-
-        Returns:
-            ActionResult with LogBudgetEntryAction for iOS app
-        """
-        try:
-            # 1. Extract amount and currency
-            amount, currency = _extract_amount_currency(classified_input)
-
-            # 2. Convert to BGN
-            amount_bgn = _convert_to_bgn(amount, currency)
-
-            # 3. Classify transaction type
-            transaction_type = _classify_transaction_type(classified_input)
-
-            # 4. Classify category (async LLM fallback)
-            category = await _classify_category(
-                classified_input,
-                transaction_type,
-                self.claude_classifier,
-            )
-
-            # 5. Parse date
-            date_iso = _parse_date(classified_input)
-
-            # 6. Extract details
-            details = _extract_details(classified_input)
-
-            # 7. Generate app action
-            action = LogBudgetEntryAction(
-                amount=amount_bgn,
-                date=date_iso,
-                transaction_type=transaction_type,
-                category=category,
-                details=details,
-            )
-
-            # 8. Return result
-            return ActionResult(
-                success=True,
-                action_type=ActionType.APP_ACTION_REQUIRED,
-                message=f"Logged {transaction_type.lower()}: {amount_bgn} BGN in {category}",
-                app_action=action,
-            )
-
-        except ValueError as e:
-            # Invalid amount or parsing error
-            return ActionResult(
-                success=False,
-                action_type=ActionType.CONFIRMATION_NEEDED,
-                message=f"Could not parse budget entry: {e!s}",
-            )
-
-        except Exception as e:
-            # Unexpected error
-            logger.exception("Budget entry handler error: %s", e)
-            return ActionResult(
-                success=False,
-                action_type=ActionType.CONFIRMATION_NEEDED,
-                message="An error occurred processing your budget entry",
-            )
