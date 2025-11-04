@@ -22,6 +22,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "anthropic>=0.40.0",  # Added for Claude integration
     "tenacity>=8.0.0",  # Added for retry logic
+    "python-dateutil>=2.8.2",  # Added for date parsing
 ]
 
 [project.optional-dependencies]
@@ -33,6 +34,7 @@ dev = [
     "pytest-cov>=6.0.0",
     "pre-commit>=4.0.0",
     "httpx>=0.27.0",  # For testing FastAPI endpoints
+    "types-python-dateutil>=2.9.0",  # Type stubs for dateutil
 ]
 
 [build-system]
@@ -114,6 +116,11 @@ ignore_missing_imports = true
 # Tenacity library doesn't ship with type stubs yet
 [[tool.mypy.overrides]]
 module = "tenacity.*"
+ignore_missing_imports = true
+
+# Dateutil library type stubs
+[[tool.mypy.overrides]]
+module = "dateutil.*"
 ignore_missing_imports = true
 
 # Pytest Configuration

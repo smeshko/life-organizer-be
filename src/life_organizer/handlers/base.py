@@ -27,7 +27,7 @@ class BaseHandler(ABC):
             def requires_app_action(self) -> bool:
                 return False  # Backend handles entirely via Google Sheets
 
-            def execute(self, classified_input: ClassifiedInput) -> ActionResult:
+            async def execute(self, classified_input: ClassifiedInput) -> ActionResult:
                 # Log to Google Sheets
                 return ActionResult(
                     success=True,
@@ -59,7 +59,7 @@ class BaseHandler(ABC):
         pass
 
     @abstractmethod
-    def execute(self, classified_input: ClassifiedInput) -> ActionResult:
+    async def execute(self, classified_input: ClassifiedInput) -> ActionResult:
         """Process the classified input and return the result.
 
         Args:

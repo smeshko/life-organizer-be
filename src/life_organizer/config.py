@@ -1,6 +1,8 @@
 """Configuration management using Pydantic Settings."""
 
+import json
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -59,92 +61,23 @@ def get_settings() -> Settings:
     return Settings()  # type: ignore[call-arg]
 
 
+def _load_keyword_config() -> dict[Category, dict[str, float | dict[str, float]]]:
+    """Load keyword configuration from JSON file.
+
+    Returns:
+        dict mapping Category to keyword configuration
+    """
+    config_path = Path(__file__).parent.parent.parent / "config" / "keyword_config.json"
+    with config_path.open() as f:
+        data = json.load(f)
+
+    return {
+        Category.EXPENSE: data["expense"],
+        Category.SHOPPING: data["shopping"],
+        Category.REMINDER: data["reminder"],
+        Category.CALENDAR: data["calendar"],
+    }
+
+
 # Keyword-based classification configuration
-KEYWORD_CONFIG: dict[Category, dict[str, float | dict[str, float]]] = {
-    Category.EXPENSE: {
-        "keywords": {
-            # High confidence expense indicators
-            "spent": 1.0,
-            "paid": 1.0,
-            "cost": 0.9,
-            "purchased": 0.9,
-            "bought": 0.9,
-            "charge": 0.8,
-            "charged": 0.8,
-            # Currency indicators
-            "eur": 0.7,
-            "euro": 0.7,
-            "euros": 0.7,
-            "usd": 0.7,
-            "dollar": 0.7,
-            "dollars": 0.7,
-            "$": 0.7,
-            "€": 0.7,
-            # Merchant/context keywords
-            "restaurant": 0.6,
-            "cafe": 0.6,
-            "coffee": 0.5,
-            "gas": 0.5,
-            "grocery": 0.6,
-            "groceries": 0.6,
-            "supermarket": 0.6,
-            "amazon": 0.5,
-        }
-    },
-    Category.SHOPPING: {
-        "keywords": {
-            # High confidence shopping indicators
-            "need": 0.9,
-            "need to buy": 1.0,
-            "buy": 0.8,
-            "out of": 1.0,
-            "running low": 0.9,
-            "add to list": 1.0,
-            "add to the list": 1.0,
-            "shopping list": 1.0,
-            "grocery list": 1.0,
-            # Common items
-            "milk": 0.7,
-            "bread": 0.7,
-            "eggs": 0.7,
-            "coffee": 0.6,
-            "grocery": 0.7,
-            "groceries": 0.7,
-        }
-    },
-    Category.REMINDER: {
-        "keywords": {
-            # High confidence reminder indicators
-            "remind": 1.0,
-            "reminder": 1.0,
-            "don't forget": 1.0,
-            "remember to": 0.9,
-            "need to": 0.7,
-            # Actions that typically need reminders
-            "call": 0.8,
-            "pick up": 0.8,
-            "take out": 0.7,
-            "trash": 0.6,
-            "refill": 0.7,
-            "send": 0.6,
-            "email": 0.5,
-        }
-    },
-    Category.CALENDAR: {
-        "keywords": {
-            # High confidence calendar indicators
-            "meeting": 1.0,
-            "appointment": 1.0,
-            "schedule": 0.9,
-            "scheduled": 0.9,
-            "event": 0.8,
-            "calendar": 1.0,
-            # Time-based indicators
-            "at": 0.5,  # "meeting at 2pm"
-            "on": 0.5,  # "appointment on monday"
-            "tomorrow": 0.6,
-            "next week": 0.6,
-            "tonight": 0.6,
-        }
-    },
-}
+KEYWORD_CONFIG = _load_keyword_config()

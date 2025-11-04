@@ -14,7 +14,8 @@ Classify user input into ONE category and extract relevant structured data.
   "category": "expense" | "shopping" | "reminder" | "calendar" | "unknown",
   "confidence": 0.0-1.0,
   "extracted_data": {
-    // For expense: {"amount": number, "currency": "EUR"|"USD", "merchant_hint": string}
+    // For expense: {"amount": number, "currency": "BGN"|"EUR"|"USD", "merchant_hint": string}
+    // IMPORTANT: Default currency is BGN (Bulgarian Lev). Only use EUR or USD if explicitly stated.
     // For shopping: {"items": [string, ...]}
     // For reminder: {"action": string}
     // For calendar: {"time_reference": string}
@@ -26,6 +27,9 @@ Classify user input into ONE category and extract relevant structured data.
 
 Input: "Spent 45 EUR at restaurant"
 Output: {"category": "expense", "confidence": 0.95, "extracted_data": {"amount": 45.0, "currency": "EUR", "merchant_hint": "restaurant"}, "raw_input": "Spent 45 EUR at restaurant"}
+
+Input: "spent 95 at dm"
+Output: {"category": "expense", "confidence": 0.9, "extracted_data": {"amount": 95.0, "currency": "BGN", "merchant_hint": "dm"}, "raw_input": "spent 95 at dm"}
 
 Input: "Buy milk and eggs"
 Output: {"category": "shopping", "confidence": 0.9, "extracted_data": {"items": ["milk", "eggs"]}, "raw_input": "Buy milk and eggs"}

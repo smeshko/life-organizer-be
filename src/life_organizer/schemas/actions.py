@@ -79,5 +79,35 @@ class CreateCalendarEventAction(BaseAppAction):
     notes: str | None = Field(default=None, description="Additional notes")
 
 
+class LogBudgetEntryAction(BaseAppAction):
+    """Action to log a budget entry (expense/income/savings) in Excel sheet.
+
+    The iOS app receives this action and populates the budget tracking Excel sheet
+    with the transaction details. All amounts are in BGN after EUR conversion.
+
+    Attributes:
+        type: Always "log_budget_entry"
+        amount: Amount in BGN (after EUR conversion if needed)
+        date: Transaction date in ISO format (YYYY-MM-DD)
+        transaction_type: One of "Expenses", "Income", "Savings"
+        category: Budget category name (from predefined categories)
+        details: Optional merchant/description (e.g., "next", "dm", "ibkr")
+    """
+
+    type: Literal["log_budget_entry"] = "log_budget_entry"
+    amount: float = Field(..., description="Amount in BGN", gt=0)
+    date: str = Field(..., description="Date in ISO format (YYYY-MM-DD)")
+    transaction_type: Literal["Expenses", "Income", "Savings"] = Field(
+        ..., description="Type of transaction"
+    )
+    category: str = Field(..., description="Budget category name", min_length=1)
+    details: str | None = Field(default=None, description="Optional merchant/description")
+
+
 # Type alias for discriminated union
-AppAction = CreateReminderAction | AddToShoppingListAction | CreateCalendarEventAction
+AppAction = (
+    CreateReminderAction
+    | AddToShoppingListAction
+    | CreateCalendarEventAction
+    | LogBudgetEntryAction
+)
