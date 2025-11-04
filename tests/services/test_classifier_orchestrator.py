@@ -4,17 +4,11 @@ from unittest.mock import AsyncMock, Mock
 
 import anthropic
 import pytest
+from pydantic import ValidationError
 
 from life_organizer.schemas.classification import ClassifiedInput
 from life_organizer.schemas.enums import Category
 from life_organizer.services.classifier_orchestrator import ClassifierOrchestrator
-
-
-@pytest.fixture
-def mock_keyword_classifier() -> Mock:
-    """Create mocked KeywordClassifier."""
-    classifier = Mock()
-    return classifier
 
 
 @pytest.fixture
@@ -25,9 +19,7 @@ def mock_llm_classifier() -> AsyncMock:
 
 
 @pytest.fixture
-def orchestrator(
-    mock_keyword_classifier: Mock, mock_llm_classifier: AsyncMock
-) -> ClassifierOrchestrator:
+def orchestrator(mock_llm_classifier: AsyncMock) -> ClassifierOrchestrator:
     """Create orchestrator with mocked LLM classifier."""
     return ClassifierOrchestrator(
         llm_classifier=mock_llm_classifier,
@@ -35,130 +27,65 @@ def orchestrator(
 
 
 class TestClassifierOrchestrator:
-    """Test suite for ClassifierOrchestrator routing logic."""
+    """Test suite for ClassifierOrchestrator LLM-only routing."""
 
-    @pytest.mark.skip(
-        reason="Keyword routing removed in Phase 1, will be updated in Phase 3 (T007)"
-    )
     @pytest.mark.asyncio
-    async def test_high_confidence_uses_keyword(
+    async def test_successful_classification(
         self,
         orchestrator: ClassifierOrchestrator,
-        mock_keyword_classifier: Mock,
         mock_llm_classifier: AsyncMock,
     ) -> None:
-        """Test that high confidence (≥75%) uses keyword result without LLM."""
-        # Mock keyword result with high confidence
-        keyword_result = ClassifiedInput(
-            category=Category.BUDGET,
-            confidence=0.85,
-            extracted_data={"amount": 45.0},
-            raw_input="Spent 45 EUR",
-            classifier_source="keyword",
-        )
-        mock_keyword_classifier.classify.return_value = keyword_result
-
-        # Classify
-        result = await orchestrator.classify("Spent 45 EUR")
-
-        # Assertions
-        assert result == keyword_result
-        assert result.classifier_source == "keyword"
-        mock_keyword_classifier.classify.assert_called_once_with("Spent 45 EUR")
-        mock_llm_classifier.classify.assert_not_called()
-
-    @pytest.mark.skip(
-        reason="Keyword routing removed in Phase 1, will be updated in Phase 3 (T007)"
-    )
-    @pytest.mark.asyncio
-    async def test_low_confidence_uses_llm(
-        self,
-        orchestrator: ClassifierOrchestrator,
-        mock_keyword_classifier: Mock,
-        mock_llm_classifier: AsyncMock,
-    ) -> None:
-        """Test that low confidence (<75%) invokes LLM classifier."""
-        # Mock keyword result with low confidence
-        keyword_result = ClassifiedInput(
-            category=Category.UNKNOWN,
-            confidence=0.45,
-            extracted_data={},
-            raw_input="ambiguous input",
-            classifier_source="keyword",
-        )
-        mock_keyword_classifier.classify.return_value = keyword_result
-
+        """Test successful LLM classification."""
         # Mock LLM result
         llm_result = ClassifiedInput(
-            category=Category.REMINDER,
-            confidence=0.9,
-            extracted_data={"action": "check status"},
-            raw_input="ambiguous input",
+            category=Category.BUDGET,
+            confidence=0.95,
+            extracted_data={
+                "amount": 120.0,
+                "currency": "EUR",
+                "transaction_type": "Expenses",
+                "category": "Clothes",
+                "merchant": "next",
+                "date": "2025-11-04",
+            },
+            raw_input="spent 120eur at next",
             classifier_source="llm",
         )
         mock_llm_classifier.classify.return_value = llm_result
 
         # Classify
-        result = await orchestrator.classify("ambiguous input")
+        result = await orchestrator.classify("spent 120eur at next")
 
         # Assertions
         assert result == llm_result
+        assert result.category == Category.BUDGET
+        assert result.confidence == 0.95
         assert result.classifier_source == "llm"
-        mock_keyword_classifier.classify.assert_called_once()
-        mock_llm_classifier.classify.assert_called_once_with("ambiguous input")
+        mock_llm_classifier.classify.assert_called_once_with("spent 120eur at next")
 
-    @pytest.mark.skip(
-        reason="Keyword routing removed in Phase 1, will be updated in Phase 3 (T007)"
-    )
     @pytest.mark.asyncio
-    async def test_llm_timeout_fallback_to_keyword(
+    async def test_llm_api_error_propagates(
         self,
         orchestrator: ClassifierOrchestrator,
-        mock_keyword_classifier: Mock,
         mock_llm_classifier: AsyncMock,
     ) -> None:
-        """Test that LLM timeout falls back to keyword result."""
-        # Mock keyword result with low confidence
-        keyword_result = ClassifiedInput(
-            category=Category.UNKNOWN,
-            confidence=0.5,
-            extracted_data={},
-            raw_input="test input",
-            classifier_source="keyword",
-        )
-        mock_keyword_classifier.classify.return_value = keyword_result
-
-        # Mock LLM timeout
+        """Test that LLM API errors propagate (no fallback)."""
+        # Mock LLM API error
         mock_llm_classifier.classify.side_effect = anthropic.APITimeoutError("Request timed out")
 
-        # Classify
-        result = await orchestrator.classify("test input")
+        # Should raise the error instead of returning a result
+        with pytest.raises(anthropic.APITimeoutError):
+            await orchestrator.classify("test input")
 
-        # Should fallback to keyword result
-        assert result == keyword_result
-        assert result.classifier_source == "keyword"
         mock_llm_classifier.classify.assert_called_once()
 
-    @pytest.mark.skip(
-        reason="Keyword routing removed in Phase 1, will be updated in Phase 3 (T007)"
-    )
     @pytest.mark.asyncio
-    async def test_llm_rate_limit_fallback_to_keyword(
+    async def test_rate_limit_error_propagates(
         self,
         orchestrator: ClassifierOrchestrator,
-        mock_keyword_classifier: Mock,
         mock_llm_classifier: AsyncMock,
     ) -> None:
-        """Test that LLM rate limit error falls back to keyword result."""
-        keyword_result = ClassifiedInput(
-            category=Category.UNKNOWN,
-            confidence=0.6,
-            extracted_data={},
-            raw_input="test",
-            classifier_source="keyword",
-        )
-        mock_keyword_classifier.classify.return_value = keyword_result
-
+        """Test that rate limit errors propagate."""
         # Create mock response for rate limit error
         mock_response = Mock()
         mock_response.status_code = 429
@@ -166,122 +93,59 @@ class TestClassifierOrchestrator:
             message="Rate limit exceeded", response=mock_response, body={}
         )
 
-        result = await orchestrator.classify("test")
+        # Should raise the error
+        with pytest.raises(anthropic.RateLimitError):
+            await orchestrator.classify("test")
 
-        assert result == keyword_result
-        assert result.classifier_source == "keyword"
+        mock_llm_classifier.classify.assert_called_once()
 
-    @pytest.mark.skip(
-        reason="Keyword routing removed in Phase 1, will be updated in Phase 3 (T007)"
-    )
     @pytest.mark.asyncio
-    async def test_llm_auth_error_fallback_to_keyword(
+    async def test_validation_error_propagates(
         self,
         orchestrator: ClassifierOrchestrator,
-        mock_keyword_classifier: Mock,
         mock_llm_classifier: AsyncMock,
     ) -> None:
-        """Test that LLM authentication error falls back to keyword result."""
-        keyword_result = ClassifiedInput(
+        """Test that ValidationError from missing fields propagates."""
+        # Mock classifier raising ValidationError (from retry logic)
+        mock_llm_classifier.classify.side_effect = ValidationError.from_exception_data(
+            "ValidationError",
+            [
+                {
+                    "type": "missing",
+                    "loc": ("extracted_data", "amount"),
+                    "msg": "Field required",
+                    "input": {},
+                }
+            ],
+        )
+
+        # Should raise ValidationError
+        with pytest.raises(ValidationError):
+            await orchestrator.classify("incomplete input")
+
+        mock_llm_classifier.classify.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_unknown_category_classification(
+        self,
+        orchestrator: ClassifierOrchestrator,
+        mock_llm_classifier: AsyncMock,
+    ) -> None:
+        """Test classification returns UNKNOWN for unclear input."""
+        # Mock LLM returning UNKNOWN
+        unknown_result = ClassifiedInput(
             category=Category.UNKNOWN,
-            confidence=0.55,
+            confidence=0.2,
             extracted_data={},
-            raw_input="test",
-            classifier_source="keyword",
-        )
-        mock_keyword_classifier.classify.return_value = keyword_result
-
-        # Create mock response for auth error
-        mock_response = Mock()
-        mock_response.status_code = 401
-        mock_llm_classifier.classify.side_effect = anthropic.AuthenticationError(
-            message="Invalid API key", response=mock_response, body={}
-        )
-
-        result = await orchestrator.classify("test")
-
-        assert result == keyword_result
-
-    @pytest.mark.skip(
-        reason="Keyword routing removed in Phase 1, will be updated in Phase 3 (T007)"
-    )
-    @pytest.mark.asyncio
-    async def test_llm_generic_error_fallback_to_keyword(
-        self,
-        orchestrator: ClassifierOrchestrator,
-        mock_keyword_classifier: Mock,
-        mock_llm_classifier: AsyncMock,
-    ) -> None:
-        """Test that unexpected LLM errors fall back to keyword result."""
-        keyword_result = ClassifiedInput(
-            category=Category.UNKNOWN,
-            confidence=0.65,
-            extracted_data={},
-            raw_input="test",
-            classifier_source="keyword",
-        )
-        mock_keyword_classifier.classify.return_value = keyword_result
-
-        mock_llm_classifier.classify.side_effect = Exception("Unexpected error")
-
-        result = await orchestrator.classify("test")
-
-        assert result == keyword_result
-
-    @pytest.mark.skip(
-        reason="Keyword routing removed in Phase 1, will be updated in Phase 3 (T007)"
-    )
-    @pytest.mark.asyncio
-    async def test_threshold_boundary_75_percent(
-        self,
-        orchestrator: ClassifierOrchestrator,
-        mock_keyword_classifier: Mock,
-        mock_llm_classifier: AsyncMock,
-    ) -> None:
-        """Test exact 75% confidence threshold uses keyword (≥, not >)."""
-        keyword_result = ClassifiedInput(
-            category=Category.BUDGET,
-            confidence=0.75,  # Exactly 75%
-            extracted_data={},
-            raw_input="test",
-            classifier_source="keyword",
-        )
-        mock_keyword_classifier.classify.return_value = keyword_result
-
-        result = await orchestrator.classify("test")
-
-        # Should NOT invoke LLM at exactly 75%
-        assert result == keyword_result
-        mock_llm_classifier.classify.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_threshold_boundary_just_below_75(
-        self,
-        orchestrator: ClassifierOrchestrator,
-        mock_keyword_classifier: Mock,
-        mock_llm_classifier: AsyncMock,
-    ) -> None:
-        """Test just below 75% threshold invokes LLM."""
-        keyword_result = ClassifiedInput(
-            category=Category.UNKNOWN,
-            confidence=0.74,  # Just below threshold
-            extracted_data={},
-            raw_input="test",
-            classifier_source="keyword",
-        )
-        mock_keyword_classifier.classify.return_value = keyword_result
-
-        llm_result = ClassifiedInput(
-            category=Category.REMINDER,
-            confidence=0.88,
-            extracted_data={"action": "test"},
-            raw_input="test",
+            raw_input="gibberish xyz 123",
             classifier_source="llm",
         )
-        mock_llm_classifier.classify.return_value = llm_result
+        mock_llm_classifier.classify.return_value = unknown_result
 
-        result = await orchestrator.classify("test")
+        # Classify
+        result = await orchestrator.classify("gibberish xyz 123")
 
-        # Should invoke LLM just below 75%
-        assert result == llm_result
+        # Assertions
+        assert result.category == Category.UNKNOWN
+        assert result.confidence < 0.5
         mock_llm_classifier.classify.assert_called_once()
