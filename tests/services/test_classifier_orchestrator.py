@@ -28,9 +28,8 @@ def mock_llm_classifier() -> AsyncMock:
 def orchestrator(
     mock_keyword_classifier: Mock, mock_llm_classifier: AsyncMock
 ) -> ClassifierOrchestrator:
-    """Create orchestrator with mocked classifiers."""
+    """Create orchestrator with mocked LLM classifier."""
     return ClassifierOrchestrator(
-        keyword_classifier=None,  # Temporarily disabled in Phase 1
         llm_classifier=mock_llm_classifier,
     )
 
