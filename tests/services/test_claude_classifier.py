@@ -33,8 +33,8 @@ class TestClaudeClassifier:
     async def test_classify_expense_success(
         self, claude_classifier: ClaudeClassifier, mock_anthropic_client: AsyncMock
     ) -> None:
-        """Test successful expense classification with data extraction."""
-        # Mock successful API response
+        """Test successful budget classification with comprehensive data extraction."""
+        # Mock successful API response with all required fields
         mock_response = Mock()
         mock_response.content = [
             TextBlock(
@@ -46,7 +46,10 @@ class TestClaudeClassifier:
                         "extracted_data": {
                             "amount": 45.0,
                             "currency": "EUR",
-                            "merchant_hint": "restaurant",
+                            "transaction_type": "Expenses",
+                            "category": "Eat out",
+                            "merchant": "restaurant",
+                            "date": "2025-11-04",
                         },
                         "raw_input": "Spent 45 EUR at restaurant",
                     }
@@ -64,7 +67,10 @@ class TestClaudeClassifier:
         assert result.classifier_source == "llm"
         assert result.extracted_data["amount"] == 45.0
         assert result.extracted_data["currency"] == "EUR"
-        assert result.extracted_data["merchant_hint"] == "restaurant"
+        assert result.extracted_data["transaction_type"] == "Expenses"
+        assert result.extracted_data["category"] == "Eat out"
+        assert result.extracted_data["merchant"] == "restaurant"
+        assert result.extracted_data["date"] == "2025-11-04"
 
     @pytest.mark.asyncio
     async def test_classify_shopping_success(

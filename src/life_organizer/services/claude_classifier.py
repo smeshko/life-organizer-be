@@ -28,8 +28,8 @@ class ClaudeClassifier:
     LLM-based classifier using Anthropic Claude Haiku.
 
     Uses structured prompting to classify user input into categories
-    and extract structured data. Designed as fallback for low-confidence
-    keyword classifications.
+    and extract structured data. Includes validation and single-retry logic
+    for missing required fields.
     """
 
     def __init__(self, api_key: str, model: str = "claude-haiku-4-5") -> None:
@@ -44,14 +44,28 @@ class ClaudeClassifier:
         self.model = model
         logger.info(f"Initialized ClaudeClassifier with model: {model}")
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=1, max=5),
-        reraise=True,
-    )
-    async def classify(self, text: str) -> ClassifiedInput:
+    def _get_required_fields(self, category: Category) -> list[str]:
+        """Return required fields for each category.
+
+        Args:
+            category: The classification category
+
+        Returns:
+            List of required field names for the category
         """
-        Classify input text using Claude Haiku.
+        if category == Category.BUDGET:
+            return ["amount", "currency", "transaction_type", "category", "date"]
+        elif category == Category.SHOPPING:
+            return ["items"]
+        elif category == Category.REMINDER:
+            return ["action"]
+        elif category == Category.CALENDAR:
+            return ["time_reference"]
+        return []  # UNKNOWN has no required fields
+
+    async def _classify_internal(self, text: str) -> ClassifiedInput:
+        """
+        Internal classification logic without retry/validation.
 
         Args:
             text: User input to classify
@@ -125,10 +139,6 @@ class ClaudeClassifier:
 
             # Validate with Pydantic
             result = ClassifiedInput.model_validate(data)
-            logger.info(
-                f"Claude classified '{text[:50]}...' as {result.category} "
-                f"(confidence: {result.confidence:.2f})"
-            )
             return result
 
         except anthropic.APIError as e:
@@ -145,6 +155,73 @@ class ClaudeClassifier:
                 raw_input=text,
                 classifier_source="llm",
             )
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=5),
+        reraise=True,
+    )
+    async def classify(self, text: str) -> ClassifiedInput:
+        """
+        Classify input text using Claude Haiku with validation and single retry.
+
+        Validates that all required fields for the category are present in
+        extracted_data. If fields are missing, retries once with explicit
+        instructions. Raises ValidationError if fields still missing after retry.
+
+        Args:
+            text: User input to classify
+
+        Returns:
+            ClassifiedInput with category, confidence, and extracted data
+
+        Raises:
+            anthropic.APIError: On API communication errors
+            ValidationError: If required fields missing after retry
+        """
+        # First attempt
+        result = await self._classify_internal(text)
+
+        # Check for required fields (category-specific)
+        required = self._get_required_fields(result.category)
+        missing = [
+            f
+            for f in required
+            if f not in result.extracted_data or result.extracted_data[f] is None
+        ]
+
+        if missing:
+            logger.warning(
+                f"LLM classification missing required fields: {missing} for category {result.category}. "
+                f"Input: '{text[:50]}...'. Retrying once."
+            )
+
+            # Single retry with explicit prompt about missing fields
+            retry_prompt = (
+                f"{text}\n\nIMPORTANT: Extract these required fields: {', '.join(missing)}"
+            )
+            result = await self._classify_internal(retry_prompt)
+
+            # Check again after retry
+            missing_after_retry = [
+                f
+                for f in required
+                if f not in result.extracted_data or result.extracted_data[f] is None
+            ]
+            if missing_after_retry:
+                logger.error(
+                    f"LLM classification still missing fields after retry: {missing_after_retry}. "
+                    f"Input: '{text[:50]}...'"
+                )
+                raise ValidationError(
+                    f"Missing required fields after retry: {', '.join(missing_after_retry)}"
+                )
+
+        logger.info(
+            f"Claude classified '{text[:50]}...' as {result.category} "
+            f"(confidence: {result.confidence:.2f})"
+        )
+        return result
 
     def _normalize_category(self, category_str: str) -> Category:
         """Map LLM category string to Category enum."""
@@ -165,8 +242,18 @@ class ClaudeClassifier:
         """Ensure extracted_data has expected fields for category."""
         # Validate and add defaults for category-specific fields
         if category == Category.BUDGET:
+            # Validate critical fields exist (let retry logic handle missing fields)
             if "amount" not in extracted_data:
                 logger.warning("LLM returned BUDGET without amount field")
+            if "currency" not in extracted_data:
+                logger.warning("LLM returned BUDGET without currency field")
+            if "transaction_type" not in extracted_data:
+                logger.warning("LLM returned BUDGET without transaction_type field")
+            if "category" not in extracted_data:
+                logger.warning("LLM returned BUDGET without category field")
+            if "date" not in extracted_data:
+                logger.warning("LLM returned BUDGET without date field")
+
         elif category == Category.SHOPPING:
             if "items" not in extracted_data or not isinstance(extracted_data["items"], list):
                 logger.warning("LLM returned SHOPPING without items list, adding empty list")
