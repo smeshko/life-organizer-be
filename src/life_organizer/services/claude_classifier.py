@@ -213,8 +213,16 @@ class ClaudeClassifier:
                     f"LLM classification still missing fields after retry: {missing_after_retry}. "
                     f"Input: '{text[:50]}...'"
                 )
-                raise ValidationError(
-                    f"Missing required fields after retry: {', '.join(missing_after_retry)}"
+                raise ValidationError.from_exception_data(
+                    "ClaudeClassifier",
+                    [
+                        {
+                            "type": "missing",
+                            "loc": ("extracted_data", field),
+                            "input": result.model_dump(),
+                        }
+                        for field in missing_after_retry
+                    ],
                 )
 
         logger.info(
