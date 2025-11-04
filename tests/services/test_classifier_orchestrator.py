@@ -48,7 +48,7 @@ class TestClassifierOrchestrator:
         """Test that high confidence (≥75%) uses keyword result without LLM."""
         # Mock keyword result with high confidence
         keyword_result = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.85,
             extracted_data={"amount": 45.0},
             raw_input="Spent 45 EUR",
@@ -220,7 +220,7 @@ class TestClassifierOrchestrator:
     ) -> None:
         """Test exact 75% confidence threshold uses keyword (≥, not >)."""
         keyword_result = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.75,  # Exactly 75%
             extracted_data={},
             raw_input="test",

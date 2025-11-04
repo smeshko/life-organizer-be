@@ -19,7 +19,7 @@ class TestKeywordMatching:
     def test_single_expense_keyword_match(self, classifier: KeywordClassifier) -> None:
         """Test that a single expense keyword is matched correctly."""
         result = classifier.classify("I spent money today")
-        assert result.category == Category.EXPENSE
+        assert result.category == Category.BUDGET
         assert result.confidence > 0.0
 
     def test_multiple_keywords_increase_confidence(self, classifier: KeywordClassifier) -> None:
@@ -64,7 +64,7 @@ class TestConfidenceScoring:
         """Test high confidence for clear expense input."""
         result = classifier.classify("Spent 45 EUR at restaurant")
 
-        assert result.category == Category.EXPENSE
+        assert result.category == Category.BUDGET
         assert result.confidence > 0.75
 
     def test_high_confidence_clear_shopping(self, classifier: KeywordClassifier) -> None:
@@ -96,7 +96,7 @@ class TestConfidenceScoring:
             "spent paid purchased charged cost bought expense restaurant cafe grocery supermarket"
         )
 
-        assert result.category == Category.EXPENSE
+        assert result.category == Category.BUDGET
         assert result.confidence <= 1.0
 
 
@@ -114,7 +114,7 @@ class TestCategoryDetection:
 
         for input_text in inputs:
             result = classifier.classify(input_text)
-            assert result.category == Category.EXPENSE, f"Failed for: {input_text}"
+            assert result.category == Category.BUDGET, f"Failed for: {input_text}"
 
     def test_shopping_detection(self, classifier: KeywordClassifier) -> None:
         """Test shopping category detection."""
@@ -268,14 +268,14 @@ class TestEdgeCases:
         result = classifier.classify(long_input)
 
         # Should still classify correctly
-        assert result.category == Category.EXPENSE
+        assert result.category == Category.BUDGET
         assert result.confidence <= 1.0
 
     def test_special_characters(self, classifier: KeywordClassifier) -> None:
         """Test handling of special characters."""
         result = classifier.classify("Spent 45€ @restaurant!!! #food")
 
-        assert result.category == Category.EXPENSE
+        assert result.category == Category.BUDGET
         assert "amount" in result.extracted_data
 
     def test_mixed_language_input(self, classifier: KeywordClassifier) -> None:
@@ -284,7 +284,7 @@ class TestEdgeCases:
         result = classifier.classify("Gasté 45 EUR restaurant")
 
         # Should detect "EUR" and "restaurant"
-        assert result.category == Category.EXPENSE
+        assert result.category == Category.BUDGET
 
     def test_raw_input_preserved(self, classifier: KeywordClassifier) -> None:
         """Test that raw input is preserved exactly."""
@@ -303,7 +303,7 @@ class TestTieBreaking:
         # But "spent" is stronger for EXPENSE
         result = classifier.classify("spent money on coffee")
 
-        assert result.category == Category.EXPENSE
+        assert result.category == Category.BUDGET
 
     def test_clear_winner_when_multiple_matches(self, classifier: KeywordClassifier) -> None:
         """Test that clear winner is selected when multiple categories match."""
@@ -311,6 +311,6 @@ class TestTieBreaking:
 
         # Should have matches for both EXPENSE and SHOPPING
         # EXPENSE should win due to specific amount and currency
-        assert result.category == Category.EXPENSE or result.category == Category.SHOPPING
+        assert result.category == Category.BUDGET or result.category == Category.SHOPPING
         # At least one should have high confidence
         assert result.confidence > 0.5

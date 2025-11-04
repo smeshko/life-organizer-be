@@ -72,7 +72,7 @@ def _load_keyword_config() -> dict[Category, dict[str, float | dict[str, float]]
         data = json.load(f)
 
     return {
-        Category.EXPENSE: data["expense"],
+        Category.BUDGET: data["expense"],
         Category.SHOPPING: data["shopping"],
         Category.REMINDER: data["reminder"],
         Category.CALENDAR: data["calendar"],

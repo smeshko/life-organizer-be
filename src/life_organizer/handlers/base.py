@@ -22,7 +22,7 @@ class BaseHandler(ABC):
         ```python
         class ExpenseHandler(BaseHandler):
             def can_handle(self, classified_input: ClassifiedInput) -> bool:
-                return classified_input.category == Category.EXPENSE
+                return classified_input.category == Category.BUDGET
 
             def requires_app_action(self) -> bool:
                 return False  # Backend handles entirely via Google Sheets

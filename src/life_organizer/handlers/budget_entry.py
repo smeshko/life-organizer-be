@@ -87,9 +87,9 @@ class BudgetEntryHandler(BaseHandler):
             classified_input: Classified user input
 
         Returns:
-            True if category is EXPENSE (used for all budget entries)
+            True if category is BUDGET (used for all budget entries)
         """
-        return classified_input.category == Category.EXPENSE
+        return classified_input.category == Category.BUDGET
 
     def requires_app_action(self) -> bool:
         """Determine if this handler requires iOS app involvement.

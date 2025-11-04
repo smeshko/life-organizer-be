@@ -45,7 +45,7 @@ class KeywordClassifier:
 
         # Calculate scores for each category
         category_scores: dict[Category, float] = {}
-        for category in [Category.EXPENSE, Category.SHOPPING, Category.REMINDER, Category.CALENDAR]:
+        for category in [Category.BUDGET, Category.SHOPPING, Category.REMINDER, Category.CALENDAR]:
             score = self._match_keywords(normalized_input, category)
             if score > 0:
                 category_scores[category] = score
@@ -168,7 +168,7 @@ class KeywordClassifier:
         """
         data: dict[str, object] = {}
 
-        if category == Category.EXPENSE:
+        if category == Category.BUDGET:
             # Extract amount and currency
             amount_match = re.search(r"(\d+(?:[.,]\d{1,2})?)\s*(eur|euro|usd|dollar|€|\$)?", text)
             if amount_match:

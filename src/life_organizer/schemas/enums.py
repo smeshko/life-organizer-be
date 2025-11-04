@@ -21,14 +21,14 @@ class Category(StrEnum):
     """Categories of user input that the classification engine can identify.
 
     Attributes:
-        EXPENSE: Financial expense logging
+        BUDGET: Financial budget tracking (expenses, income, savings)
         SHOPPING: Shopping list items
         REMINDER: Time-based reminders
         CALENDAR: Calendar events
         UNKNOWN: Could not classify input
     """
 
-    EXPENSE = "expense"
+    BUDGET = "budget"
     SHOPPING = "shopping"
     REMINDER = "reminder"
     CALENDAR = "calendar"

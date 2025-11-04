@@ -93,7 +93,7 @@ class TestConcreteHandlerImplementation:
 
         class ExpenseHandler(BaseHandler):
             def can_handle(self, classified_input: ClassifiedInput) -> bool:
-                return classified_input.category == Category.EXPENSE
+                return classified_input.category == Category.BUDGET
 
             def requires_app_action(self) -> bool:
                 return False
@@ -109,7 +109,7 @@ class TestConcreteHandlerImplementation:
 
         # Should handle expense category
         expense_input = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.9,
             raw_input="Spent $20 on lunch",
             classifier_source="keyword",
@@ -144,7 +144,7 @@ class TestConcreteHandlerImplementation:
 
         handler = TestHandler()
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.8,
             raw_input="Test input",
             classifier_source="keyword",

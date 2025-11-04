@@ -23,7 +23,7 @@ class TestBudgetEntryHandlerCommonPatterns:
     async def test_next_clothing_purchase(self):
         """Test: spent 120eur at next"""
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.9,
             extracted_data={"amount": 120.0, "currency": "EUR"},
             raw_input="spent 120eur at next",
@@ -45,7 +45,7 @@ class TestBudgetEntryHandlerCommonPatterns:
     async def test_dm_body_care_bgn(self):
         """Test: spent 95bgn at dm"""
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.9,
             extracted_data={"amount": 95.0, "currency": "BGN"},
             raw_input="spent 95bgn at dm",
@@ -65,7 +65,7 @@ class TestBudgetEntryHandlerCommonPatterns:
     async def test_billa_groceries(self):
         """Test: 120 billa"""
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.85,
             extracted_data={},
             raw_input="120 billa",
@@ -84,7 +84,7 @@ class TestBudgetEntryHandlerCommonPatterns:
     async def test_coffee_eat_out(self):
         """Test: coffee 7"""
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.8,
             extracted_data={},
             raw_input="coffee 7",
@@ -103,7 +103,7 @@ class TestBudgetEntryHandlerCommonPatterns:
     async def test_banitsa_eat_out(self):
         """Test: 7 for banitsa"""
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.8,
             extracted_data={},
             raw_input="7 for banitsa",
@@ -125,7 +125,7 @@ class TestBudgetEntryHandlerCommonPatterns:
     async def test_income_rent(self):
         """Test: received 250bgn rent"""
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.9,
             extracted_data={},
             raw_input="received 250bgn rent",
@@ -144,7 +144,7 @@ class TestBudgetEntryHandlerCommonPatterns:
     async def test_savings_ibkr(self):
         """Test: saved 1220 in ibkr"""
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.9,
             extracted_data={},
             raw_input="saved 1220 in ibkr",
@@ -186,7 +186,7 @@ class TestTransactionTypeClassification:
     def test_income_keywords(self):
         """Test income keyword detection."""
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.9,
             extracted_data={},
             raw_input="received 250bgn rent",
@@ -197,7 +197,7 @@ class TestTransactionTypeClassification:
     def test_savings_keywords(self):
         """Test savings keyword detection."""
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.9,
             extracted_data={},
             raw_input="saved 1220 in ibkr",
@@ -208,7 +208,7 @@ class TestTransactionTypeClassification:
     def test_expense_default(self):
         """Test expense is the default."""
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.9,
             extracted_data={},
             raw_input="spent 120 at next",
@@ -223,7 +223,7 @@ class TestDateParsing:
     def test_yesterday(self):
         """Test: yesterday"""
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.9,
             extracted_data={},
             raw_input="spent 95 at dm yesterday",
@@ -235,7 +235,7 @@ class TestDateParsing:
     def test_today_default(self):
         """Test: no date mentioned defaults to today"""
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.9,
             extracted_data={},
             raw_input="spent 120eur at next",
@@ -247,7 +247,7 @@ class TestDateParsing:
     def test_avoids_year_7_bug(self):
         """Test: '7 for banitsa' doesn't parse as year 7"""
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.9,
             extracted_data={},
             raw_input="7 for banitsa",
@@ -261,7 +261,7 @@ class TestDateParsing:
     def test_avoids_year_1220_bug(self):
         """Test: 'saved 1220 in ibkr' doesn't parse as year 1220"""
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.9,
             extracted_data={},
             raw_input="saved 1220 in ibkr",
@@ -279,7 +279,7 @@ class TestAmountExtraction:
     def test_extract_from_extracted_data(self):
         """Test: amount from extracted_data"""
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.9,
             extracted_data={"amount": 120.0, "currency": "EUR"},
             raw_input="spent 120eur at next",
@@ -292,7 +292,7 @@ class TestAmountExtraction:
     def test_extract_from_raw_input_eur(self):
         """Test: extract from raw input with EUR"""
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.9,
             extracted_data={},
             raw_input="spent 120eur at next",
@@ -305,7 +305,7 @@ class TestAmountExtraction:
     def test_extract_from_raw_input_bgn(self):
         """Test: extract from raw input with BGN"""
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.9,
             extracted_data={},
             raw_input="95bgn at dm",
@@ -318,7 +318,7 @@ class TestAmountExtraction:
     def test_default_to_bgn(self):
         """Test: no currency specified defaults to BGN"""
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.9,
             extracted_data={},
             raw_input="120 billa",
@@ -335,7 +335,7 @@ class TestDetailsExtraction:
     def test_extract_merchant(self):
         """Test: extract merchant name"""
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.9,
             extracted_data={},
             raw_input="spent 120eur at next",
@@ -347,7 +347,7 @@ class TestDetailsExtraction:
     def test_extract_with_context(self):
         """Test: extract with context words"""
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.9,
             extracted_data={},
             raw_input="7 for banitsa",
@@ -363,7 +363,7 @@ class TestHandlerIntegration:
     def test_can_handle_expense_category(self):
         """Test: can handle EXPENSE category"""
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.9,
             extracted_data={},
             raw_input="spent 120eur at next",
@@ -393,7 +393,7 @@ class TestHandlerIntegration:
     async def test_error_handling_invalid_amount(self):
         """Test: handles invalid amount gracefully"""
         classified = ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=0.9,
             extracted_data={},
             raw_input="no amount here",

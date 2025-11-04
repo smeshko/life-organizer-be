@@ -31,7 +31,7 @@ class ExpenseDummyHandler(BaseHandler):
 
     def can_handle(self, classified_input: ClassifiedInput) -> bool:
         """Handle EXPENSE category inputs."""
-        return classified_input.category == Category.EXPENSE
+        return classified_input.category == Category.BUDGET
 
     def requires_app_action(self) -> bool:
         """This handler is backend-only."""
