@@ -1,12 +1,8 @@
-"""Orchestrator for routing classification requests to keyword or LLM classifiers."""
+"""Orchestrator for routing classification requests to LLM classifier."""
 
 import logging
 
-import anthropic
-
 from life_organizer.schemas.classification import ClassifiedInput
-
-# from life_organizer.services.classifier import KeywordClassifier  # Removed in Phase 1
 from life_organizer.services.claude_classifier import ClaudeClassifier
 
 logger = logging.getLogger(__name__)
@@ -14,58 +10,47 @@ logger = logging.getLogger(__name__)
 
 class ClassifierOrchestrator:
     """
-    Routes classification requests to appropriate classifier based on confidence.
+    Orchestrates classification routing to LLM classifier.
 
-    Strategy: Try keyword classifier first (fast, deterministic). If confidence
-    is below threshold, invoke LLM classifier for more accurate result. On LLM
-    failure, gracefully fallback to keyword result.
+    Routes all classification requests directly to the LLM classifier with
+    comprehensive extraction and validation. Provides a consistent interface
+    for potential future enhancements (e.g., category-specific classifiers).
     """
-
-    CONFIDENCE_THRESHOLD = 0.75
 
     def __init__(
         self,
-        keyword_classifier: object | None,  # Temporarily accepting None until Phase 2
         llm_classifier: ClaudeClassifier,
     ) -> None:
         """
-        Initialize orchestrator with classifier instances.
+        Initialize orchestrator with LLM classifier.
 
         Args:
-            keyword_classifier: Fast keyword-based classifier (temporarily disabled)
-            llm_classifier: Accurate LLM-based classifier
+            llm_classifier: Claude-based classifier for all classification requests
         """
-        self.keyword_classifier = keyword_classifier  # Will be removed in Phase 2
         self.llm_classifier = llm_classifier
-        logger.info(
-            f"Initialized ClassifierOrchestrator with threshold: {self.CONFIDENCE_THRESHOLD}"
-        )
+        logger.info("ClassifierOrchestrator initialized with LLM classifier")
 
     async def classify(self, text: str) -> ClassifiedInput:
         """
-        Classify input using LLM classifier.
-
-        Temporarily routes directly to LLM. Full refactoring in Phase 2.
+        Classify user input using LLM classifier.
 
         Args:
-            text: User input to classify
+            text: Raw user input to classify
 
         Returns:
-            ClassifiedInput with category, confidence, and classifier source
+            ClassifiedInput with category, confidence, and extracted data
+
+        Raises:
+            anthropic.APIError: If LLM API fails
+            ValidationError: If required fields missing after retry
         """
-        # Temporarily route directly to LLM - will be properly refactored in Phase 2
-        try:
-            llm_result = await self.llm_classifier.classify(text)
-            logger.info(
-                f"LLM classifier succeeded with confidence {llm_result.confidence:.2f} "
-                f"for '{text[:50]}...'"
-            )
-            return llm_result
+        logger.info(f"Classifying input: '{text[:50]}...'")
 
-        except anthropic.APIError as e:
-            logger.error(f"LLM classifier API error ({type(e).__name__}: {e})")
-            raise
+        # Route directly to LLM classifier
+        result = await self.llm_classifier.classify(text)
 
-        except (ValueError, TypeError, RuntimeError, Exception) as e:
-            logger.error(f"Unexpected error in LLM classifier ({type(e).__name__}: {e})")
-            raise
+        logger.info(
+            f"Classification complete: {result.category} (confidence: {result.confidence:.2f})"
+        )
+
+        return result

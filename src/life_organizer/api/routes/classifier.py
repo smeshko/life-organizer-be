@@ -15,10 +15,8 @@ router = APIRouter()
 settings = get_settings()
 claude_classifier = ClaudeClassifier(api_key=settings.claude_api_key)
 
-# Initialize orchestrator
-# Note: keyword_classifier parameter temporarily accepts None, will be removed in Phase 2
+# Initialize orchestrator with LLM classifier
 orchestrator = ClassifierOrchestrator(
-    keyword_classifier=None,  # Temporarily disabled
     llm_classifier=claude_classifier,
 )
 

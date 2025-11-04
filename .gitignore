@@ -91,3 +91,4 @@ Thumbs.db
 .worktrees/
 .vscode/
 docs/planning/work/*
+.linear
