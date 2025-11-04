@@ -10,7 +10,7 @@ Example:
     ```python
     from life_organizer.handlers import get_handler
 
-    classified = ClassifiedInput(category=Category.EXPENSE, ...)
+    classified = ClassifiedInput(category=Category.BUDGET, ...)
     handler = get_handler(classified)
     if handler:
         result = handler.execute(classified)

@@ -17,7 +17,7 @@ class TestHandlerRegistry:
 
         try:
             classified = ClassifiedInput(
-                category=Category.EXPENSE,
+                category=Category.BUDGET,
                 confidence=0.9,
                 raw_input="Spent $20 on lunch",
                 classifier_source="keyword",
@@ -70,7 +70,7 @@ class TestHandlerRegistry:
 
             # Create input that doesn't match (EXPENSE category)
             classified = ClassifiedInput(
-                category=Category.EXPENSE,
+                category=Category.BUDGET,
                 confidence=0.9,
                 raw_input="Spent $20",
                 classifier_source="keyword",
@@ -98,7 +98,7 @@ class TestHandlerRegistry:
 
             # Create EXPENSE input
             classified = ClassifiedInput(
-                category=Category.EXPENSE,
+                category=Category.BUDGET,
                 confidence=0.9,
                 raw_input="Spent $20",
                 classifier_source="keyword",
@@ -139,7 +139,7 @@ class TestHandlerRegistry:
 
             # Test EXPENSE category
             expense_input = ClassifiedInput(
-                category=Category.EXPENSE,
+                category=Category.BUDGET,
                 confidence=0.9,
                 raw_input="Spent $20",
                 classifier_source="keyword",

@@ -2,11 +2,10 @@
 
 from fastapi import APIRouter, HTTPException
 
-from life_organizer.config import KEYWORD_CONFIG, get_settings
+from life_organizer.config import get_settings
 from life_organizer.handlers import get_handler
 from life_organizer.schemas.requests import ClassifyRequest
 from life_organizer.schemas.responses import ActionResult
-from life_organizer.services.classifier import KeywordClassifier
 from life_organizer.services.classifier_orchestrator import ClassifierOrchestrator
 from life_organizer.services.claude_classifier import ClaudeClassifier
 
@@ -14,12 +13,12 @@ router = APIRouter()
 
 # Initialize classifiers
 settings = get_settings()
-keyword_classifier = KeywordClassifier(keyword_config=KEYWORD_CONFIG)
 claude_classifier = ClaudeClassifier(api_key=settings.claude_api_key)
 
 # Initialize orchestrator
+# Note: keyword_classifier parameter temporarily accepts None, will be removed in Phase 2
 orchestrator = ClassifierOrchestrator(
-    keyword_classifier=keyword_classifier,
+    keyword_classifier=None,  # Temporarily disabled
     llm_classifier=claude_classifier,
 )
 

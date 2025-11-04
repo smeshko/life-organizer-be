@@ -41,7 +41,7 @@ class TestClaudeClassifier:
                 type="text",
                 text=json.dumps(
                     {
-                        "category": "expense",
+                        "category": "budget",
                         "confidence": 0.95,
                         "extracted_data": {
                             "amount": 45.0,
@@ -59,7 +59,7 @@ class TestClaudeClassifier:
         result = await claude_classifier.classify("Spent 45 EUR at restaurant")
 
         # Assertions
-        assert result.category == Category.EXPENSE
+        assert result.category == Category.BUDGET
         assert result.confidence == 0.95
         assert result.classifier_source == "llm"
         assert result.extracted_data["amount"] == 45.0

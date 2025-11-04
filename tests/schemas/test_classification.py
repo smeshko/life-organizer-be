@@ -10,14 +10,14 @@ from life_organizer.schemas.enums import Category
 def test_valid_classification_with_extracted_data():
     """Test ClassifiedInput with valid data including extracted_data."""
     classified = ClassifiedInput(
-        category=Category.EXPENSE,
+        category=Category.BUDGET,
         confidence=0.95,
         extracted_data={"amount": 45, "currency": "EUR", "category": "restaurant"},
         raw_input="Spent 45 euros at restaurant",
         classifier_source="keyword",
     )
 
-    assert classified.category == Category.EXPENSE
+    assert classified.category == Category.BUDGET
     assert classified.confidence == 0.95
     assert classified.extracted_data == {
         "amount": 45,
@@ -93,7 +93,7 @@ def test_confidence_minimum_valid():
 def test_confidence_maximum_valid():
     """Test confidence at maximum valid value (1.0)."""
     classified = ClassifiedInput(
-        category=Category.EXPENSE,
+        category=Category.BUDGET,
         confidence=1.0,
         raw_input="Clear expense",
         classifier_source="keyword",
@@ -106,7 +106,7 @@ def test_confidence_below_minimum():
     """Test validation error for confidence below 0.0."""
     with pytest.raises(ValidationError) as exc_info:
         ClassifiedInput(
-            category=Category.EXPENSE,
+            category=Category.BUDGET,
             confidence=-0.1,
             raw_input="Test",
             classifier_source="keyword",
@@ -122,7 +122,7 @@ def test_confidence_above_maximum():
     """Test validation error for confidence above 1.0."""
     with pytest.raises(ValidationError) as exc_info:
         ClassifiedInput(
-            category=Category.EXPENSE, confidence=1.5, raw_input="Test", classifier_source="keyword"
+            category=Category.BUDGET, confidence=1.5, raw_input="Test", classifier_source="keyword"
         )
 
     errors = exc_info.value.errors()
@@ -146,7 +146,7 @@ def test_missing_confidence():
     """Test validation error when confidence is missing."""
     with pytest.raises(ValidationError) as exc_info:
         ClassifiedInput(
-            category=Category.EXPENSE, raw_input="Test input", classifier_source="keyword"
+            category=Category.BUDGET, raw_input="Test input", classifier_source="keyword"
         )
 
     errors = exc_info.value.errors()
@@ -158,7 +158,7 @@ def test_missing_confidence():
 def test_missing_raw_input():
     """Test validation error when raw_input is missing."""
     with pytest.raises(ValidationError) as exc_info:
-        ClassifiedInput(category=Category.EXPENSE, confidence=0.9, classifier_source="keyword")
+        ClassifiedInput(category=Category.BUDGET, confidence=0.9, classifier_source="keyword")
 
     errors = exc_info.value.errors()
     assert len(errors) == 1

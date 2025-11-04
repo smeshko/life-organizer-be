@@ -149,7 +149,7 @@ class ClaudeClassifier:
     def _normalize_category(self, category_str: str) -> Category:
         """Map LLM category string to Category enum."""
         category_map = {
-            "expense": Category.EXPENSE,
+            "budget": Category.BUDGET,
             "shopping": Category.SHOPPING,
             "reminder": Category.REMINDER,
             "calendar": Category.CALENDAR,
@@ -164,9 +164,9 @@ class ClaudeClassifier:
     ) -> dict[str, Any]:
         """Ensure extracted_data has expected fields for category."""
         # Validate and add defaults for category-specific fields
-        if category == Category.EXPENSE:
+        if category == Category.BUDGET:
             if "amount" not in extracted_data:
-                logger.warning("LLM returned EXPENSE without amount field")
+                logger.warning("LLM returned BUDGET without amount field")
         elif category == Category.SHOPPING:
             if "items" not in extracted_data or not isinstance(extracted_data["items"], list):
                 logger.warning("LLM returned SHOPPING without items list, adding empty list")
