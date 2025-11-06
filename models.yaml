@@ -1,0 +1,544 @@
+# Life Organizer Backend - Data Models Reference
+# This file contains all public data models/schemas for iOS app integration
+# Follow these models exactly when implementing API communication in Swift
+
+# =============================================================================
+# ENUMS
+# =============================================================================
+
+ActionType:
+  type: enum
+  values:
+    - backend_handled      # Action was completed by backend
+    - app_action_required  # iOS app needs to perform an action
+    - confirmation_needed  # User needs to clarify ambiguous input
+  description: |
+    Determines what the iOS app should do with the response:
+    - backend_handled: Just show the success message
+    - app_action_required: Parse app_action and execute it (create reminder, add to list, etc.)
+    - confirmation_needed: Show confirmation dialog with options
+
+Category:
+  type: enum
+  values:
+    - budget    # Financial transactions
+    - shopping  # Shopping list items
+    - reminder  # Time-based reminders
+    - calendar  # Calendar events
+    - unknown   # Could not classify
+  description: Input classification category
+
+ExpenseCategory:
+  type: enum
+  values:
+    - Baby
+    - Body care
+    - Clothes
+    - Eat out
+    - Fun
+    - Groceries
+    - Hobbies
+    - Home improvements
+    - Maya
+    - Medical
+    - Mortgage
+    - Other
+    - Subscriptions
+    - Transport
+    - Utilities
+    - Vacation
+  description: Expense categories for budget tracking (16 total)
+
+IncomeCategory:
+  type: enum
+  values:
+    - Salary Ivo
+    - Salary Kalina
+    - Rent
+    - Other
+  description: Income categories for budget tracking (4 total)
+
+SavingsCategory:
+  type: enum
+  values:
+    - Avi Savings
+    - Metlife
+    - Savings
+  description: Savings categories for budget tracking (3 total)
+
+TransactionType:
+  type: enum
+  values:
+    - Expenses
+    - Income
+    - Savings
+  description: Type of budget transaction
+
+# =============================================================================
+# REQUEST MODELS
+# =============================================================================
+
+ClassifyRequest:
+  description: Primary request model for processing user input
+  required:
+    - input
+  properties:
+    input:
+      type: string
+      minLength: 1
+      maxLength: 1000
+      description: Text input to classify (voice transcription or typed text)
+      examples:
+        - "spent 120eur at next"
+        - "remind me to buy milk tomorrow at 9am"
+        - "add bananas to shopping list"
+
+ProcessInputRequest:
+  description: Extended request with user context (for future use)
+  required:
+    - user_id
+    - input
+    - timestamp
+  properties:
+    user_id:
+      type: string
+      minLength: 1
+      description: Family member identifier
+      example: "family_member_123"
+    input:
+      type: string
+      minLength: 1
+      description: Voice or text input from user
+      example: "Spent 45 euros at restaurant"
+    timestamp:
+      type: string
+      format: date-time
+      description: When the input was captured (ISO 8601)
+      example: "2025-11-06T14:30:00Z"
+
+# =============================================================================
+# RESPONSE MODELS
+# =============================================================================
+
+ActionResult:
+  description: |
+    Main response model returned from /api/v1/process endpoint.
+    Check action_type to determine how to handle the response.
+  required:
+    - success
+    - action_type
+    - message
+  properties:
+    success:
+      type: boolean
+      description: Whether the action was successful
+    action_type:
+      type: ActionType
+      description: Determines which optional field to check
+    message:
+      type: string
+      description: Human-readable message to display to user
+      examples:
+        - "Logged expenses: 234.6 BGN in Clothes"
+        - "Reminder created: Buy milk"
+        - "Added to shopping list: bananas"
+    app_action:
+      type: AppAction (discriminated union)
+      nullable: true
+      description: |
+        Only present when action_type == "app_action_required"
+        Check the 'type' field to determine which action to perform
+      oneOf:
+        - CreateReminderAction
+        - AddToShoppingListAction
+        - CreateCalendarEventAction
+        - LogBudgetEntryAction
+    confirmation:
+      type: ConfirmationData
+      nullable: true
+      description: Only present when action_type == "confirmation_needed"
+
+ConfirmationData:
+  description: Request for user clarification when input is ambiguous
+  required:
+    - question
+    - options
+    - original_classification
+    - confidence
+  properties:
+    question:
+      type: string
+      description: Question to ask the user
+      example: "What did you mean by that?"
+    options:
+      type: array[string]
+      minItems: 2
+      description: List of choices to present to user
+      example: ["expense", "income", "reminder"]
+    original_classification:
+      type: string
+      description: System's best guess
+      example: "budget"
+    confidence:
+      type: number
+      minimum: 0.0
+      maximum: 1.0
+      description: How confident the system was (0-1)
+      example: 0.45
+
+# =============================================================================
+# APP ACTION MODELS (Discriminated Union)
+# =============================================================================
+# All app actions have a 'type' field that determines which action it is.
+# Parse the type field first, then decode the rest of the fields accordingly.
+
+CreateReminderAction:
+  description: Create a reminder in iOS Reminders app
+  required:
+    - type
+    - title
+  properties:
+    type:
+      type: string
+      constant: "create_reminder"
+    title:
+      type: string
+      minLength: 1
+      description: Reminder title
+      example: "Buy milk"
+    due_date:
+      type: string
+      format: date-time
+      nullable: true
+      description: When the reminder is due
+      example: "2025-11-07T09:00:00Z"
+    list_id:
+      type: string
+      nullable: true
+      description: Target reminders list ID
+    notes:
+      type: string
+      nullable: true
+      description: Additional notes
+
+AddToShoppingListAction:
+  description: Add an item to a shopping list
+  required:
+    - type
+    - item
+    - list_id
+  properties:
+    type:
+      type: string
+      constant: "add_to_shopping_list"
+    item:
+      type: string
+      minLength: 1
+      description: Item name to add
+      example: "bananas"
+    quantity:
+      type: string
+      nullable: true
+      description: How much to buy
+      example: "2 gallons"
+    list_id:
+      type: string
+      default: "shopping_list"
+      description: Target list ID
+    notes:
+      type: string
+      nullable: true
+      description: Additional notes
+
+CreateCalendarEventAction:
+  description: Create a calendar event in iOS Calendar
+  required:
+    - type
+    - title
+    - start_time
+    - end_time
+  properties:
+    type:
+      type: string
+      constant: "create_calendar_event"
+    title:
+      type: string
+      minLength: 1
+      description: Event title
+      example: "Team meeting"
+    start_time:
+      type: string
+      format: date-time
+      description: Event start time
+      example: "2025-11-07T14:00:00Z"
+    end_time:
+      type: string
+      format: date-time
+      description: Event end time
+      example: "2025-11-07T15:00:00Z"
+    location:
+      type: string
+      nullable: true
+      description: Event location
+      example: "Conference Room A"
+    notes:
+      type: string
+      nullable: true
+      description: Additional notes
+
+LogBudgetEntryAction:
+  description: |
+    Log a budget entry (expense/income/savings) to Excel tracking sheet.
+    All amounts are in BGN (Bulgarian Lev) after EUR conversion.
+  required:
+    - type
+    - amount
+    - date
+    - transaction_type
+    - category
+  properties:
+    type:
+      type: string
+      constant: "log_budget_entry"
+    amount:
+      type: number
+      minimum: 0.0
+      exclusiveMinimum: true
+      description: Amount in BGN (after EUR conversion)
+      example: 234.6
+    date:
+      type: string
+      format: date
+      description: Transaction date (YYYY-MM-DD)
+      example: "2025-11-03"
+    transaction_type:
+      type: TransactionType
+      description: Type of transaction
+      example: "Expenses"
+    category:
+      type: string
+      description: |
+        Budget category name.
+        Must match one of:
+        - ExpenseCategory values if transaction_type == "Expenses"
+        - IncomeCategory values if transaction_type == "Income"
+        - SavingsCategory values if transaction_type == "Savings"
+      example: "Clothes"
+    details:
+      type: string
+      nullable: true
+      description: Merchant name or description
+      example: "next"
+
+# =============================================================================
+# SWIFT IMPLEMENTATION GUIDE
+# =============================================================================
+
+SwiftImplementationNotes: |
+  ## Codable Structs
+
+  Implement these models as Swift Codable structs. Use enum with associated values
+  for the discriminated union (AppAction).
+
+  ### Example: ActionResult
+  ```swift
+  struct ActionResult: Codable {
+      let success: Bool
+      let actionType: ActionType
+      let message: String
+      let appAction: AppAction?
+      let confirmation: ConfirmationData?
+  }
+
+  enum ActionType: String, Codable {
+      case backendHandled = "backend_handled"
+      case appActionRequired = "app_action_required"
+      case confirmationNeeded = "confirmation_needed"
+  }
+  ```
+
+  ### Example: AppAction (Discriminated Union)
+  ```swift
+  enum AppAction: Codable {
+      case createReminder(CreateReminderAction)
+      case addToShoppingList(AddToShoppingListAction)
+      case createCalendarEvent(CreateCalendarEventAction)
+      case logBudgetEntry(LogBudgetEntryAction)
+
+      enum CodingKeys: String, CodingKey {
+          case type
+      }
+
+      init(from decoder: Decoder) throws {
+          let container = try decoder.container(keyedBy: CodingKeys.self)
+          let type = try container.decode(String.self, forKey: .type)
+
+          switch type {
+          case "create_reminder":
+              self = .createReminder(try CreateReminderAction(from: decoder))
+          case "add_to_shopping_list":
+              self = .addToShoppingList(try AddToShoppingListAction(from: decoder))
+          case "create_calendar_event":
+              self = .createCalendarEvent(try CreateCalendarEventAction(from: decoder))
+          case "log_budget_entry":
+              self = .logBudgetEntry(try LogBudgetEntryAction(from: decoder))
+          default:
+              throw DecodingError.dataCorrupted(...)
+          }
+      }
+  }
+  ```
+
+  ## API Client
+
+  Create an API client that posts to `/api/v1/process`:
+
+  ```swift
+  class LifeOrganizerAPI {
+      let baseURL = "http://localhost:8000"
+
+      func processInput(_ input: String) async throws -> ActionResult {
+          let url = URL(string: "\(baseURL)/api/v1/process")!
+          var request = URLRequest(url: url)
+          request.httpMethod = "POST"
+          request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+          let body = ClassifyRequest(input: input)
+          request.httpBody = try JSONEncoder().encode(body)
+
+          let (data, response) = try await URLSession.shared.data(for: request)
+
+          guard let httpResponse = response as? HTTPURLResponse,
+                httpResponse.statusCode == 200 else {
+              throw APIError.invalidResponse
+          }
+
+          return try JSONDecoder().decode(ActionResult.self, from: data)
+      }
+  }
+  ```
+
+  ## Handling Responses
+
+  ```swift
+  let result = try await api.processInput(userInput)
+
+  switch result.actionType {
+  case .backendHandled:
+      // Just show the message
+      showAlert(result.message)
+
+  case .appActionRequired:
+      // Execute the app action
+      if let action = result.appAction {
+          switch action {
+          case .createReminder(let reminder):
+              await createReminder(reminder)
+          case .addToShoppingList(let item):
+              await addToShoppingList(item)
+          case .createCalendarEvent(let event):
+              await createCalendarEvent(event)
+          case .logBudgetEntry(let entry):
+              await logBudgetEntry(entry)
+          }
+      }
+      showAlert(result.message)
+
+  case .confirmationNeeded:
+      // Show confirmation dialog
+      if let confirmation = result.confirmation {
+          showConfirmationDialog(confirmation)
+      }
+  }
+  ```
+
+# =============================================================================
+# EXAMPLE API RESPONSES
+# =============================================================================
+
+ExampleResponses:
+  budget_entry:
+    description: User reports an expense
+    request:
+      input: "spent 120eur at next"
+    response:
+      success: true
+      action_type: "app_action_required"
+      message: "Logged expenses: 234.6 BGN in Clothes"
+      app_action:
+        type: "log_budget_entry"
+        amount: 234.6
+        date: "2025-11-03"
+        transaction_type: "Expenses"
+        category: "Clothes"
+        details: "next"
+
+  reminder:
+    description: User creates a reminder
+    request:
+      input: "remind me to buy milk tomorrow at 9am"
+    response:
+      success: true
+      action_type: "app_action_required"
+      message: "Reminder created: Buy milk"
+      app_action:
+        type: "create_reminder"
+        title: "Buy milk"
+        due_date: "2025-11-07T09:00:00Z"
+        notes: null
+
+  shopping_list:
+    description: User adds to shopping list
+    request:
+      input: "add bananas to shopping list"
+    response:
+      success: true
+      action_type: "app_action_required"
+      message: "Added to shopping list: bananas"
+      app_action:
+        type: "add_to_shopping_list"
+        item: "bananas"
+        quantity: null
+        list_id: "shopping_list"
+        notes: null
+
+  calendar_event:
+    description: User creates calendar event
+    request:
+      input: "schedule team meeting tomorrow at 2pm for 1 hour"
+    response:
+      success: true
+      action_type: "app_action_required"
+      message: "Calendar event created: Team meeting"
+      app_action:
+        type: "create_calendar_event"
+        title: "Team meeting"
+        start_time: "2025-11-07T14:00:00Z"
+        end_time: "2025-11-07T15:00:00Z"
+        location: null
+        notes: null
+
+  confirmation_needed:
+    description: Ambiguous input requiring clarification
+    request:
+      input: "tomorrow"
+    response:
+      success: false
+      action_type: "confirmation_needed"
+      message: "Could not determine what you meant"
+      confirmation:
+        question: "What would you like to do tomorrow?"
+        options: ["Create a reminder", "Schedule an event", "Add to shopping list"]
+        original_classification: "unknown"
+        confidence: 0.3
+
+  backend_handled:
+    description: Backend completed the action (future feature)
+    request:
+      input: "what's my budget for this month"
+    response:
+      success: true
+      action_type: "backend_handled"
+      message: "Your total expenses this month are 1234.56 BGN"
+      app_action: null
+      confirmation: null

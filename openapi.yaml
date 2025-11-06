@@ -1,0 +1,664 @@
+openapi: 3.0.3
+info:
+  title: Life Organizer Backend API
+  description: |
+    Voice-first intelligent agent for life organization.
+
+    This API provides endpoints for processing user voice/text input and converting it into actionable items.
+    The backend classifies inputs into categories (budget, shopping, reminders, calendar) and either handles
+    them directly or returns actions for the iOS app to perform.
+
+    ## Architecture
+    - **Classification**: User input is analyzed using keyword matching and LLM-based classification
+    - **Handler System**: Classified inputs are routed to appropriate handlers
+    - **Action System**: Handlers return actions that are either backend-handled or require iOS app integration
+
+    ## Authentication
+    Currently no authentication is required (will be added in future versions).
+  version: 0.1.0
+  contact:
+    name: Life Organizer API Support
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://api.life-organizer.example.com
+    description: Production server (placeholder)
+
+tags:
+  - name: health
+    description: Health check and status endpoints
+  - name: classification
+    description: User input classification and processing
+
+paths:
+  /:
+    get:
+      summary: Root endpoint
+      description: Returns basic API information and links to documentation
+      operationId: getRoot
+      tags:
+        - health
+      responses:
+        '200':
+          description: API information
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                  - version
+                  - api_version
+                  - docs
+                properties:
+                  message:
+                    type: string
+                    example: Life Organizer Backend API
+                  version:
+                    type: string
+                    example: 0.1.0
+                  api_version:
+                    type: string
+                    example: v1
+                  docs:
+                    type: string
+                    example: /api/v1/docs
+
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Verify that the service is running and healthy
+      operationId: healthCheck
+      tags:
+        - health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckResponse'
+
+  /api/v1/health:
+    get:
+      summary: Versioned health check endpoint
+      description: Verify that the service is running and healthy (versioned endpoint)
+      operationId: healthCheckV1
+      tags:
+        - health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckResponse'
+
+  /api/v1/status:
+    get:
+      summary: API status endpoint
+      description: Returns API configuration and available endpoints
+      operationId: getApiStatus
+      tags:
+        - health
+      responses:
+        '200':
+          description: API status information
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - api_version
+                  - debug
+                  - endpoints
+                properties:
+                  api_version:
+                    type: string
+                    example: v1
+                  debug:
+                    type: boolean
+                    example: true
+                  endpoints:
+                    type: object
+                    properties:
+                      health:
+                        type: string
+                        example: /api/v1/health
+                      docs:
+                        type: string
+                        example: /api/v1/docs
+
+  /api/v1/process:
+    post:
+      summary: Process user input
+      description: |
+        Classify user voice or text input and execute the appropriate handler.
+
+        This endpoint combines classification and handler execution. It:
+        1. Validates the input
+        2. Classifies it into a category (budget, shopping, reminder, calendar)
+        3. Executes the appropriate handler
+        4. Returns an ActionResult with either:
+           - A confirmation that the backend handled it
+           - An action for the iOS app to perform
+           - A request for user clarification
+
+        ## Example Flows
+
+        ### Budget Entry (App Action)
+        Request: "spent 120eur at next"
+        Response: Returns app_action to log budget entry in Excel sheet
+
+        ### Reminder (App Action)
+        Request: "remind me to buy milk tomorrow at 9am"
+        Response: Returns app_action to create iOS reminder
+
+        ### Shopping List (App Action)
+        Request: "add bananas to shopping list"
+        Response: Returns app_action to add item to shopping list
+      operationId: processInput
+      tags:
+        - classification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClassifyRequest'
+            examples:
+              budget_expense:
+                summary: Budget expense entry
+                value:
+                  input: "spent 120eur at next"
+              reminder:
+                summary: Create reminder
+                value:
+                  input: "remind me to buy milk tomorrow at 9am"
+              shopping:
+                summary: Add to shopping list
+                value:
+                  input: "add bananas to shopping list"
+      responses:
+        '200':
+          description: Successfully processed input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionResult'
+              examples:
+                budget_entry:
+                  summary: Budget entry requiring app action
+                  value:
+                    success: true
+                    action_type: app_action_required
+                    message: "Logged expenses: 234.6 BGN in Clothes"
+                    app_action:
+                      type: log_budget_entry
+                      amount: 234.6
+                      date: "2025-11-03"
+                      transaction_type: Expenses
+                      category: Clothes
+                      details: "next"
+                reminder_action:
+                  summary: Reminder requiring app action
+                  value:
+                    success: true
+                    action_type: app_action_required
+                    message: "Reminder created: Buy milk"
+                    app_action:
+                      type: create_reminder
+                      title: "Buy milk"
+                      due_date: "2025-11-07T09:00:00Z"
+                      notes: null
+                shopping_action:
+                  summary: Shopping list requiring app action
+                  value:
+                    success: true
+                    action_type: app_action_required
+                    message: "Added to shopping list: bananas"
+                    app_action:
+                      type: add_to_shopping_list
+                      item: "bananas"
+                      quantity: null
+                      list_id: "shopping_list"
+                confirmation_needed:
+                  summary: Ambiguous input requiring clarification
+                  value:
+                    success: false
+                    action_type: confirmation_needed
+                    message: "Could not determine category with confidence"
+                    confirmation:
+                      question: "What did you mean by that?"
+                      options: ["expense", "income", "reminder"]
+                      original_classification: "budget"
+                      confidence: 0.45
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+              examples:
+                empty_input:
+                  summary: Empty input
+                  value:
+                    detail: "Input cannot be empty or whitespace only"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                processing_error:
+                  summary: Processing error
+                  value:
+                    detail: "Processing error: Unexpected classification failure"
+
+components:
+  schemas:
+    # Request Schemas
+    ClassifyRequest:
+      type: object
+      required:
+        - input
+      properties:
+        input:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: Text input to classify (voice or text from user)
+          example: "spent 120eur at next"
+      description: Request model for classifying user input
+
+    ProcessInputRequest:
+      type: object
+      required:
+        - user_id
+        - input
+        - timestamp
+      properties:
+        user_id:
+          type: string
+          minLength: 1
+          description: Family member identifier
+          example: "family_member_123"
+        input:
+          type: string
+          minLength: 1
+          description: Voice or text input from user
+          example: "Spent 45 euros at restaurant"
+        timestamp:
+          type: string
+          format: date-time
+          description: When the input was captured (ISO 8601 format)
+          example: "2025-11-06T14:30:00Z"
+      description: |
+        Request model for processing user voice/text input.
+        This is the primary API contract between the iOS app and backend.
+
+    # Response Schemas
+    ActionResult:
+      type: object
+      required:
+        - success
+        - action_type
+        - message
+      properties:
+        success:
+          type: boolean
+          description: Whether the action was successful
+        action_type:
+          $ref: '#/components/schemas/ActionType'
+        message:
+          type: string
+          description: Human-readable message about what happened
+          example: "Logged expenses: 234.6 BGN in Clothes"
+        app_action:
+          oneOf:
+            - $ref: '#/components/schemas/CreateReminderAction'
+            - $ref: '#/components/schemas/AddToShoppingListAction'
+            - $ref: '#/components/schemas/CreateCalendarEventAction'
+            - $ref: '#/components/schemas/LogBudgetEntryAction'
+          discriminator:
+            propertyName: type
+            mapping:
+              create_reminder: '#/components/schemas/CreateReminderAction'
+              add_to_shopping_list: '#/components/schemas/AddToShoppingListAction'
+              create_calendar_event: '#/components/schemas/CreateCalendarEventAction'
+              log_budget_entry: '#/components/schemas/LogBudgetEntryAction'
+          description: |
+            iOS app action (when action_type is app_action_required).
+            Discriminated union based on the 'type' field.
+        confirmation:
+          $ref: '#/components/schemas/ConfirmationData'
+      description: |
+        Result returned from handlers and serialized to API response.
+        Different action_type values use different optional fields:
+        - backend_handled: Only success, action_type, message
+        - app_action_required: Includes app_action
+        - confirmation_needed: Includes confirmation data
+
+    HealthCheckResponse:
+      type: object
+      required:
+        - status
+        - service
+        - version
+      properties:
+        status:
+          type: string
+          example: healthy
+        service:
+          type: string
+          example: life-organizer-backend
+        version:
+          type: string
+          example: 0.1.0
+
+    ConfirmationData:
+      type: object
+      required:
+        - question
+        - options
+        - original_classification
+        - confidence
+      properties:
+        question:
+          type: string
+          description: Question to ask user for clarification
+          example: "What did you mean by that?"
+        options:
+          type: array
+          minItems: 2
+          items:
+            type: string
+          description: List of possible answers the user can choose from
+          example: ["expense", "income", "reminder"]
+        original_classification:
+          type: string
+          description: System's initial classification guess
+          example: "budget"
+        confidence:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 1.0
+          description: Confidence score of original classification
+          example: 0.45
+      description: Data for confirmation requests when classification is uncertain
+
+    # App Action Schemas
+    CreateReminderAction:
+      type: object
+      required:
+        - type
+        - title
+      properties:
+        type:
+          type: string
+          enum: [create_reminder]
+          description: Action type discriminator
+        title:
+          type: string
+          minLength: 1
+          description: Reminder title
+          example: "Buy milk"
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the reminder is due
+          example: "2025-11-07T09:00:00Z"
+        list_id:
+          type: string
+          nullable: true
+          description: Target reminders list ID
+        notes:
+          type: string
+          nullable: true
+          description: Additional notes
+      description: Action to create a reminder in iOS Reminders app
+
+    AddToShoppingListAction:
+      type: object
+      required:
+        - type
+        - item
+        - list_id
+      properties:
+        type:
+          type: string
+          enum: [add_to_shopping_list]
+          description: Action type discriminator
+        item:
+          type: string
+          minLength: 1
+          description: Item to add to list
+          example: "bananas"
+        quantity:
+          type: string
+          nullable: true
+          description: Quantity to buy
+          example: "2 gallons"
+        list_id:
+          type: string
+          default: shopping_list
+          description: Target list ID
+          example: "shopping_list"
+        notes:
+          type: string
+          nullable: true
+          description: Additional notes
+      description: Action to add an item to a shopping list
+
+    CreateCalendarEventAction:
+      type: object
+      required:
+        - type
+        - title
+        - start_time
+        - end_time
+      properties:
+        type:
+          type: string
+          enum: [create_calendar_event]
+          description: Action type discriminator
+        title:
+          type: string
+          minLength: 1
+          description: Event title
+          example: "Team meeting"
+        start_time:
+          type: string
+          format: date-time
+          description: Event start time
+          example: "2025-11-07T14:00:00Z"
+        end_time:
+          type: string
+          format: date-time
+          description: Event end time
+          example: "2025-11-07T15:00:00Z"
+        location:
+          type: string
+          nullable: true
+          description: Event location
+          example: "Conference Room A"
+        notes:
+          type: string
+          nullable: true
+          description: Additional notes
+      description: Action to create a calendar event in iOS Calendar
+
+    LogBudgetEntryAction:
+      type: object
+      required:
+        - type
+        - amount
+        - date
+        - transaction_type
+        - category
+      properties:
+        type:
+          type: string
+          enum: [log_budget_entry]
+          description: Action type discriminator
+        amount:
+          type: number
+          format: float
+          exclusiveMinimum: 0
+          description: Amount in BGN (after EUR conversion if needed)
+          example: 234.6
+        date:
+          type: string
+          format: date
+          description: Transaction date in ISO format (YYYY-MM-DD)
+          example: "2025-11-03"
+        transaction_type:
+          type: string
+          enum: [Expenses, Income, Savings]
+          description: Type of transaction
+          example: Expenses
+        category:
+          type: string
+          minLength: 1
+          description: Budget category name (from predefined categories)
+          example: Clothes
+        details:
+          type: string
+          nullable: true
+          description: Optional merchant/description
+          example: "next"
+      description: |
+        Action to log a budget entry (expense/income/savings) in Excel sheet.
+        The iOS app receives this action and populates the budget tracking Excel sheet.
+
+    # Enum Schemas
+    ActionType:
+      type: string
+      enum:
+        - backend_handled
+        - app_action_required
+        - confirmation_needed
+      description: |
+        Types of actions that can be returned from handlers:
+        - backend_handled: Action was completed by backend (e.g., logged to database)
+        - app_action_required: iOS app needs to perform an action (e.g., create reminder)
+        - confirmation_needed: Ambiguous input, user needs to clarify
+
+    Category:
+      type: string
+      enum:
+        - budget
+        - shopping
+        - reminder
+        - calendar
+        - unknown
+      description: |
+        Categories of user input that the classification engine can identify:
+        - budget: Financial budget tracking (expenses, income, savings)
+        - shopping: Shopping list items
+        - reminder: Time-based reminders
+        - calendar: Calendar events
+        - unknown: Could not classify input
+
+    ExpenseCategory:
+      type: string
+      enum:
+        - Baby
+        - Body care
+        - Clothes
+        - Eat out
+        - Fun
+        - Groceries
+        - Hobbies
+        - Home improvements
+        - Maya
+        - Medical
+        - Mortgage
+        - Other
+        - Subscriptions
+        - Transport
+        - Utilities
+        - Vacation
+      description: Expense categories for budget tracking (maps to Excel spreadsheet)
+
+    IncomeCategory:
+      type: string
+      enum:
+        - Salary Ivo
+        - Salary Kalina
+        - Rent
+        - Other
+      description: Income categories for budget tracking (maps to Excel spreadsheet)
+
+    SavingsCategory:
+      type: string
+      enum:
+        - Avi Savings
+        - Metlife
+        - Savings
+      description: Savings categories for budget tracking (maps to Excel spreadsheet)
+
+    # Classification Schema (Internal, not exposed in public API)
+    ClassifiedInput:
+      type: object
+      required:
+        - category
+        - confidence
+        - extracted_data
+        - raw_input
+        - classifier_source
+      properties:
+        category:
+          $ref: '#/components/schemas/Category'
+        confidence:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 1.0
+          description: Confidence score (0.0-1.0)
+        extracted_data:
+          type: object
+          additionalProperties: true
+          description: Extracted structured data (amounts, items, categories, etc.)
+        raw_input:
+          type: string
+          description: Original raw input text
+        classifier_source:
+          type: string
+          enum: [keyword, llm]
+          description: Source classifier that produced this result
+      description: |
+        Result of classifying user input through the classification engine.
+        This is an internal schema used between the classifier and handlers.
+
+    # Error Schemas
+    ValidationError:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: object
+          description: Detailed validation error information
+      description: Validation error response (422 Unprocessable Entity)
+
+    ErrorResponse:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+          description: Error message
+          example: "Processing error: Unexpected classification failure"
+      description: Generic error response
