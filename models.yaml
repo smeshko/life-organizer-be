@@ -224,55 +224,55 @@ components:
         Log a budget entry (expense/income/savings) to Excel tracking sheet.
         All amounts are in BGN (Bulgarian Lev) after EUR conversion.
 
-# =============================================================================
-# EXAMPLE API RESPONSES
-# =============================================================================
-# These examples show how the schemas are used in practice
+  # =============================================================================
+  # EXAMPLE API RESPONSES
+  # =============================================================================
+  # These examples show how the schemas are used in practice
 
-examples:
-  budget_entry:
-    summary: User reports an expense
-    description: User reports an expense
-    value:
-      request:
-        input: "spent 120eur at next"
-      response:
-        success: true
-        action_type: "app_action_required"
-        message: "Logged expenses: 234.6 BGN in Clothes"
-        app_action:
-          type: "log_budget_entry"
-          amount: 234.6
-          date: "2025-11-03"
-          transaction_type: "Expenses"
-          category: "Clothes"
-          details: "next"
+  examples:
+    budget_entry:
+      summary: User reports an expense
+      description: User reports an expense
+      value:
+        request:
+          input: "spent 120eur at next"
+        response:
+          success: true
+          action_type: "app_action_required"
+          message: "Logged expenses: 234.6 BGN in Clothes"
+          app_action:
+            type: "log_budget_entry"
+            amount: 234.6
+            date: "2025-11-03"
+            transaction_type: "Expenses"
+            category: "Clothes"
+            details: "next"
 
-  confirmation_needed:
-    summary: Ambiguous input requiring clarification
-    description: Ambiguous input requiring clarification
-    value:
-      request:
-        input: "tomorrow"
-      response:
-        success: false
-        action_type: "confirmation_needed"
-        message: "Could not determine what you meant"
-        confirmation:
-          question: "What would you like to do tomorrow?"
-          options: ["Create a reminder", "Schedule an event", "Add to shopping list"]
-          original_classification: "unknown"
-          confidence: 0.3
+    confirmation_needed:
+      summary: Ambiguous input requiring clarification
+      description: Ambiguous input requiring clarification
+      value:
+        request:
+          input: "tomorrow"
+        response:
+          success: false
+          action_type: "confirmation_needed"
+          message: "Could not determine what you meant"
+          confirmation:
+            question: "What would you like to do tomorrow?"
+            options: ["Create a reminder", "Schedule an event", "Add to shopping list"]
+            original_classification: "unknown"
+            confidence: 0.3
 
-  backend_handled:
-    summary: Backend completed the action (future feature)
-    description: Backend completed the action (future feature)
-    value:
-      request:
-        input: "what's my budget for this month"
-      response:
-        success: true
-        action_type: "backend_handled"
-        message: "Your total expenses this month are 1234.56 BGN"
-        app_action: null
-        confirmation: null
+    backend_handled:
+      summary: Backend completed the action (future feature)
+      description: Backend completed the action (future feature)
+      value:
+        request:
+          input: "what's my budget for this month"
+        response:
+          success: true
+          action_type: "backend_handled"
+          message: "Your total expenses this month are 1234.56 BGN"
+          app_action: null
+          confirmation: null
