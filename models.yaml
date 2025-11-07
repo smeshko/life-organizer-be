@@ -1,8 +1,15 @@
-# Life Organizer Backend - Data Models Reference
-# This file contains all public data models/schemas for iOS app integration
-# Follow these models exactly when implementing API communication in Swift
-#
-# This file uses OpenAPI 3.0 schema format and can be referenced by openapi.yaml
+openapi: 3.1.0
+info:
+  title: Life Organizer Data Models
+  description: |
+    Data models and schemas for iOS app integration.
+
+    This file contains all public data models/schemas for the Life Organizer API.
+    Follow these models exactly when implementing API communication in Swift.
+
+    This file serves as the single source of truth for data models and is
+    referenced by openapi.yaml for the complete API specification.
+  version: 0.1.0
 
 components:
   schemas:
