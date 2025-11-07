@@ -223,39 +223,14 @@ paths:
 
 components:
   schemas:
+    # Referenced from models.yaml (single source of truth for data models)
     ClassifyRequest:
-      type: object
-      required:
-        - input
-      properties:
-        input:
-          type: string
-          minLength: 1
-          maxLength: 1000
-          description: Text input to classify
-          example: "spent 120eur at next"
+      $ref: './models.yaml#/components/schemas/ClassifyRequest'
 
     ActionResult:
-      type: object
-      required:
-        - success
-        - action_type
-        - message
-      properties:
-        success:
-          type: boolean
-        action_type:
-          type: string
-          enum: [backend_handled, app_action_required, confirmation_needed]
-        message:
-          type: string
-        app_action:
-          type: object
-          description: App action details (when action_type is app_action_required)
-        confirmation:
-          type: object
-          description: Confirmation data (when action_type is confirmation_needed)
+      $ref: './models.yaml#/components/schemas/ActionResult'
 
+    # API-specific schemas (not part of data models)
     HealthCheckResponse:
       type: object
       required:
@@ -284,8 +259,7 @@ components:
         - classifier_source
       properties:
         category:
-          type: string
-          enum: [budget, shopping, reminder, calendar, unknown]
+          $ref: './models.yaml#/components/schemas/Category'
         confidence:
           type: number
           format: float
