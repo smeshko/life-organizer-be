@@ -1,0 +1,308 @@
+openapi: 3.1.0
+info:
+  title: Life Organizer Backend API
+  description: |
+    Voice-first intelligent agent for life organization.
+
+    This API provides endpoints for processing user voice/text input and converting it into actionable items.
+    The backend classifies inputs into categories (budget, shopping, reminders, calendar) and either handles
+    them directly or returns actions for the iOS app to perform.
+
+    ## Architecture
+    - **Classification**: User input is analyzed using keyword matching and LLM-based classification
+    - **Handler System**: Classified inputs are routed to appropriate handlers
+    - **Action System**: Handlers return actions that are either backend-handled or require iOS app integration
+
+    ## Authentication
+    Currently no authentication is required (will be added in future versions).
+  version: 0.1.0
+  contact:
+    name: Life Organizer API Support
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://api.life-organizer.example.com
+    description: Production server (placeholder)
+
+tags:
+  - name: health
+    description: Health check and status endpoints
+  - name: classification
+    description: User input classification and processing
+
+paths:
+  /:
+    get:
+      summary: Root endpoint
+      description: Returns basic API information and links to documentation
+      operationId: getRoot
+      tags:
+        - health
+      responses:
+        '200':
+          description: API information
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - message
+                  - version
+                  - api_version
+                  - docs
+                properties:
+                  message:
+                    type: string
+                    example: Life Organizer Backend API
+                  version:
+                    type: string
+                    example: 0.1.0
+                  api_version:
+                    type: string
+                    example: v1
+                  docs:
+                    type: string
+                    example: /api/v1/docs
+
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Verify that the service is running and healthy
+      operationId: healthCheck
+      tags:
+        - health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckResponse'
+
+  /api/v1/health:
+    get:
+      summary: Versioned health check endpoint
+      description: Verify that the service is running and healthy (versioned endpoint)
+      operationId: healthCheckV1
+      tags:
+        - health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckResponse'
+
+  /api/v1/status:
+    get:
+      summary: API status endpoint
+      description: Returns API configuration and available endpoints
+      operationId: getApiStatus
+      tags:
+        - health
+      responses:
+        '200':
+          description: API status information
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - api_version
+                  - debug
+                  - endpoints
+                properties:
+                  api_version:
+                    type: string
+                    example: v1
+                  debug:
+                    type: boolean
+                    example: true
+                  endpoints:
+                    type: object
+                    properties:
+                      health:
+                        type: string
+                        example: /api/v1/health
+                      docs:
+                        type: string
+                        example: /api/v1/docs
+
+  /api/v1/process:
+    post:
+      summary: Process user input
+      description: |
+        Classify user voice or text input and execute the appropriate handler.
+
+        This endpoint combines classification and handler execution. It:
+        1. Validates the input
+        2. Classifies it into a category (budget, shopping, reminder, calendar)
+        3. Executes the appropriate handler
+        4. Returns an ActionResult with either:
+           - A confirmation that the backend handled it
+           - An action for the iOS app to perform
+           - A request for user clarification
+
+        ## Example Flows
+
+        ### Budget Entry (App Action)
+        Request: "spent 120eur at next"
+        Response: Returns app_action to log budget entry in Excel sheet
+      operationId: processInput
+      tags:
+        - classification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClassifyRequest'
+            examples:
+              budget_expense:
+                summary: Budget expense entry
+                value:
+                  input: "spent 120eur at next"
+      responses:
+        '200':
+          description: Successfully processed input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionResult'
+              examples:
+                budget_entry:
+                  summary: Budget entry requiring app action
+                  value:
+                    success: true
+                    action_type: app_action_required
+                    message: "Logged expenses: 234.6 BGN in Clothes"
+                    app_action:
+                      type: log_budget_entry
+                      amount: 234.6
+                      date: "2025-11-03"
+                      transaction_type: Expenses
+                      category: Clothes
+                      details: "next"
+                confirmation_needed:
+                  summary: Ambiguous input requiring clarification
+                  value:
+                    success: false
+                    action_type: confirmation_needed
+                    message: "Could not determine category with confidence"
+                    confirmation:
+                      question: "What did you mean by that?"
+                      options: ["expense", "income", "reminder"]
+                      original_classification: "budget"
+                      confidence: 0.45
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+              examples:
+                empty_input:
+                  summary: Empty input
+                  value:
+                    detail: "Input cannot be empty or whitespace only"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                processing_error:
+                  summary: Processing error
+                  value:
+                    detail: "Processing error: Unexpected classification failure"
+
+components:
+  schemas:
+    # Referenced from models.yaml (single source of truth for data models)
+    ClassifyRequest:
+      $ref: './models.yaml#/components/schemas/ClassifyRequest'
+
+    ActionResult:
+      $ref: './models.yaml#/components/schemas/ActionResult'
+
+    # API-specific schemas (not part of data models)
+    HealthCheckResponse:
+      type: object
+      required:
+        - status
+        - service
+        - version
+      properties:
+        status:
+          type: string
+          example: healthy
+        service:
+          type: string
+          example: life-organizer-backend
+        version:
+          type: string
+          example: 0.1.0
+
+    # Classification Schema (Internal, not exposed in public API)
+    ClassifiedInput:
+      type: object
+      required:
+        - category
+        - confidence
+        - extracted_data
+        - raw_input
+        - classifier_source
+      properties:
+        category:
+          $ref: './models.yaml#/components/schemas/Category'
+        confidence:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 1.0
+          description: Confidence score (0.0-1.0)
+        extracted_data:
+          type: object
+          additionalProperties: true
+          description: Extracted structured data (amounts, items, categories, etc.)
+        raw_input:
+          type: string
+          description: Original raw input text
+        classifier_source:
+          type: string
+          enum: [keyword, llm]
+          description: Source classifier that produced this result
+      description: |
+        Result of classifying user input through the classification engine.
+        This is an internal schema used between the classifier and handlers.
+
+    # Error Schemas
+    ValidationError:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: object
+          description: Detailed validation error information
+      description: Validation error response (422 Unprocessable Entity)
+
+    ErrorResponse:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+          description: Error message
+          example: "Processing error: Unexpected classification failure"
+      description: Generic error response

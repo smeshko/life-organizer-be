@@ -1,0 +1,278 @@
+openapi: 3.1.0
+info:
+  title: Life Organizer Data Models
+  description: |
+    Data models and schemas for iOS app integration.
+
+    This file contains all public data models/schemas for the Life Organizer API.
+    Follow these models exactly when implementing API communication in Swift.
+
+    This file serves as the single source of truth for data models and is
+    referenced by openapi.yaml for the complete API specification.
+  version: 0.1.0
+
+components:
+  schemas:
+    # =============================================================================
+    # ENUMS
+    # =============================================================================
+
+    ActionType:
+      type: string
+      enum:
+        - backend_handled      # Action was completed by backend
+        - app_action_required  # iOS app needs to perform an action
+        - confirmation_needed  # User needs to clarify ambiguous input
+      description: |
+        Determines what the iOS app should do with the response:
+        - backend_handled: Just show the success message
+        - app_action_required: Parse app_action and execute it (create reminder, add to list, etc.)
+        - confirmation_needed: Show confirmation dialog with options
+
+    Category:
+      type: string
+      enum:
+        - budget    # Financial transactions
+        - shopping  # Shopping list items
+        - reminder  # Time-based reminders
+        - calendar  # Calendar events
+        - unknown   # Could not classify
+      description: Input classification category
+
+    ExpenseCategory:
+      type: string
+      enum:
+        - Baby
+        - Body care
+        - Clothes
+        - Eat out
+        - Fun
+        - Groceries
+        - Hobbies
+        - Home improvements
+        - Maya
+        - Medical
+        - Mortgage
+        - Other
+        - Subscriptions
+        - Transport
+        - Utilities
+        - Vacation
+      description: Expense categories for budget tracking (16 total)
+
+    IncomeCategory:
+      type: string
+      enum:
+        - Salary Ivo
+        - Salary Kalina
+        - Rent
+        - Other
+      description: Income categories for budget tracking (4 total)
+
+    SavingsCategory:
+      type: string
+      enum:
+        - Avi Savings
+        - Metlife
+        - Savings
+      description: Savings categories for budget tracking (3 total)
+
+    TransactionType:
+      type: string
+      enum:
+        - Expenses
+        - Income
+        - Savings
+      description: Type of budget transaction
+
+    # =============================================================================
+    # REQUEST MODELS
+    # =============================================================================
+
+    ClassifyRequest:
+      type: object
+      required:
+        - input
+      properties:
+        input:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: Text input to classify (voice transcription or typed text)
+          example: "spent 120eur at next"
+      description: Primary request model for processing user input
+
+    # =============================================================================
+    # RESPONSE MODELS
+    # =============================================================================
+
+    ActionResult:
+      type: object
+      required:
+        - success
+        - action_type
+        - message
+      properties:
+        success:
+          type: boolean
+          description: Whether the action was successful
+        action_type:
+          $ref: '#/components/schemas/ActionType'
+        message:
+          type: string
+          description: Human-readable message to display to user
+          example: "Logged expenses: 234.6 BGN in Clothes"
+        app_action:
+          nullable: true
+          description: |
+            Only present when action_type == "app_action_required"
+            Check the 'type' field to determine which action to perform
+          oneOf:
+            - $ref: '#/components/schemas/LogBudgetEntryAction'
+          discriminator:
+            propertyName: type
+            mapping:
+              log_budget_entry: '#/components/schemas/LogBudgetEntryAction'
+        confirmation:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/ConfirmationData'
+          description: Only present when action_type == "confirmation_needed"
+      description: |
+        Main response model returned from /api/v1/process endpoint.
+        Check action_type to determine how to handle the response.
+
+    ConfirmationData:
+      type: object
+      required:
+        - question
+        - options
+        - original_classification
+        - confidence
+      properties:
+        question:
+          type: string
+          description: Question to ask the user
+          example: "What did you mean by that?"
+        options:
+          type: array
+          minItems: 2
+          items:
+            type: string
+          description: List of choices to present to user
+          example: ["expense", "income", "reminder"]
+        original_classification:
+          type: string
+          description: System's best guess
+          example: "budget"
+        confidence:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 1.0
+          description: How confident the system was (0-1)
+          example: 0.45
+      description: Request for user clarification when input is ambiguous
+
+    # =============================================================================
+    # APP ACTION MODELS (Discriminated Union)
+    # =============================================================================
+    # All app actions have a 'type' field that determines which action it is.
+    # Parse the type field first, then decode the rest of the fields accordingly.
+
+    LogBudgetEntryAction:
+      type: object
+      required:
+        - type
+        - amount
+        - date
+        - transaction_type
+        - category
+      properties:
+        type:
+          type: string
+          enum: [log_budget_entry]
+          description: Action type discriminator
+        amount:
+          type: number
+          format: float
+          exclusiveMinimum: 0.0
+          description: Amount in BGN (after EUR conversion)
+          example: 234.6
+        date:
+          type: string
+          format: date
+          description: Transaction date (YYYY-MM-DD)
+          example: "2025-11-03"
+        transaction_type:
+          $ref: '#/components/schemas/TransactionType'
+        category:
+          type: string
+          description: |
+            Budget category name.
+            Must match one of:
+            - ExpenseCategory values if transaction_type == "Expenses"
+            - IncomeCategory values if transaction_type == "Income"
+            - SavingsCategory values if transaction_type == "Savings"
+          example: "Clothes"
+        details:
+          type: string
+          nullable: true
+          description: Merchant name or description
+          example: "next"
+      description: |
+        Log a budget entry (expense/income/savings) to Excel tracking sheet.
+        All amounts are in BGN (Bulgarian Lev) after EUR conversion.
+
+  # =============================================================================
+  # EXAMPLE API RESPONSES
+  # =============================================================================
+  # These examples show how the schemas are used in practice
+
+  examples:
+    budget_entry:
+      summary: User reports an expense
+      description: User reports an expense
+      value:
+        request:
+          input: "spent 120eur at next"
+        response:
+          success: true
+          action_type: "app_action_required"
+          message: "Logged expenses: 234.6 BGN in Clothes"
+          app_action:
+            type: "log_budget_entry"
+            amount: 234.6
+            date: "2025-11-03"
+            transaction_type: "Expenses"
+            category: "Clothes"
+            details: "next"
+
+    confirmation_needed:
+      summary: Ambiguous input requiring clarification
+      description: Ambiguous input requiring clarification
+      value:
+        request:
+          input: "tomorrow"
+        response:
+          success: false
+          action_type: "confirmation_needed"
+          message: "Could not determine what you meant"
+          confirmation:
+            question: "What would you like to do tomorrow?"
+            options: ["Create a reminder", "Schedule an event", "Add to shopping list"]
+            original_classification: "unknown"
+            confidence: 0.3
+
+    backend_handled:
+      summary: Backend completed the action (future feature)
+      description: Backend completed the action (future feature)
+      value:
+        request:
+          input: "what's my budget for this month"
+        response:
+          success: true
+          action_type: "backend_handled"
+          message: "Your total expenses this month are 1234.56 BGN"
+          app_action: null
+          confirmation: null
