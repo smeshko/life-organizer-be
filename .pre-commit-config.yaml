@@ -43,3 +43,13 @@ repos:
           - tenacity>=8.0.0
         args: [--config-file=pyproject.toml]
         exclude: ^tests/
+
+  # OpenAPI Spec Validator
+  - repo: local
+    hooks:
+      - id: openapi-spec-validator
+        name: Validate OpenAPI Specifications
+        entry: openapi-spec-validator
+        language: system
+        files: ^(openapi\.yaml|models\.yaml)$
+        pass_filenames: true
