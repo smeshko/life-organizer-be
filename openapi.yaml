@@ -145,7 +145,6 @@ paths:
         4. Returns an ActionResult with either:
            - A confirmation that the backend handled it
            - An action for the iOS app to perform
-           - A request for user clarification
 
         ## Example Flows
 
@@ -187,17 +186,6 @@ paths:
                       transaction_type: Expenses
                       category: Clothes
                       details: "next"
-                confirmation_needed:
-                  summary: Ambiguous input requiring clarification
-                  value:
-                    success: false
-                    action_type: confirmation_needed
-                    message: "Could not determine category with confidence"
-                    confirmation:
-                      question: "What did you mean by that?"
-                      options: ["expense", "income", "reminder"]
-                      original_classification: "budget"
-                      confidence: 0.45
         '422':
           description: Validation error
           content:
@@ -209,6 +197,21 @@ paths:
                   summary: Empty input
                   value:
                     detail: "Input cannot be empty or whitespace only"
+                validation_error:
+                  summary: Budget entry validation error
+                  value:
+                    detail: "Could not process budget entry: Missing required fields: transaction_type"
+        '501':
+          description: Category not yet supported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                unsupported_category:
+                  summary: Unsupported category
+                  value:
+                    detail: "Category 'shopping' is not yet supported"
         '500':
           description: Internal server error
           content:

@@ -10,7 +10,7 @@ from life_organizer.schemas.actions import (
 from life_organizer.schemas.classification import ClassifiedInput
 from life_organizer.schemas.enums import ActionType, Category
 from life_organizer.schemas.requests import ProcessInputRequest
-from life_organizer.schemas.responses import ActionResult, ConfirmationData
+from life_organizer.schemas.responses import ActionResult
 
 __all__ = [
     "ActionResult",
@@ -20,7 +20,6 @@ __all__ = [
     "BaseAppAction",
     "Category",
     "ClassifiedInput",
-    "ConfirmationData",
     "CreateCalendarEventAction",
     "CreateReminderAction",
     "ProcessInputRequest",

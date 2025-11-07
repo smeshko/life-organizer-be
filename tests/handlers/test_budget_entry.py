@@ -1,6 +1,7 @@
 """Tests for BudgetEntryHandler using LLM-extracted data."""
 
 import pytest
+from fastapi import HTTPException
 
 from life_organizer.handlers.budget_entry import BudgetEntryHandler, _convert_to_bgn
 from life_organizer.schemas.classification import ClassifiedInput
@@ -111,8 +112,10 @@ class TestBudgetEntryHandlerExecute:
         assert result.message == "Logged savings: 1220.0 BGN in Savings"
 
     @pytest.mark.asyncio
-    async def test_missing_required_fields_returns_error(self, handler: BudgetEntryHandler) -> None:
-        """Missing required extracted fields should return confirmation needed."""
+    async def test_missing_required_fields_raises_exception(
+        self, handler: BudgetEntryHandler
+    ) -> None:
+        """Missing required extracted fields should raise HTTPException."""
         classified = _classified_input(
             {
                 "amount": 50.0,
@@ -123,18 +126,17 @@ class TestBudgetEntryHandlerExecute:
             }
         )
 
-        result = await handler.execute(classified)
+        with pytest.raises(HTTPException) as exc_info:
+            await handler.execute(classified)
 
-        assert result.success is False
-        assert result.action_type == ActionType.CONFIRMATION_NEEDED
-        assert "Missing required fields: transaction_type" in result.message
-        assert result.app_action is None
+        assert exc_info.value.status_code == 422
+        assert "Missing required fields: transaction_type" in exc_info.value.detail
 
     @pytest.mark.asyncio
-    async def test_invalid_transaction_type_returns_error(
+    async def test_invalid_transaction_type_raises_exception(
         self, handler: BudgetEntryHandler
     ) -> None:
-        """Unexpected transaction_type should return confirmation needed."""
+        """Unexpected transaction_type should raise HTTPException."""
         classified = _classified_input(
             {
                 "amount": 45.0,
@@ -145,15 +147,14 @@ class TestBudgetEntryHandlerExecute:
             }
         )
 
-        result = await handler.execute(classified)
+        with pytest.raises(HTTPException) as exc_info:
+            await handler.execute(classified)
 
-        assert result.success is False
-        assert result.action_type == ActionType.CONFIRMATION_NEEDED
-        assert "Invalid transaction_type" in result.message
-        assert result.app_action is None
+        assert exc_info.value.status_code == 422
+        assert "Invalid transaction_type" in exc_info.value.detail
 
     @pytest.mark.asyncio
-    async def test_non_positive_amount_returns_error(self, handler: BudgetEntryHandler) -> None:
+    async def test_non_positive_amount_raises_exception(self, handler: BudgetEntryHandler) -> None:
         """Amounts that are zero or negative should be rejected."""
         classified = _classified_input(
             {
@@ -165,12 +166,11 @@ class TestBudgetEntryHandlerExecute:
             }
         )
 
-        result = await handler.execute(classified)
+        with pytest.raises(HTTPException) as exc_info:
+            await handler.execute(classified)
 
-        assert result.success is False
-        assert result.action_type == ActionType.CONFIRMATION_NEEDED
-        assert "Amount must be positive" in result.message
-        assert result.app_action is None
+        assert exc_info.value.status_code == 422
+        assert "Amount must be positive" in exc_info.value.detail
 
 
 class TestConvertToBGN:

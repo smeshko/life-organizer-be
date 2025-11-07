@@ -70,13 +70,10 @@ async def process_input(request: ClassifyRequest) -> ActionResult:
         handler = get_handler(classified)
 
         if not handler:
-            # No handler found, return confirmation needed
-            from life_organizer.schemas.enums import ActionType
-
-            return ActionResult(
-                success=False,
-                action_type=ActionType.CONFIRMATION_NEEDED,
-                message=f"No handler available for category: {classified.category}",
+            # No handler found, return 501 Not Implemented
+            raise HTTPException(
+                status_code=501,
+                detail=f"Category '{classified.category}' is not yet supported",
             )
 
         # Execute handler

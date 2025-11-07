@@ -22,12 +22,10 @@ components:
       enum:
         - backend_handled      # Action was completed by backend
         - app_action_required  # iOS app needs to perform an action
-        - confirmation_needed  # User needs to clarify ambiguous input
       description: |
         Determines what the iOS app should do with the response:
         - backend_handled: Just show the success message
         - app_action_required: Parse app_action and execute it (create reminder, add to list, etc.)
-        - confirmation_needed: Show confirmation dialog with options
 
     Category:
       type: string
@@ -133,46 +131,9 @@ components:
             propertyName: type
             mapping:
               log_budget_entry: '#/components/schemas/LogBudgetEntryAction'
-        confirmation:
-          nullable: true
-          allOf:
-            - $ref: '#/components/schemas/ConfirmationData'
-          description: Only present when action_type == "confirmation_needed"
       description: |
         Main response model returned from /api/v1/process endpoint.
         Check action_type to determine how to handle the response.
-
-    ConfirmationData:
-      type: object
-      required:
-        - question
-        - options
-        - original_classification
-        - confidence
-      properties:
-        question:
-          type: string
-          description: Question to ask the user
-          example: "What did you mean by that?"
-        options:
-          type: array
-          minItems: 2
-          items:
-            type: string
-          description: List of choices to present to user
-          example: ["expense", "income", "reminder"]
-        original_classification:
-          type: string
-          description: System's best guess
-          example: "budget"
-        confidence:
-          type: number
-          format: float
-          minimum: 0.0
-          maximum: 1.0
-          description: How confident the system was (0-1)
-          example: 0.45
-      description: Request for user clarification when input is ambiguous
 
     # =============================================================================
     # APP ACTION MODELS (Discriminated Union)
@@ -248,22 +209,6 @@ components:
             category: "Clothes"
             details: "next"
 
-    confirmation_needed:
-      summary: Ambiguous input requiring clarification
-      description: Ambiguous input requiring clarification
-      value:
-        request:
-          input: "tomorrow"
-        response:
-          success: false
-          action_type: "confirmation_needed"
-          message: "Could not determine what you meant"
-          confirmation:
-            question: "What would you like to do tomorrow?"
-            options: ["Create a reminder", "Schedule an event", "Add to shopping list"]
-            original_classification: "unknown"
-            confidence: 0.3
-
     backend_handled:
       summary: Backend completed the action (future feature)
       description: Backend completed the action (future feature)
@@ -275,4 +220,3 @@ components:
           action_type: "backend_handled"
           message: "Your total expenses this month are 1234.56 BGN"
           app_action: null
-          confirmation: null
