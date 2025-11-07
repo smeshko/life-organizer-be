@@ -7,14 +7,12 @@ def test_action_type_values():
     """Test ActionType enum has correct string values."""
     assert ActionType.BACKEND_HANDLED == "backend_handled"
     assert ActionType.APP_ACTION_REQUIRED == "app_action_required"
-    assert ActionType.CONFIRMATION_NEEDED == "confirmation_needed"
 
 
 def test_action_type_string_type():
     """Test ActionType values are strings (StrEnum)."""
     assert isinstance(ActionType.BACKEND_HANDLED, str)
     assert isinstance(ActionType.APP_ACTION_REQUIRED, str)
-    assert isinstance(ActionType.CONFIRMATION_NEEDED, str)
 
 
 def test_category_values():

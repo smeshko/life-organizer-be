@@ -3,6 +3,8 @@
 import logging
 from typing import Literal, cast
 
+from fastapi import HTTPException
+
 from life_organizer.handlers.base import BaseHandler
 from life_organizer.schemas.actions import LogBudgetEntryAction
 from life_organizer.schemas.classification import ClassifiedInput
@@ -148,17 +150,15 @@ class BudgetEntryHandler(BaseHandler):
         except (ValueError, KeyError) as e:
             # Invalid amount, missing field, or validation error
             logger.warning(f"Budget entry validation error: {e}")
-            return ActionResult(
-                success=False,
-                action_type=ActionType.CONFIRMATION_NEEDED,
-                message=f"Could not process budget entry: {e!s}",
-            )
+            raise HTTPException(
+                status_code=422,
+                detail=f"Could not process budget entry: {e!s}",
+            ) from e
 
         except Exception as e:
             # Unexpected error
             logger.exception("Budget entry handler error: %s", e)
-            return ActionResult(
-                success=False,
-                action_type=ActionType.CONFIRMATION_NEEDED,
-                message="An error occurred processing your budget entry",
-            )
+            raise HTTPException(
+                status_code=500,
+                detail="An error occurred processing your budget entry",
+            ) from e
