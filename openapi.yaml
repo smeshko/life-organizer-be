@@ -152,14 +152,6 @@ paths:
         ### Budget Entry (App Action)
         Request: "spent 120eur at next"
         Response: Returns app_action to log budget entry in Excel sheet
-
-        ### Reminder (App Action)
-        Request: "remind me to buy milk tomorrow at 9am"
-        Response: Returns app_action to create iOS reminder
-
-        ### Shopping List (App Action)
-        Request: "add bananas to shopping list"
-        Response: Returns app_action to add item to shopping list
       operationId: processInput
       tags:
         - classification
@@ -174,14 +166,6 @@ paths:
                 summary: Budget expense entry
                 value:
                   input: "spent 120eur at next"
-              reminder:
-                summary: Create reminder
-                value:
-                  input: "remind me to buy milk tomorrow at 9am"
-              shopping:
-                summary: Add to shopping list
-                value:
-                  input: "add bananas to shopping list"
       responses:
         '200':
           description: Successfully processed input
@@ -239,7 +223,6 @@ paths:
 
 components:
   schemas:
-    # Request Schemas
     ClassifyRequest:
       type: object
       required:
@@ -249,11 +232,9 @@ components:
           type: string
           minLength: 1
           maxLength: 1000
-          description: Text input to classify (voice or text from user)
+          description: Text input to classify
           example: "spent 120eur at next"
-      description: Request model for classifying user input
 
-    # Response Schemas
     ActionResult:
       type: object
       required:
@@ -263,31 +244,17 @@ components:
       properties:
         success:
           type: boolean
-          description: Whether the action was successful
         action_type:
-          $ref: '#/components/schemas/ActionType'
+          type: string
+          enum: [backend_handled, app_action_required, confirmation_needed]
         message:
           type: string
-          description: Human-readable message about what happened
-          example: "Logged expenses: 234.6 BGN in Clothes"
         app_action:
-          oneOf:
-            - $ref: '#/components/schemas/LogBudgetEntryAction'
-          discriminator:
-            propertyName: type
-            mapping:
-              log_budget_entry: '#/components/schemas/LogBudgetEntryAction'
-          description: |
-            iOS app action (when action_type is app_action_required).
-            Discriminated union based on the 'type' field.
+          type: object
+          description: App action details (when action_type is app_action_required)
         confirmation:
-          $ref: '#/components/schemas/ConfirmationData'
-      description: |
-        Result returned from handlers and serialized to API response.
-        Different action_type values use different optional fields:
-        - backend_handled: Only success, action_type, message
-        - app_action_required: Includes app_action
-        - confirmation_needed: Includes confirmation data
+          type: object
+          description: Confirmation data (when action_type is confirmation_needed)
 
     HealthCheckResponse:
       type: object
@@ -306,149 +273,6 @@ components:
           type: string
           example: 0.1.0
 
-    ConfirmationData:
-      type: object
-      required:
-        - question
-        - options
-        - original_classification
-        - confidence
-      properties:
-        question:
-          type: string
-          description: Question to ask user for clarification
-          example: "What did you mean by that?"
-        options:
-          type: array
-          minItems: 2
-          items:
-            type: string
-          description: List of possible answers the user can choose from
-          example: ["expense", "income", "reminder"]
-        original_classification:
-          type: string
-          description: System's initial classification guess
-          example: "budget"
-        confidence:
-          type: number
-          format: float
-          minimum: 0.0
-          maximum: 1.0
-          description: Confidence score of original classification
-          example: 0.45
-      description: Data for confirmation requests when classification is uncertain
-
-    # App Action Schemas
-    LogBudgetEntryAction:
-      type: object
-      required:
-        - type
-        - amount
-        - date
-        - transaction_type
-        - category
-      properties:
-        type:
-          type: string
-          enum: [log_budget_entry]
-          description: Action type discriminator
-        amount:
-          type: number
-          format: float
-          exclusiveMinimum: 0
-          description: Amount in BGN (after EUR conversion if needed)
-          example: 234.6
-        date:
-          type: string
-          format: date
-          description: Transaction date in ISO format (YYYY-MM-DD)
-          example: "2025-11-03"
-        transaction_type:
-          type: string
-          enum: [Expenses, Income, Savings]
-          description: Type of transaction
-          example: Expenses
-        category:
-          type: string
-          minLength: 1
-          description: Budget category name (from predefined categories)
-          example: Clothes
-        details:
-          type: string
-          nullable: true
-          description: Optional merchant/description
-          example: "next"
-      description: |
-        Action to log a budget entry (expense/income/savings) in Excel sheet.
-        The iOS app receives this action and populates the budget tracking Excel sheet.
-
-    # Enum Schemas
-    ActionType:
-      type: string
-      enum:
-        - backend_handled
-        - app_action_required
-        - confirmation_needed
-      description: |
-        Types of actions that can be returned from handlers:
-        - backend_handled: Action was completed by backend (e.g., logged to database)
-        - app_action_required: iOS app needs to perform an action (e.g., create reminder)
-        - confirmation_needed: Ambiguous input, user needs to clarify
-
-    Category:
-      type: string
-      enum:
-        - budget
-        - shopping
-        - reminder
-        - calendar
-        - unknown
-      description: |
-        Categories of user input that the classification engine can identify:
-        - budget: Financial budget tracking (expenses, income, savings)
-        - shopping: Shopping list items
-        - reminder: Time-based reminders
-        - calendar: Calendar events
-        - unknown: Could not classify input
-
-    ExpenseCategory:
-      type: string
-      enum:
-        - Baby
-        - Body care
-        - Clothes
-        - Eat out
-        - Fun
-        - Groceries
-        - Hobbies
-        - Home improvements
-        - Maya
-        - Medical
-        - Mortgage
-        - Other
-        - Subscriptions
-        - Transport
-        - Utilities
-        - Vacation
-      description: Expense categories for budget tracking (maps to Excel spreadsheet)
-
-    IncomeCategory:
-      type: string
-      enum:
-        - Salary Ivo
-        - Salary Kalina
-        - Rent
-        - Other
-      description: Income categories for budget tracking (maps to Excel spreadsheet)
-
-    SavingsCategory:
-      type: string
-      enum:
-        - Avi Savings
-        - Metlife
-        - Savings
-      description: Savings categories for budget tracking (maps to Excel spreadsheet)
-
     # Classification Schema (Internal, not exposed in public API)
     ClassifiedInput:
       type: object
@@ -460,7 +284,8 @@ components:
         - classifier_source
       properties:
         category:
-          $ref: '#/components/schemas/Category'
+          type: string
+          enum: [budget, shopping, reminder, calendar, unknown]
         confidence:
           type: number
           format: float
