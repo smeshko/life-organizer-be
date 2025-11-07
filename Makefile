@@ -34,7 +34,7 @@ stop:
 # Run the development server (auto-stops existing server)
 run: stop
 	@echo "Starting development server..."
-	uv run uvicorn life_organizer.main:app --reload --host 0.0.0.0 --port 8000
+	PYTHONPATH=src uv run python -m uvicorn life_organizer.main:app --reload --host 0.0.0.0 --port 8000
 
 # Restart the development server
 restart: stop run
