@@ -5,7 +5,7 @@ import pytest
 from life_organizer.handlers.base import BaseHandler
 from life_organizer.schemas.classification import ClassifiedInput
 from life_organizer.schemas.enums import ActionType, Category
-from life_organizer.schemas.responses import ActionResult
+from life_organizer.schemas.responses import ProcessingResponse
 
 
 class TestBaseHandlerAbstraction:
@@ -26,8 +26,8 @@ class TestBaseHandlerAbstraction:
             def requires_app_action(self) -> bool:
                 return False
 
-            def execute(self, classified_input: ClassifiedInput) -> ActionResult:
-                return ActionResult(
+            def execute(self, classified_input: ClassifiedInput) -> ProcessingResponse:
+                return ProcessingResponse(
                     success=True,
                     action_type=ActionType.BACKEND_HANDLED,
                     message="Test handler",
@@ -44,8 +44,8 @@ class TestBaseHandlerAbstraction:
             def requires_app_action(self) -> bool:
                 return False
 
-            def execute(self, classified_input: ClassifiedInput) -> ActionResult:
-                return ActionResult(
+            def execute(self, classified_input: ClassifiedInput) -> ProcessingResponse:
+                return ProcessingResponse(
                     success=True,
                     action_type=ActionType.BACKEND_HANDLED,
                     message="Test",
@@ -61,8 +61,8 @@ class TestBaseHandlerAbstraction:
             def can_handle(self, classified_input: ClassifiedInput) -> bool:
                 return True
 
-            def execute(self, classified_input: ClassifiedInput) -> ActionResult:
-                return ActionResult(
+            def execute(self, classified_input: ClassifiedInput) -> ProcessingResponse:
+                return ProcessingResponse(
                     success=True,
                     action_type=ActionType.BACKEND_HANDLED,
                     message="Test",
@@ -98,8 +98,8 @@ class TestConcreteHandlerImplementation:
             def requires_app_action(self) -> bool:
                 return False
 
-            def execute(self, classified_input: ClassifiedInput) -> ActionResult:
-                return ActionResult(
+            def execute(self, classified_input: ClassifiedInput) -> ProcessingResponse:
+                return ProcessingResponse(
                     success=True,
                     action_type=ActionType.BACKEND_HANDLED,
                     message="Expense logged",
@@ -126,7 +126,7 @@ class TestConcreteHandlerImplementation:
         assert handler.can_handle(shopping_input) is False
 
     def test_concrete_handler_execute(self):
-        """Test that concrete handler can execute and return ActionResult."""
+        """Test that concrete handler can execute and return ProcessingResponse."""
 
         class TestHandler(BaseHandler):
             def can_handle(self, classified_input: ClassifiedInput) -> bool:
@@ -135,8 +135,8 @@ class TestConcreteHandlerImplementation:
             def requires_app_action(self) -> bool:
                 return False
 
-            def execute(self, classified_input: ClassifiedInput) -> ActionResult:
-                return ActionResult(
+            def execute(self, classified_input: ClassifiedInput) -> ProcessingResponse:
+                return ProcessingResponse(
                     success=True,
                     action_type=ActionType.BACKEND_HANDLED,
                     message=f"Processed: {classified_input.raw_input}",
@@ -152,7 +152,7 @@ class TestConcreteHandlerImplementation:
 
         result = handler.execute(classified)
 
-        assert isinstance(result, ActionResult)
+        assert isinstance(result, ProcessingResponse)
         assert result.success is True
         assert result.action_type == ActionType.BACKEND_HANDLED
         assert "Test input" in result.message
@@ -167,8 +167,8 @@ class TestConcreteHandlerImplementation:
             def requires_app_action(self) -> bool:
                 return False
 
-            def execute(self, classified_input: ClassifiedInput) -> ActionResult:
-                return ActionResult(
+            def execute(self, classified_input: ClassifiedInput) -> ProcessingResponse:
+                return ProcessingResponse(
                     success=True,
                     action_type=ActionType.BACKEND_HANDLED,
                     message="Backend handled",
@@ -181,8 +181,8 @@ class TestConcreteHandlerImplementation:
             def requires_app_action(self) -> bool:
                 return True
 
-            def execute(self, classified_input: ClassifiedInput) -> ActionResult:
-                return ActionResult(
+            def execute(self, classified_input: ClassifiedInput) -> ProcessingResponse:
+                return ProcessingResponse(
                     success=True,
                     action_type=ActionType.APP_ACTION_REQUIRED,
                     message="App action required",

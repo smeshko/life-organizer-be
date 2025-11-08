@@ -132,7 +132,7 @@ class BaseHandler:
     def requires_app_action(self) -> bool:
         pass
 
-    def execute(self, classified_input) -> ActionResult:
+    def execute(self, classified_input) -> ProcessingResponse:
         pass
 ```
 
@@ -149,7 +149,7 @@ class ExpenseHandler(BaseHandler):
     def execute(self, classified_input):
         # Extract amount, currency, category
         # Call Google Sheets API
-        return ActionResult(
+        return ProcessingResponse(
             success=True,
             action_type="backend_handled",
             message="Logged expense"
@@ -167,7 +167,7 @@ class ShoppingHandler(BaseHandler):
         return True
 
     def execute(self, classified_input):
-        return ActionResult(
+        return ProcessingResponse(
             success=True,
             action_type="app_action_required",
             app_action={
@@ -250,7 +250,7 @@ def get_handler(classified_input):
 3. Handler Registry finds ShoppingHandler
 4. ShoppingHandler executes:
 
-   * Returns `ActionResult(app_action_required)`
+   * Returns `ProcessingResponse(app_action_required)`
 5. Response:
 
 ```python

@@ -142,7 +142,7 @@ paths:
         1. Validates the input
         2. Classifies it into a category (budget, shopping, reminder, calendar)
         3. Executes the appropriate handler
-        4. Returns an ActionResult with either:
+        4. Returns a ProcessingResponse with either:
            - A confirmation that the backend handled it
            - An action for the iOS app to perform
 
@@ -171,7 +171,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ActionResult'
+                $ref: '#/components/schemas/ProcessingResponse'
               examples:
                 budget_entry:
                   summary: Budget entry requiring app action
@@ -230,8 +230,8 @@ components:
     ClassifyRequest:
       $ref: './models.yaml#/components/schemas/ClassifyRequest'
 
-    ActionResult:
-      $ref: './models.yaml#/components/schemas/ActionResult'
+    ProcessingResponse:
+      $ref: './models.yaml#/components/schemas/ProcessingResponse'
 
     # API-specific schemas (not part of data models)
     HealthCheckResponse:

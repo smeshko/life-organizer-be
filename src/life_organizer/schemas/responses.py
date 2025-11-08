@@ -6,7 +6,7 @@ from life_organizer.schemas.actions import AppAction
 from life_organizer.schemas.enums import ActionType
 
 
-class ActionResult(BaseModel):
+class ProcessingResponse(BaseModel):
     """Result returned from handlers and serialized to API response.
 
     Different action_type values use different optional fields:

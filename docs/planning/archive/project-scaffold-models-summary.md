@@ -27,7 +27,7 @@ This phase delivered the organizational foundation and type-safe data models req
 
 **Request/Response Models**
 - ProcessInputRequest schema for API input validation
-- ActionResult response schema with discriminated unions for three response types
+- ProcessingResponse response schema with discriminated unions for three response types
 - ConfirmationData model for handling user clarification requests
 
 **Classification Schema**
@@ -123,9 +123,9 @@ warn_return_any = true
 - Precedence rules are important (e.g., specific expense handler before general expense handler)
 - List order makes precedence explicit and configurable
 
-### 5. Optional Fields Pattern in ActionResult
+### 5. Optional Fields Pattern in ProcessingResponse
 
-**Decision:** Use a single `ActionResult` model with optional fields (`app_action`, `confirmation`) instead of separate response classes for each action type.
+**Decision:** Use a single `ProcessingResponse` model with optional fields (`app_action`, `confirmation`) instead of separate response classes for each action type.
 
 **Rationale:**
 - Reduces class proliferation (1 class vs 3+ classes)
@@ -136,7 +136,7 @@ warn_return_any = true
 
 **Pattern:**
 ```python
-class ActionResult(BaseModel):
+class ProcessingResponse(BaseModel):
     success: bool
     action_type: ActionType
     message: str
@@ -144,7 +144,7 @@ class ActionResult(BaseModel):
     confirmation: ConfirmationData | None = None
 ```
 
-**Alternative Considered:** Separate classes (BackendHandledResult, AppActionResult, ConfirmationResult) rejected due to:
+**Alternative Considered:** Separate classes (BackendHandledResult, AppProcessingResponse, ConfirmationResult) rejected due to:
 - Increased code complexity
 - Required union type at API boundary anyway
 - Less flexible for future enhancements
@@ -170,7 +170,7 @@ class BaseHandler(ABC):
     def requires_app_action(self) -> bool: ...
 
     @abstractmethod
-    def execute(self, classified_input: ClassifiedInput) -> ActionResult: ...
+    def execute(self, classified_input: ClassifiedInput) -> ProcessingResponse: ...
 ```
 
 ### 7. Ruff as All-in-One Linter and Formatter
@@ -317,7 +317,7 @@ HANDLERS = [
 
 ### Core Schemas
 - ProcessInputRequest - API input validation
-- ActionResult - API response model with optional fields
+- ProcessingResponse - API response model with optional fields
 - ConfirmationData - User clarification model
 - ClassifiedInput - Classification engine output
 - AppAction types - iOS app action models with discriminated unions
@@ -333,7 +333,7 @@ HANDLERS = [
 - 13 tests for ClassifiedInput
 - 7 tests for enums
 - 11 tests for ProcessInputRequest
-- 11 tests for ActionResult/ConfirmationData
+- 11 tests for ProcessingResponse/ConfirmationData
 - 8 tests for BaseHandler
 - 10 tests for handler registry
 
@@ -359,7 +359,7 @@ HANDLERS = [
 - `src/life_organizer/schemas/__init__.py` - Schema module exports
 - `src/life_organizer/schemas/enums.py` - ActionType and Category enums
 - `src/life_organizer/schemas/requests.py` - ProcessInputRequest schema
-- `src/life_organizer/schemas/responses.py` - ActionResult and ConfirmationData schemas
+- `src/life_organizer/schemas/responses.py` - ProcessingResponse and ConfirmationData schemas
 - `src/life_organizer/schemas/classification.py` - ClassifiedInput schema
 - `src/life_organizer/schemas/actions.py` - AppAction discriminated union models
 
@@ -423,7 +423,7 @@ After merge to staging:
 2. `61051e0` - feat(schemas): implement ProcessInputRequest schema
 3. `2e1c1de` - feat(schemas): implement ClassifiedInput schema
 4. `7361aab` - feat(schemas): implement AppAction models with discriminated unions
-5. `7d70cb5` - feat(schemas): implement ActionResult response schema
+5. `7d70cb5` - feat(schemas): implement ProcessingResponse response schema
 6. `2551e01` - feat(handlers): implement BaseHandler abstract class
 7. `5e1b551` - feat(handlers): implement handler registry system
 8. `3ff9eb6` - docs: mark Phase 2 complete in tasks.md

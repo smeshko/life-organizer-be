@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 from life_organizer.config import get_settings
 from life_organizer.handlers import get_handler
 from life_organizer.schemas.requests import ClassifyRequest
-from life_organizer.schemas.responses import ActionResult
+from life_organizer.schemas.responses import ProcessingResponse
 from life_organizer.services.classifier_orchestrator import ClassifierOrchestrator
 from life_organizer.services.claude_classifier import ClaudeClassifier
 
@@ -21,19 +21,19 @@ orchestrator = ClassifierOrchestrator(
 )
 
 
-@router.post("/process", response_model=ActionResult)
-async def process_input(request: ClassifyRequest) -> ActionResult:
+@router.post("/process", response_model=ProcessingResponse)
+async def process_input(request: ClassifyRequest) -> ProcessingResponse:
     """Classify user input and execute the appropriate handler.
 
     This endpoint combines classification and handler execution. It classifies
     the input, finds the appropriate handler, and executes it to return an
-    ActionResult with app actions or backend-handled responses.
+    ProcessingResponse with app actions or backend-handled responses.
 
     Args:
         request: ClassifyRequest with input text
 
     Returns:
-        ActionResult with action type, message, and optional app_action
+        ProcessingResponse with action type, message, and optional app_action
 
     Raises:
         HTTPException: If input validation fails or processing error occurs

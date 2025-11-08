@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 
 from life_organizer.schemas.classification import ClassifiedInput
-from life_organizer.schemas.responses import ActionResult
+from life_organizer.schemas.responses import ProcessingResponse
 
 
 class BaseHandler(ABC):
@@ -27,9 +27,9 @@ class BaseHandler(ABC):
             def requires_app_action(self) -> bool:
                 return False  # Backend handles entirely via Google Sheets
 
-            async def execute(self, classified_input: ClassifiedInput) -> ActionResult:
+            async def execute(self, classified_input: ClassifiedInput) -> ProcessingResponse:
                 # Log to Google Sheets
-                return ActionResult(
+                return ProcessingResponse(
                     success=True,
                     action_type=ActionType.BACKEND_HANDLED,
                     message="Logged expense"
@@ -59,13 +59,13 @@ class BaseHandler(ABC):
         pass
 
     @abstractmethod
-    async def execute(self, classified_input: ClassifiedInput) -> ActionResult:
+    async def execute(self, classified_input: ClassifiedInput) -> ProcessingResponse:
         """Process the classified input and return the result.
 
         Args:
             classified_input: The classified user input with extracted data
 
         Returns:
-            ActionResult indicating what happened and any required follow-up actions
+            ProcessingResponse indicating what happened and any required follow-up actions
         """
         pass

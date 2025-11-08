@@ -104,7 +104,7 @@ components:
     # RESPONSE MODELS
     # =============================================================================
 
-    ActionResult:
+    ProcessingResponse:
       type: object
       required:
         - success

@@ -3,7 +3,7 @@
 from life_organizer.handlers.base import BaseHandler
 from life_organizer.schemas.classification import ClassifiedInput
 from life_organizer.schemas.enums import ActionType, Category
-from life_organizer.schemas.responses import ActionResult
+from life_organizer.schemas.responses import ProcessingResponse
 
 
 class DummyHandler(BaseHandler):
@@ -17,9 +17,9 @@ class DummyHandler(BaseHandler):
         """This handler is backend-only."""
         return False
 
-    def execute(self, classified_input: ClassifiedInput) -> ActionResult:
+    def execute(self, classified_input: ClassifiedInput) -> ProcessingResponse:
         """Execute the dummy handler."""
-        return ActionResult(
+        return ProcessingResponse(
             success=True,
             action_type=ActionType.BACKEND_HANDLED,
             message="Handled by dummy handler",
@@ -37,9 +37,9 @@ class ExpenseDummyHandler(BaseHandler):
         """This handler is backend-only."""
         return False
 
-    def execute(self, classified_input: ClassifiedInput) -> ActionResult:
+    def execute(self, classified_input: ClassifiedInput) -> ProcessingResponse:
         """Execute the expense dummy handler."""
-        return ActionResult(
+        return ProcessingResponse(
             success=True,
             action_type=ActionType.BACKEND_HANDLED,
             message="Expense logged by dummy handler",

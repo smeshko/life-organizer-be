@@ -8,15 +8,15 @@ from life_organizer.schemas.actions import (
     CreateReminderAction,
 )
 from life_organizer.schemas.enums import ActionType
-from life_organizer.schemas.responses import ActionResult
+from life_organizer.schemas.responses import ProcessingResponse
 
 
-class TestActionResult:
-    """Tests for ActionResult model."""
+class TestProcessingResponse:
+    """Tests for ProcessingResponse model."""
 
     def test_backend_handled_response(self):
         """Test backend_handled response with no optional fields."""
-        result = ActionResult(
+        result = ProcessingResponse(
             success=True,
             action_type=ActionType.BACKEND_HANDLED,
             message="Expense logged successfully",
@@ -35,7 +35,7 @@ class TestActionResult:
             notes="Don't forget whole milk",
         )
 
-        result = ActionResult(
+        result = ProcessingResponse(
             success=True,
             action_type=ActionType.APP_ACTION_REQUIRED,
             message="Reminder ready to create",
@@ -58,7 +58,7 @@ class TestActionResult:
             notes="Organic if possible",
         )
 
-        result = ActionResult(
+        result = ProcessingResponse(
             success=True,
             action_type=ActionType.APP_ACTION_REQUIRED,
             message="Shopping item ready to add",
@@ -81,7 +81,7 @@ class TestActionResult:
             notes="Quarterly planning",
         )
 
-        result = ActionResult(
+        result = ProcessingResponse(
             success=True,
             action_type=ActionType.APP_ACTION_REQUIRED,
             message="Calendar event ready to create",
@@ -101,7 +101,7 @@ class TestActionResult:
             due_date=datetime(2025, 11, 5, 9, 0, tzinfo=UTC),
         )
 
-        result = ActionResult(
+        result = ProcessingResponse(
             success=True,
             action_type=ActionType.APP_ACTION_REQUIRED,
             message="Reminder created",
@@ -114,14 +114,14 @@ class TestActionResult:
 
         # Test deserialization
         json_str = result.model_dump_json()
-        reconstructed = ActionResult.model_validate_json(json_str)
+        reconstructed = ProcessingResponse.model_validate_json(json_str)
         assert isinstance(reconstructed.app_action, CreateReminderAction)
         assert reconstructed.app_action.title == "Call dentist"
 
     def test_optional_fields_are_truly_optional(self):
         """Test that app_action is optional."""
-        # Can create ActionResult without optional fields
-        result = ActionResult(
+        # Can create ProcessingResponse without optional fields
+        result = ProcessingResponse(
             success=True,
             action_type=ActionType.BACKEND_HANDLED,
             message="Done",
@@ -134,8 +134,8 @@ class TestActionResult:
         assert json_data["app_action"] is None
 
     def test_failed_action_result(self):
-        """Test ActionResult with success=False."""
-        result = ActionResult(
+        """Test ProcessingResponse with success=False."""
+        result = ProcessingResponse(
             success=False,
             action_type=ActionType.BACKEND_HANDLED,
             message="Failed to log expense: database error",

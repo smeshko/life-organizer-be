@@ -9,7 +9,7 @@ from life_organizer.handlers.base import BaseHandler
 from life_organizer.schemas.actions import LogBudgetEntryAction
 from life_organizer.schemas.classification import ClassifiedInput
 from life_organizer.schemas.enums import ActionType, Category
-from life_organizer.schemas.responses import ActionResult
+from life_organizer.schemas.responses import ProcessingResponse
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ class BudgetEntryHandler(BaseHandler):
         """
         return True
 
-    async def execute(self, classified_input: ClassifiedInput) -> ActionResult:
+    async def execute(self, classified_input: ClassifiedInput) -> ProcessingResponse:
         """Process budget entry from LLM-extracted data.
 
         Args:
@@ -91,7 +91,7 @@ class BudgetEntryHandler(BaseHandler):
                 - merchant (str, optional): Merchant/description
 
         Returns:
-            ActionResult with LogBudgetEntryAction for app to execute
+            ProcessingResponse with LogBudgetEntryAction for app to execute
 
         Raises:
             ValueError: If required fields are missing or invalid
@@ -140,7 +140,7 @@ class BudgetEntryHandler(BaseHandler):
             )
 
             # Return success result
-            return ActionResult(
+            return ProcessingResponse(
                 success=True,
                 action_type=ActionType.APP_ACTION_REQUIRED,
                 message=f"Logged {transaction_type.lower()}: {amount_bgn} BGN in {category}",
