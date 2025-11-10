@@ -23,6 +23,9 @@ dependencies = [
     "anthropic>=0.40.0",  # Added for Claude integration
     "tenacity>=8.0.0",  # Added for retry logic
     "python-dateutil>=2.8.2",  # Added for date parsing
+    "sqlalchemy[asyncio]>=2.0.0",  # SQLAlchemy 2.0 with async support
+    "asyncpg>=0.30.0",  # Fast async PostgreSQL driver
+    "alembic>=1.13.0",  # Database migrations
 ]
 
 [project.optional-dependencies]
@@ -102,6 +105,7 @@ strict_equality = true
 pretty = true
 show_error_context = true
 show_error_codes = true
+exclude = ["alembic/"]
 
 [[tool.mypy.overrides]]
 module = "tests.*"
@@ -121,6 +125,16 @@ ignore_missing_imports = true
 # Dateutil library type stubs
 [[tool.mypy.overrides]]
 module = "dateutil.*"
+ignore_missing_imports = true
+
+# Alembic doesn't ship with complete type stubs
+[[tool.mypy.overrides]]
+module = "alembic.*"
+ignore_missing_imports = true
+
+# SQLAlchemy type stubs have some compatibility issues
+[[tool.mypy.overrides]]
+module = "sqlalchemy.*"
 ignore_missing_imports = true
 
 # Pytest Configuration

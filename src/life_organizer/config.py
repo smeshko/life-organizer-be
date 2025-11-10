@@ -35,8 +35,26 @@ class Settings(BaseSettings):
     openai_api_key: str | None = Field(default=None, description="OpenAI API key")
     claude_api_key: str = Field(..., description="Anthropic Claude API key")
 
-    # Database (future)
-    database_url: str | None = Field(default=None, description="Database connection URL")
+    # Database
+    database_url: str = Field(
+        default="postgresql+asyncpg://life_organizer:life_organizer@localhost:5432/life_organizer",
+        description="Database connection URL (async format)",
+    )
+
+    @property
+    def async_database_url(self) -> str:
+        """Convert DATABASE_URL to async format if needed.
+
+        Railway and some other platforms provide DATABASE_URL with postgresql://
+        prefix, but asyncpg requires postgresql+asyncpg://. This property handles
+        the conversion automatically.
+
+        Returns:
+            str: Database URL in async format (postgresql+asyncpg://)
+        """
+        if self.database_url and self.database_url.startswith("postgresql://"):
+            return self.database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return self.database_url or ""
 
     # iOS Integration (future)
     icloud_username: str | None = Field(default=None, description="iCloud username")

@@ -1,0 +1,150 @@
+# Alembic Database Migrations
+
+This directory contains Alembic migration scripts for managing database schema changes.
+
+## Prerequisites
+
+- PostgreSQL database running and accessible
+- DATABASE_URL environment variable set in `.env` file
+- Format: `postgresql+asyncpg://user:password@host:port/database`
+
+## Configuration
+
+This project uses **async migrations** with SQLAlchemy 2.0 async patterns.
+
+- **Async engine**: Migrations run using asyncio
+- **Auto-generate**: Migrations are generated from SQLAlchemy models
+- **Metadata source**: `life_organizer.db.models.Base.metadata`
+- **URL source**: Read from settings (`DATABASE_URL` in `.env`)
+
+## Common Commands
+
+### Check Current Status
+
+```bash
+alembic current
+```
+
+Shows the current migration version applied to the database.
+
+### Generate New Migration (Auto-generate)
+
+```bash
+alembic revision --autogenerate -m "description of changes"
+```
+
+Automatically generates a migration by comparing the current database schema
+with the models defined in `src/life_organizer/db/models/`.
+
+**Important**: Always review the generated migration before applying it!
+
+### Apply Migrations (Upgrade)
+
+```bash
+# Apply all pending migrations
+alembic upgrade head
+
+# Apply specific number of migrations
+alembic upgrade +1
+
+# Apply to specific version
+alembic upgrade <revision_id>
+```
+
+### Rollback Migrations (Downgrade)
+
+```bash
+# Rollback one migration
+alembic downgrade -1
+
+# Rollback to base (removes all migrations)
+alembic downgrade base
+
+# Rollback to specific version
+alembic downgrade <revision_id>
+```
+
+### View Migration History
+
+```bash
+# Show all revisions
+alembic history
+
+# Show verbose history with details
+alembic history --verbose
+```
+
+### Check Configuration
+
+```bash
+alembic check
+```
+
+Verifies that the database is up-to-date with migrations.
+
+## Workflow for Schema Changes
+
+1. **Modify models** in `src/life_organizer/db/models/`
+2. **Generate migration**: `alembic revision --autogenerate -m "description"`
+3. **Review migration file** in `alembic/versions/`
+   - Check that schema changes are correct
+   - Add manual changes if needed (e.g., data migrations)
+   - Verify both `upgrade()` and `downgrade()` functions
+4. **Apply migration**: `alembic upgrade head`
+5. **Verify in database**: Check tables/columns with `\d` in psql
+6. **Test rollback** (optional): `alembic downgrade -1` then `alembic upgrade head`
+7. **Commit migration file** to version control
+
+## Schema Namespaces
+
+This project uses PostgreSQL schemas as namespaces:
+
+- `budget` - Budget transactions (expenses, income, savings)
+- Future: `notes`, `workout`, `system`
+
+Models specify schema in `__table_args__`:
+
+```python
+class MyModel(Base):
+    __tablename__ = "my_table"
+    __table_args__ = {'schema': 'my_namespace'}
+```
+
+## Troubleshooting
+
+### "Can't locate revision identified by '<rev>'"
+
+Reset migration tracking:
+
+```bash
+alembic stamp head
+```
+
+### "Target database is not up to date"
+
+Apply pending migrations:
+
+```bash
+alembic upgrade head
+```
+
+### "FAILED: Target database is not up to date"
+
+Check current version and history:
+
+```bash
+alembic current
+alembic history
+```
+
+### Async Import Errors
+
+Ensure you're using the async template and that `env.py` properly imports
+the async engine and uses `asyncio.run()`.
+
+## Notes
+
+- **Never edit applied migrations**: Create a new migration instead
+- **Always test rollback**: Ensure `downgrade()` works before deploying
+- **Schema creation**: First migration includes `CREATE SCHEMA` statements
+- **Railway deployment**: Migrations run automatically via start command
