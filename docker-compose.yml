@@ -37,8 +37,8 @@ services:
       HOST: 0.0.0.0
       PORT: 8000
 
-      # CORS settings
-      CORS_ORIGINS: http://localhost:3000,http://localhost:8080
+      # CORS settings (JSON array format for Pydantic Settings)
+      CORS_ORIGINS: '["http://localhost:3000","http://localhost:8080"]'
 
       # Database connection
       DATABASE_URL: postgresql://life_organizer:life_organizer_dev_password@db:5432/life_organizer
