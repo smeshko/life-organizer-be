@@ -1,5 +1,7 @@
 """Tests for BudgetEntryHandler using LLM-extracted data."""
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 from fastapi import HTTPException
 
@@ -31,8 +33,15 @@ class TestBudgetEntryHandlerExecute:
     """Integration-style tests for execute() using LLM extracted data."""
 
     @pytest.mark.asyncio
-    async def test_expense_in_eur_converts_to_bgn(self, handler: BudgetEntryHandler) -> None:
-        """Expense entries in EUR should be converted to BGN."""
+    @patch("life_organizer.handlers.budget_entry.async_session_factory")
+    async def test_expense_in_eur_converts_to_bgn(
+        self, mock_session_factory: MagicMock, handler: BudgetEntryHandler
+    ) -> None:
+        """Expense entries in EUR should be converted to BGN and persisted to database."""
+        # Mock database session
+        mock_session = AsyncMock()
+        mock_session_factory.return_value.__aenter__.return_value = mock_session
+
         classified = _classified_input(
             {
                 "amount": 120.0,
@@ -48,19 +57,23 @@ class TestBudgetEntryHandlerExecute:
         result = await handler.execute(classified)
 
         assert result.success is True
-        assert result.action_type == ActionType.APP_ACTION_REQUIRED
-        assert result.app_action is not None
-        action = result.app_action
-        assert action.amount == pytest.approx(234.6)
-        assert action.transaction_type == "Expenses"
-        assert action.category == "Clothes"
-        assert action.details == "next"
-        assert action.date == "2025-11-04"
+        assert result.action_type == ActionType.BACKEND_HANDLED
         assert result.message == "Logged expenses: 234.6 BGN in Clothes"
 
+        # Verify database operations were called
+        mock_session.add.assert_called_once()
+        mock_session.commit.assert_awaited_once()
+
     @pytest.mark.asyncio
-    async def test_income_entry_passes_through_fields(self, handler: BudgetEntryHandler) -> None:
+    @patch("life_organizer.handlers.budget_entry.async_session_factory")
+    async def test_income_entry_passes_through_fields(
+        self, mock_session_factory: MagicMock, handler: BudgetEntryHandler
+    ) -> None:
         """Income entries should keep amount, date, and category from extracted data."""
+        # Mock database session
+        mock_session = AsyncMock()
+        mock_session_factory.return_value.__aenter__.return_value = mock_session
+
         classified = _classified_input(
             {
                 "amount": 250.0,
@@ -76,18 +89,23 @@ class TestBudgetEntryHandlerExecute:
         result = await handler.execute(classified)
 
         assert result.success is True
-        assert result.app_action is not None
-        action = result.app_action
-        assert action.amount == 250.0
-        assert action.transaction_type == "Income"
-        assert action.category == "Rent"
-        assert action.details == "tenant"
-        assert action.date == "2025-10-31"
+        assert result.action_type == ActionType.BACKEND_HANDLED
         assert result.message == "Logged income: 250.0 BGN in Rent"
 
+        # Verify database operations were called
+        mock_session.add.assert_called_once()
+        mock_session.commit.assert_awaited_once()
+
     @pytest.mark.asyncio
-    async def test_savings_entry_without_merchant(self, handler: BudgetEntryHandler) -> None:
-        """Savings entries with no merchant should produce None details."""
+    @patch("life_organizer.handlers.budget_entry.async_session_factory")
+    async def test_savings_entry_without_merchant(
+        self, mock_session_factory: MagicMock, handler: BudgetEntryHandler
+    ) -> None:
+        """Savings entries with no merchant should persist with None details."""
+        # Mock database session
+        mock_session = AsyncMock()
+        mock_session_factory.return_value.__aenter__.return_value = mock_session
+
         classified = _classified_input(
             {
                 "amount": 1220.0,
@@ -102,14 +120,12 @@ class TestBudgetEntryHandlerExecute:
         result = await handler.execute(classified)
 
         assert result.success is True
-        assert result.app_action is not None
-        action = result.app_action
-        assert action.amount == 1220.0
-        assert action.transaction_type == "Savings"
-        assert action.category == "Savings"
-        assert action.details is None
-        assert action.date == "2025-11-04"
+        assert result.action_type == ActionType.BACKEND_HANDLED
         assert result.message == "Logged savings: 1220.0 BGN in Savings"
+
+        # Verify database operations were called
+        mock_session.add.assert_called_once()
+        mock_session.commit.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_missing_required_fields_raises_exception(
