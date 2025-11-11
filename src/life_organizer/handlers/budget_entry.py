@@ -1,12 +1,15 @@
 """Budget entry handler for expenses, income, and savings transactions."""
 
+import datetime
 import logging
+from decimal import Decimal
 from typing import Literal, cast
 
 from fastapi import HTTPException
 
+from life_organizer.db.models.budget import BudgetTransaction
+from life_organizer.db.session import async_session_factory
 from life_organizer.handlers.base import BaseHandler
-from life_organizer.schemas.actions import LogBudgetEntryAction
 from life_organizer.schemas.classification import ClassifiedInput
 from life_organizer.schemas.enums import ActionType, Category
 from life_organizer.schemas.responses import ProcessingResponse
@@ -47,11 +50,10 @@ class BudgetEntryHandler(BaseHandler):
     """Handler for budget entries (expenses, income, savings).
 
     Processes LLM-classified budget entries with pre-extracted structured data.
-    Performs currency conversion and generates app actions for iOS to populate
-    the Excel budget sheet.
+    Performs currency conversion and persists transactions to the database.
 
     All extraction, classification, and date parsing is done by the LLM classifier.
-    This handler only validates and transforms the data.
+    This handler validates, transforms, and persists the data to PostgreSQL.
 
     Handles:
     - Expenses: "spent 120eur at next"
@@ -74,12 +76,12 @@ class BudgetEntryHandler(BaseHandler):
         """Determine if this handler requires iOS app involvement.
 
         Returns:
-            True (always delegates to iOS for Excel population)
+            False (backend handles database persistence directly)
         """
-        return True
+        return False
 
     async def execute(self, classified_input: ClassifiedInput) -> ProcessingResponse:
-        """Process budget entry from LLM-extracted data.
+        """Process budget entry from LLM-extracted data and persist to database.
 
         Args:
             classified_input: Classification with extracted_data containing:
@@ -91,7 +93,7 @@ class BudgetEntryHandler(BaseHandler):
                 - merchant (str, optional): Merchant/description
 
         Returns:
-            ProcessingResponse with LogBudgetEntryAction for app to execute
+            ProcessingResponse with backend_handled status after database persistence
 
         Raises:
             ValueError: If required fields are missing or invalid
@@ -130,21 +132,36 @@ class BudgetEntryHandler(BaseHandler):
             merchant = classified_input.extracted_data.get("merchant")
             details = str(merchant) if merchant else None
 
-            # Create action for app to execute
-            action = LogBudgetEntryAction(
-                amount=amount_bgn,
-                date=date_iso,
-                transaction_type=transaction_type,
-                category=category,
-                details=details,
-            )
+            # Persist transaction to database
+            async with async_session_factory() as db:
+                try:
+                    # Create database record
+                    transaction = BudgetTransaction(
+                        amount=Decimal(str(amount)),  # Original amount
+                        currency=currency,
+                        amount_bgn=Decimal(str(amount_bgn)),  # Converted amount
+                        date=datetime.date.fromisoformat(date_iso),
+                        transaction_type=transaction_type,
+                        category=category,
+                        details=details,
+                    )
+                    db.add(transaction)
+                    await db.commit()
+                    logger.info(f"Persisted budget transaction: {transaction}")
+                except Exception as db_error:
+                    # Log error and raise to fail the request
+                    logger.error(f"Failed to persist budget transaction: {db_error}")
+                    await db.rollback()
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Failed to save budget transaction to database",
+                    ) from db_error
 
             # Return success result
             return ProcessingResponse(
                 success=True,
-                action_type=ActionType.APP_ACTION_REQUIRED,
+                action_type=ActionType.BACKEND_HANDLED,
                 message=f"Logged {transaction_type.lower()}: {amount_bgn} BGN in {category}",
-                app_action=action,
             )
 
         except (ValueError, KeyError) as e:
