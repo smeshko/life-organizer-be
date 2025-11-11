@@ -42,7 +42,7 @@ repos:
           - anthropic>=0.40.0
           - tenacity>=8.0.0
         args: [--config-file=pyproject.toml]
-        exclude: ^tests/
+        exclude: ^(tests/|alembic/)
 
   # OpenAPI Spec Validator
   - repo: local

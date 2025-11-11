@@ -1,0 +1,66 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: life-organizer-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: life_organizer
+      POSTGRES_PASSWORD: life_organizer_dev_password
+      POSTGRES_DB: life_organizer
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U life_organizer"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - life-organizer-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: life-organizer-app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # Application settings
+      DEBUG: "true"
+      LOG_LEVEL: INFO
+      API_VERSION: v1
+
+      # Server configuration
+      HOST: 0.0.0.0
+      PORT: 8000
+
+      # CORS settings (JSON array format for Pydantic Settings)
+      CORS_ORIGINS: '["http://localhost:3000","http://localhost:8080"]'
+
+      # Database connection
+      DATABASE_URL: postgresql://life_organizer:life_organizer_dev_password@db:5432/life_organizer
+
+      # Claude API (REQUIRED - set your key)
+      CLAUDE_API_KEY: ${CLAUDE_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - life-organizer-network
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  life-organizer-network:
+    driver: bridge

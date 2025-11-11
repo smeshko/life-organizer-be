@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 
 from life_organizer.api.routes import classifier
 from life_organizer.config import get_settings
+from life_organizer.db.session import engine
 from life_organizer.logging_config import get_logger, setup_logging
 
 # Initialize settings and logging
@@ -33,9 +34,30 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     logger.info(f"API version: {settings.api_version}")
     logger.info(f"Log level: {settings.log_level}")
 
+    # Initialize database
+    logger.info("Initializing database connection...")
+    # Database URL sanitized (password masked)
+    db_url = settings.async_database_url
+    if "@" in db_url:
+        # Mask password in log
+        parts = db_url.split("@")
+        user_pass = parts[0].split("://")[1]
+        if ":" in user_pass:
+            user = user_pass.split(":")[0]
+            masked_url = db_url.replace(user_pass, f"{user}:****")
+            logger.info(f"Database URL: {masked_url}")
+        else:
+            logger.info(f"Database URL: {db_url}")
+    else:
+        logger.info(f"Database URL: {db_url}")
+    logger.info("Database engine initialized")
+
     yield
 
     # Shutdown
+    logger.info("Closing database connection...")
+    await engine.dispose()
+    logger.info("Database engine disposed")
     logger.info("Shutting down Life Organizer Backend")
 
 
