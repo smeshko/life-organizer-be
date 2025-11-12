@@ -59,13 +59,13 @@ class BaseHandler(ABC):
         pass
 
     @abstractmethod
-    async def execute(self, classified_input: ClassifiedInput) -> ProcessingResponse:
-        """Process the classified input and return the result.
+    async def execute(self, classified_inputs: list[ClassifiedInput]) -> list[ProcessingResponse]:
+        """Process the classified inputs and return the results.
 
         Args:
-            classified_input: The classified user input with extracted data
+            classified_inputs: List of classified user inputs with extracted data
 
         Returns:
-            ProcessingResponse indicating what happened and any required follow-up actions
+            List of ProcessingResponse objects indicating what happened for each input
         """
         pass
