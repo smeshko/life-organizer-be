@@ -32,6 +32,8 @@ tags:
     description: Health check and status endpoints
   - name: classification
     description: User input classification and processing
+  - name: budget
+    description: Budget transaction management and export
 
 paths:
   /:
@@ -268,6 +270,67 @@ paths:
                   summary: Processing error
                   value:
                     detail: "Processing error: Unexpected classification failure"
+
+  /api/v1/budget/export:
+    get:
+      summary: Export budget transactions as TSV
+      description: |
+        Export budget transactions in tab-separated values (TSV) format for easy copy/paste into Excel.
+
+        Returns transactions filtered by start date (inclusive) in the following format:
+        - Columns: Date, Type, Category, Amount, Details
+        - Amount: Integer values in BGN (rounded up)
+        - Sorted by date ascending (oldest first)
+        - Empty string for null details
+
+        The TSV format can be copied directly from the response and pasted into Excel,
+        which will automatically parse the columns correctly.
+
+        ## Example Usage
+        1. Call the endpoint with desired start date
+        2. Copy the entire response text
+        3. Paste into Excel (columns will auto-separate)
+      operationId: exportBudget
+      tags:
+        - budget
+      parameters:
+        - name: start_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Starting date for export (inclusive). Format YYYY-MM-DD
+          example: "2025-11-01"
+      responses:
+        '200':
+          description: Successfully exported budget transactions
+          content:
+            text/tab-separated-values:
+              schema:
+                type: string
+                description: Tab-separated values (data rows only, no header)
+              example: |
+                2025-11-01	Expenses	Groceries	98	Kaufland
+                2025-11-05	Income	Salary Ivo	3000	November salary
+                2025-11-13	Savings	Avi Savings	1220	Monthly contribution
+        '422':
+          description: Validation error (invalid date format)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                database_error:
+                  summary: Database connection error
+                  value:
+                    detail: "Failed to connect to database"
 
 components:
   schemas:
