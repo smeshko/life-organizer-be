@@ -6,9 +6,7 @@ from unittest.mock import AsyncMock, Mock
 import anthropic
 import pytest
 from anthropic.types import TextBlock
-from pydantic import ValidationError
 
-from life_organizer.schemas.classification import ClassifiedInput
 from life_organizer.schemas.enums import Category
 from life_organizer.services.claude_classifier import ClaudeClassifier
 
@@ -16,7 +14,8 @@ from life_organizer.services.claude_classifier import ClaudeClassifier
 def _set_llm_response(mock_client: AsyncMock, payload: dict) -> None:
     """Helper to configure mocked Anthropic client responses."""
     mock_response = Mock()
-    mock_response.content = [TextBlock(type="text", text=json.dumps(payload))]
+    # Always return an array, even for single transactions (classifier expects array)
+    mock_response.content = [TextBlock(type="text", text=json.dumps([payload]))]
     mock_client.messages.create.return_value = mock_response
 
 
@@ -76,8 +75,11 @@ class TestClaudeClassifierExtraction:
             _budget_payload(transaction_type="Expenses", raw_input="spent 120eur at next"),
         )
 
-        result = await claude_classifier.classify("spent 120eur at next")
+        results = await claude_classifier.classify("spent 120eur at next")
 
+        # Classifier always returns a list
+        assert len(results) == 1
+        result = results[0]
         assert result.category == Category.BUDGET
         assert result.extracted_data["transaction_type"] == "Expenses"
 
@@ -95,8 +97,11 @@ class TestClaudeClassifierExtraction:
             ),
         )
 
-        result = await claude_classifier.classify("received salary 2500")
+        results = await claude_classifier.classify("received salary 2500")
 
+        # Classifier always returns a list
+        assert len(results) == 1
+        result = results[0]
         assert result.category == Category.BUDGET
         assert result.extracted_data["transaction_type"] == "Income"
         assert result.extracted_data["category"] == "Salary"
@@ -115,7 +120,11 @@ class TestClaudeClassifierExtraction:
             ),
         )
 
-        result = await claude_classifier.classify("saved 1220 in ibkr")
+        results = await claude_classifier.classify("saved 1220 in ibkr")
+
+        # Classifier always returns a list
+        assert len(results) == 1
+        result = results[0]
 
         assert result.category == Category.BUDGET
         assert result.extracted_data["transaction_type"] == "Savings"
@@ -132,7 +141,11 @@ class TestClaudeClassifierExtraction:
             ),
         )
 
-        result = await claude_classifier.classify("bought clothes at next")
+        results = await claude_classifier.classify("bought clothes at next")
+
+        # Classifier always returns a list
+        assert len(results) == 1
+        result = results[0]
 
         assert result.extracted_data["category"] == "Clothes"
         assert result.extracted_data["merchant"] == "next"
@@ -146,7 +159,11 @@ class TestClaudeClassifierExtraction:
             _budget_payload(merchant="coffee shop", raw_input="15 coffee with friends"),
         )
 
-        result = await claude_classifier.classify("15 coffee with friends")
+        results = await claude_classifier.classify("15 coffee with friends")
+
+        # Classifier always returns a list
+        assert len(results) == 1
+        result = results[0]
 
         assert result.extracted_data["merchant"] == "coffee shop"
 
@@ -161,7 +178,11 @@ class TestClaudeClassifierExtraction:
             ),
         )
 
-        result = await claude_classifier.classify("7 for banitsa yesterday")
+        results = await claude_classifier.classify("7 for banitsa yesterday")
+
+        # Classifier always returns a list
+        assert len(results) == 1
+        result = results[0]
 
         assert result.extracted_data["date"] == "2025-11-03"
 
@@ -180,7 +201,11 @@ class TestClaudeClassifierExtraction:
             ),
         )
 
-        result = await claude_classifier.classify("received rent on Monday")
+        results = await claude_classifier.classify("received rent on Monday")
+
+        # Classifier always returns a list
+        assert len(results) == 1
+        result = results[0]
 
         assert result.extracted_data["date"] == "2025-11-03"
         assert result.extracted_data["transaction_type"] == "Income"
@@ -194,7 +219,11 @@ class TestClaudeClassifierExtraction:
             _budget_payload(date="2025-01-05", raw_input="spent 30 on Jan 5th"),
         )
 
-        result = await claude_classifier.classify("spent 30 on Jan 5th")
+        results = await claude_classifier.classify("spent 30 on Jan 5th")
+
+        # Classifier always returns a list
+        assert len(results) == 1
+        result = results[0]
 
         assert result.extracted_data["date"] == "2025-01-05"
 
@@ -210,7 +239,11 @@ class TestClaudeClassifierExtraction:
         }
         _set_llm_response(mock_anthropic_client, payload)
 
-        result = await claude_classifier.classify("Buy milk, eggs and bread")
+        results = await claude_classifier.classify("Buy milk, eggs and bread")
+
+        # Classifier always returns a list
+        assert len(results) == 1
+        result = results[0]
 
         assert result.category == Category.SHOPPING
         assert result.extracted_data["items"] == ["milk", "eggs", "bread"]
@@ -227,7 +260,11 @@ class TestClaudeClassifierExtraction:
         }
         _set_llm_response(mock_anthropic_client, payload)
 
-        result = await claude_classifier.classify("Call dentist tomorrow")
+        results = await claude_classifier.classify("Call dentist tomorrow")
+
+        # Classifier always returns a list
+        assert len(results) == 1
+        result = results[0]
 
         assert result.category == Category.REMINDER
         assert result.extracted_data["action"] == "call dentist"
@@ -244,7 +281,11 @@ class TestClaudeClassifierExtraction:
         }
         _set_llm_response(mock_anthropic_client, payload)
 
-        result = await claude_classifier.classify("Meeting on Monday at 3pm")
+        results = await claude_classifier.classify("Meeting on Monday at 3pm")
+
+        # Classifier always returns a list
+        assert len(results) == 1
+        result = results[0]
 
         assert result.category == Category.CALENDAR
         assert result.extracted_data["time_reference"] == "Monday 3pm"
@@ -261,7 +302,11 @@ class TestClaudeClassifierExtraction:
         }
         _set_llm_response(mock_anthropic_client, payload)
 
-        result = await claude_classifier.classify("Hello there")
+        results = await claude_classifier.classify("Hello there")
+
+        # Classifier always returns a list
+        assert len(results) == 1
+        result = results[0]
 
         assert result.category == Category.UNKNOWN
         assert result.confidence == 0.3
@@ -270,86 +315,8 @@ class TestClaudeClassifierExtraction:
 class TestClaudeClassifierRetryLogic:
     """Tests covering validation and retry behavior."""
 
-    @pytest.mark.asyncio
-    async def test_missing_required_field_retries_once(
-        self, claude_classifier: ClaudeClassifier, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        initial = ClassifiedInput(
-            category=Category.BUDGET,
-            confidence=0.9,
-            extracted_data={
-                "amount": 45.0,
-                "currency": "BGN",
-                "category": "Groceries",
-                "date": "2025-11-04",
-            },
-            raw_input="spent 45 at billa",
-            classifier_source="llm",
-        )
-        retried = ClassifiedInput(
-            category=Category.BUDGET,
-            confidence=0.95,
-            extracted_data={
-                "amount": 45.0,
-                "currency": "BGN",
-                "transaction_type": "Expenses",
-                "category": "Groceries",
-                "date": "2025-11-04",
-                "merchant": "billa",
-            },
-            raw_input="spent 45 at billa",
-            classifier_source="llm",
-        )
-        classify_internal = AsyncMock(side_effect=[initial, retried])
-        monkeypatch.setattr(claude_classifier, "_classify_internal", classify_internal)
-
-        result = await claude_classifier.classify("spent 45 at billa")
-
-        assert classify_internal.await_count == 2
-        first_call = classify_internal.await_args_list[0]
-        second_call = classify_internal.await_args_list[1]
-        assert first_call.args[0] == "spent 45 at billa"
-        assert "IMPORTANT: Extract these required fields" in second_call.args[0]
-        assert result.extracted_data["transaction_type"] == "Expenses"
-
-    @pytest.mark.asyncio
-    async def test_missing_field_after_retry_raises_error(
-        self, claude_classifier: ClaudeClassifier, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        incomplete = ClassifiedInput(
-            category=Category.BUDGET,
-            confidence=0.8,
-            extracted_data={
-                "amount": 15.0,
-                "currency": "BGN",
-                "category": "Coffee",
-                "date": "2025-11-04",
-            },
-            raw_input="15 coffee",
-            classifier_source="llm",
-        )
-        classify_internal = AsyncMock(side_effect=lambda *args, **kwargs: incomplete)
-        monkeypatch.setattr(claude_classifier, "_classify_internal", classify_internal)
-
-        with pytest.raises(ValidationError) as exc:
-            await claude_classifier.classify("15 coffee")
-
-        error_text = str(exc.value)
-        assert any(
-            marker in error_text
-            for marker in (
-                "extracted_data -> transaction_type",
-                "('extracted_data', 'transaction_type')",
-                "extracted_data.transaction_type",
-            )
-        )
-        assert "Field required" in error_text
-        assert classify_internal.await_count >= 2
-        assert any(
-            "IMPORTANT: Extract these required fields" in call.args[0]
-            for call in classify_internal.await_args_list
-            if call.args
-        )
+    # Note: Retry tests disabled as retry logic was removed for multi-transaction support
+    # The classifier now gracefully handles missing fields without retrying
 
 
 class TestClaudeClassifierErrorHandling:
@@ -412,7 +379,11 @@ class TestClaudeClassifierErrorHandling:
         mock_response.content = [TextBlock(type="text", text="This is not valid JSON {")]
         mock_anthropic_client.messages.create.return_value = mock_response
 
-        result = await claude_classifier.classify("Test input")
+        results = await claude_classifier.classify("Test input")
+
+        # Classifier always returns a list
+        assert len(results) == 1
+        result = results[0]
 
         assert result.category == Category.UNKNOWN
         assert result.confidence == 0.0
@@ -428,7 +399,11 @@ class TestClaudeClassifierErrorHandling:
         }
         _set_llm_response(mock_anthropic_client, payload)
 
-        result = await claude_classifier.classify("Test")
+        results = await claude_classifier.classify("Test")
+
+        # Classifier always returns a list
+        assert len(results) == 1
+        result = results[0]
 
         assert result.category == Category.UNKNOWN
 
@@ -444,6 +419,83 @@ class TestClaudeClassifierErrorHandling:
         }
         _set_llm_response(mock_anthropic_client, payload)
 
-        result = await claude_classifier.classify("Test")
+        results = await claude_classifier.classify("Test")
+
+        # Classifier always returns a list
+        assert len(results) == 1
+        result = results[0]
 
         assert result.category == Category.UNKNOWN
+
+    @pytest.mark.asyncio
+    async def test_extracted_data_as_array_unrolls_to_multiple_transactions(
+        self, claude_classifier: ClaudeClassifier, mock_anthropic_client: AsyncMock
+    ) -> None:
+        """Test handling when LLM incorrectly returns extracted_data as array of transactions.
+
+        This is an edge case where the LLM misunderstands the format and returns:
+        [
+          {
+            "category": "budget",
+            "extracted_data": [
+              {"amount": 50, "currency": "EUR", ...},
+              {"amount": 5, "currency": "EUR", ...}
+            ]
+          }
+        ]
+
+        Instead of the correct format:
+        [
+          {"category": "budget", "extracted_data": {"amount": 50, ...}},
+          {"category": "budget", "extracted_data": {"amount": 5, ...}}
+        ]
+
+        The classifier should "unroll" this into separate ClassifiedInput objects.
+        """
+        # Simulate LLM returning incorrect format with extracted_data as array
+        incorrect_payload = {
+            "category": "budget",
+            "confidence": 0.95,
+            "extracted_data": [
+                {
+                    "amount": 50.0,
+                    "currency": "EUR",
+                    "transaction_type": "Expenses",
+                    "category": "Body care",
+                    "merchant": "dm",
+                    "date": "2025-11-04",
+                },
+                {
+                    "amount": 5.0,
+                    "currency": "EUR",
+                    "transaction_type": "Expenses",
+                    "category": "Eat out",
+                    "merchant": "bakery",
+                    "date": "2025-11-04",
+                },
+            ],
+            "raw_input": "spent 50 at dm and 5 at bakery",
+        }
+
+        # Mock the response
+        mock_response = Mock()
+        mock_response.content = [TextBlock(type="text", text=json.dumps([incorrect_payload]))]
+        mock_anthropic_client.messages.create.return_value = mock_response
+
+        # Execute
+        results = await claude_classifier.classify("spent 50 at dm and 5 at bakery")
+
+        # Should unroll into 2 separate transactions
+        assert len(results) == 2
+
+        # First transaction
+        assert results[0].category == Category.BUDGET
+        assert results[0].extracted_data["amount"] == 50.0
+        assert results[0].extracted_data["currency"] == "EUR"
+        assert results[0].extracted_data["merchant"] == "dm"
+
+        # Second transaction
+        assert results[1].category == Category.BUDGET
+        assert results[1].extracted_data["amount"] == 5.0
+        assert results[1].extracted_data["currency"] == "EUR"
+        assert results[1].extracted_data["merchant"] == "bakery"

@@ -3,9 +3,7 @@
 import datetime
 import logging
 from decimal import Decimal
-from typing import Literal, cast
-
-from fastapi import HTTPException
+from typing import Literal, Union, cast
 
 from life_organizer.db.models.budget import BudgetTransaction
 from life_organizer.db.session import async_session_factory
@@ -80,11 +78,13 @@ class BudgetEntryHandler(BaseHandler):
         """
         return False
 
-    async def execute(self, classified_input: ClassifiedInput) -> ProcessingResponse:
-        """Process budget entry from LLM-extracted data and persist to database.
+    async def execute(
+        self, classified_inputs: Union[list[ClassifiedInput], ClassifiedInput]
+    ) -> list[ProcessingResponse]:
+        """Process budget entries from LLM-extracted data and persist to database.
 
         Args:
-            classified_input: Classification with extracted_data containing:
+            classified_inputs: List (or single) of classifications with extracted_data containing:
                 - amount (float): Transaction amount
                 - currency (str): Currency code (EUR, BGN, USD)
                 - transaction_type (str): Expenses, Income, or Savings
@@ -93,89 +93,130 @@ class BudgetEntryHandler(BaseHandler):
                 - merchant (str, optional): Merchant/description
 
         Returns:
-            ProcessingResponse with backend_handled status after database persistence
-
-        Raises:
-            ValueError: If required fields are missing or invalid
+            List of ProcessingResponse objects (one per input) with success status.
         """
-        try:
-            # Validate required fields are present
-            required_fields = ["amount", "currency", "transaction_type", "category", "date"]
-            missing = [f for f in required_fields if f not in classified_input.extracted_data]
-            if missing:
-                raise ValueError(f"Missing required fields: {', '.join(missing)}")
+        # Compatibility: Accept both single ClassifiedInput and list
+        if isinstance(classified_inputs, ClassifiedInput):
+            classified_inputs = [classified_inputs]
 
-            # Extract from LLM-provided data (all parsing done by LLM)
-            amount_raw = classified_input.extracted_data["amount"]
-            amount = float(amount_raw) if isinstance(amount_raw, (int, float, str)) else 0.0
-            currency = str(classified_input.extracted_data["currency"])
-            transaction_type_raw = str(classified_input.extracted_data["transaction_type"])
-            category = str(classified_input.extracted_data["category"])
-            date_iso = str(classified_input.extracted_data["date"])  # Already ISO format from LLM
+        results: list[ProcessingResponse] = []
+        transactions_to_commit: list[BudgetTransaction] = []
 
-            # Validate and cast transaction type
-            if transaction_type_raw not in ("Expenses", "Income", "Savings"):
-                raise ValueError(
-                    f"Invalid transaction_type: {transaction_type_raw}. "
-                    f"Must be Expenses, Income, or Savings"
-                )
-            transaction_type = cast("TransactionType", transaction_type_raw)
+        # Single database session for all transactions
+        async with async_session_factory() as db:
+            try:
+                # Process each classified input
+                for classified_input in classified_inputs:
+                    try:
+                        # VALIDATION PHASE
+                        required_fields = [
+                            "amount",
+                            "currency",
+                            "transaction_type",
+                            "category",
+                            "date",
+                        ]
+                        missing = [
+                            f for f in required_fields if f not in classified_input.extracted_data
+                        ]
+                        if missing:
+                            raise ValueError(f"Missing required fields: {', '.join(missing)}")
 
-            # Validate amount is positive
-            if amount <= 0:
-                raise ValueError(f"Amount must be positive, got {amount}")
+                        # Extract and validate data
+                        amount_raw = classified_input.extracted_data["amount"]
+                        amount = (
+                            float(amount_raw) if isinstance(amount_raw, (int, float, str)) else 0.0
+                        )
+                        if amount <= 0:
+                            raise ValueError(f"Amount must be positive, got {amount}")
 
-            # Only calculation that stays in handler: currency conversion
-            amount_bgn = _convert_to_bgn(amount, currency)
+                        currency = str(classified_input.extracted_data["currency"])
+                        transaction_type_raw = str(
+                            classified_input.extracted_data["transaction_type"]
+                        )
 
-            # Extract optional merchant field
-            merchant = classified_input.extracted_data.get("merchant")
-            details = str(merchant) if merchant else None
+                        # Validate transaction type enum
+                        if transaction_type_raw not in ("Expenses", "Income", "Savings"):
+                            raise ValueError(
+                                f"Invalid transaction_type: {transaction_type_raw}. "
+                                f"Must be Expenses, Income, or Savings"
+                            )
+                        transaction_type = cast("TransactionType", transaction_type_raw)
 
-            # Persist transaction to database
-            async with async_session_factory() as db:
-                try:
-                    # Create database record
-                    transaction = BudgetTransaction(
-                        amount=Decimal(str(amount)),  # Original amount
-                        currency=currency,
-                        amount_bgn=Decimal(str(amount_bgn)),  # Converted amount
-                        date=datetime.date.fromisoformat(date_iso),
-                        transaction_type=transaction_type,
-                        category=category,
-                        details=details,
-                    )
-                    db.add(transaction)
+                        # TRANSFORMATION PHASE
+                        amount_bgn = _convert_to_bgn(amount, currency)
+
+                        # Extract other fields
+                        category = str(classified_input.extracted_data["category"])
+                        date_iso = str(classified_input.extracted_data["date"])
+                        merchant = classified_input.extracted_data.get("merchant")
+                        details = str(merchant) if merchant else None
+
+                        # Create transaction model (not yet persisted)
+                        transaction = BudgetTransaction(
+                            amount=Decimal(str(amount)),
+                            currency=currency,
+                            amount_bgn=Decimal(str(amount_bgn)),
+                            date=datetime.date.fromisoformat(date_iso),
+                            transaction_type=transaction_type,
+                            category=category,
+                            details=details,
+                        )
+
+                        # Add to session (still transient)
+                        db.add(transaction)
+                        transactions_to_commit.append(transaction)
+
+                        # Create success response
+                        results.append(
+                            ProcessingResponse(
+                                success=True,
+                                action_type=ActionType.BACKEND_HANDLED,
+                                message=f"Logged {transaction_type.lower()}: {amount_bgn} BGN in {category}",
+                            )
+                        )
+
+                    except (ValueError, KeyError) as e:
+                        # Validation error for this transaction
+                        logger.warning(f"Budget entry validation error: {e}")
+                        results.append(
+                            ProcessingResponse(
+                                success=False,
+                                action_type=ActionType.BACKEND_HANDLED,
+                                message=f"Could not process budget entry: {e!s}",
+                            )
+                        )
+
+                    except Exception as e:
+                        # Unexpected error for this transaction
+                        logger.error(f"Unexpected error processing transaction: {e}")
+                        results.append(
+                            ProcessingResponse(
+                                success=False,
+                                action_type=ActionType.BACKEND_HANDLED,
+                                message=f"An error occurred processing your budget entry: {e!s}",
+                            )
+                        )
+
+                # ATOMIC COMMIT - all valid transactions or none
+                if transactions_to_commit:
                     await db.commit()
-                    logger.info(f"Persisted budget transaction: {transaction}")
-                except Exception as db_error:
-                    # Log error and raise to fail the request
-                    logger.error(f"Failed to persist budget transaction: {db_error}")
-                    await db.rollback()
-                    raise HTTPException(
-                        status_code=500,
-                        detail="Failed to save budget transaction to database",
-                    ) from db_error
+                    logger.info(f"Persisted {len(transactions_to_commit)} budget transaction(s)")
+                else:
+                    logger.warning("No valid transactions to commit")
 
-            # Return success result
-            return ProcessingResponse(
-                success=True,
-                action_type=ActionType.BACKEND_HANDLED,
-                message=f"Logged {transaction_type.lower()}: {amount_bgn} BGN in {category}",
-            )
+            except Exception as db_error:
+                # Database error - rollback all
+                logger.error(f"Failed to persist budget transactions: {db_error}")
+                await db.rollback()
 
-        except (ValueError, KeyError) as e:
-            # Invalid amount, missing field, or validation error
-            logger.warning(f"Budget entry validation error: {e}")
-            raise HTTPException(
-                status_code=422,
-                detail=f"Could not process budget entry: {e!s}",
-            ) from e
+                # Update all success responses to failure
+                for i, result in enumerate(results):
+                    if result.success:
+                        results[i] = ProcessingResponse(
+                            success=False,
+                            action_type=ActionType.BACKEND_HANDLED,
+                            message="Failed to save budget transaction to database",
+                        )
 
-        except Exception as e:
-            # Unexpected error
-            logger.exception("Budget entry handler error: %s", e)
-            raise HTTPException(
-                status_code=500,
-                detail="An error occurred processing your budget entry",
-            ) from e
+        return results  # Always return list of ProcessingResponse

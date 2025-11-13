@@ -33,21 +33,47 @@ Input that doesn't clearly fit any category
 
 # RESPONSE FORMAT
 
-Return JSON with this exact structure:
+You MUST respond with a valid JSON array containing one or more transaction objects.
+Even for a single transaction, return an array with one element.
 
-{
-  "category": "budget",
-  "confidence": 0.95,
-  "extracted_data": {
-    "amount": 120.0,
-    "currency": "EUR",
-    "transaction_type": "Expenses",
-    "category": "Clothes",
-    "merchant": "next",
-    "date": "2025-11-04"
+When the input contains multiple transactions (separated by commas, "and", semicolons, or natural language patterns), detect and extract each transaction separately.
+
+Format (array of objects):
+[
+  {
+    "category": "budget",
+    "confidence": 0.95,
+    "extracted_data": {
+      "amount": 120.0,
+      "currency": "EUR",
+      "transaction_type": "Expenses",
+      "category": "Clothes",
+      "merchant": "next",
+      "date": "2025-11-04"
+    },
+    "raw_input": "spent 120eur at next"
   },
-  "raw_input": "spent 120eur at next"
-}
+  {
+    "category": "budget",
+    "confidence": 0.90,
+    "extracted_data": {
+      "amount": 50.0,
+      "currency": "BGN",
+      "transaction_type": "Expenses",
+      "category": "Groceries",
+      "merchant": "dm",
+      "date": "2025-11-04"
+    },
+    "raw_input": "50 at dm"
+  }
+]
+
+## Multi-Transaction Parsing Rules
+- Detect transaction boundaries using separators: commas (,), "and", semicolons (;)
+- Each transaction should be independently extracted with its own fields
+- Shared context (like dates or transaction types) should apply to all transactions unless explicitly overridden
+- For ambiguous inputs where transaction boundaries are unclear, return a single UNKNOWN transaction with an error in extracted_data
+- Maximum 15 transactions per input (enforced at API layer)
 
 ## Confidence Scoring
 - 0.9-1.0: Very clear, all required fields present
@@ -143,206 +169,340 @@ Parse date to ISO format (YYYY-MM-DD). Assume current date is November 4, 2025.
 ## Example 1: Simple expense
 Input: "spent 120eur at next"
 Output:
-{
-  "category": "budget",
-  "confidence": 0.95,
-  "extracted_data": {
-    "amount": 120.0,
-    "currency": "EUR",
-    "transaction_type": "Expenses",
-    "category": "Clothes",
-    "merchant": "next",
-    "date": "2025-11-04"
-  },
-  "raw_input": "spent 120eur at next"
-}
+[
+  {
+    "category": "budget",
+    "confidence": 0.95,
+    "extracted_data": {
+      "amount": 120.0,
+      "currency": "EUR",
+      "transaction_type": "Expenses",
+      "category": "Clothes",
+      "merchant": "next",
+      "date": "2025-11-04"
+    },
+    "raw_input": "spent 120eur at next"
+  }
+]
 
 ## Example 2: Relative date
 Input: "7 for banitsa yesterday"
 Output:
-{
-  "category": "budget",
-  "confidence": 0.92,
-  "extracted_data": {
-    "amount": 7.0,
-    "currency": "BGN",
-    "transaction_type": "Expenses",
-    "category": "Eat out",
-    "merchant": "banitsa",
-    "date": "2025-11-03"
-  },
-  "raw_input": "7 for banitsa yesterday"
-}
+[
+  {
+    "category": "budget",
+    "confidence": 0.92,
+    "extracted_data": {
+      "amount": 7.0,
+      "currency": "BGN",
+      "transaction_type": "Expenses",
+      "category": "Eat out",
+      "merchant": "banitsa",
+      "date": "2025-11-03"
+    },
+    "raw_input": "7 for banitsa yesterday"
+  }
+]
 
 ## Example 3: Income with day name
 Input: "received 250bgn rent on Monday"
 Output:
-{
-  "category": "budget",
-  "confidence": 0.94,
-  "extracted_data": {
-    "amount": 250.0,
-    "currency": "BGN",
-    "transaction_type": "Income",
-    "category": "Rent",
-    "merchant": "rent",
-    "date": "2025-11-01"
-  },
-  "raw_input": "received 250bgn rent on Monday"
-}
+[
+  {
+    "category": "budget",
+    "confidence": 0.94,
+    "extracted_data": {
+      "amount": 250.0,
+      "currency": "BGN",
+      "transaction_type": "Income",
+      "category": "Rent",
+      "merchant": "rent",
+      "date": "2025-11-01"
+    },
+    "raw_input": "received 250bgn rent on Monday"
+  }
+]
 
 ## Example 4: Savings without explicit date
 Input: "saved 1220 in ibkr"
 Output:
-{
-  "category": "budget",
-  "confidence": 0.93,
-  "extracted_data": {
-    "amount": 1220.0,
-    "currency": "BGN",
-    "transaction_type": "Savings",
-    "category": "Savings",
-    "merchant": "ibkr",
-    "date": "2025-11-04"
-  },
-  "raw_input": "saved 1220 in ibkr"
-}
+[
+  {
+    "category": "budget",
+    "confidence": 0.93,
+    "extracted_data": {
+      "amount": 1220.0,
+      "currency": "BGN",
+      "transaction_type": "Savings",
+      "category": "Savings",
+      "merchant": "ibkr",
+      "date": "2025-11-04"
+    },
+    "raw_input": "saved 1220 in ibkr"
+  }
+]
 
 ## Example 5: Decimal amount with comma
 Input: "45,50 EUR at dm"
 Output:
-{
-  "category": "budget",
-  "confidence": 0.95,
-  "extracted_data": {
-    "amount": 45.5,
-    "currency": "EUR",
-    "transaction_type": "Expenses",
-    "category": "Body care",
-    "merchant": "dm",
-    "date": "2025-11-04"
-  },
-  "raw_input": "45,50 EUR at dm"
-}
+[
+  {
+    "category": "budget",
+    "confidence": 0.95,
+    "extracted_data": {
+      "amount": 45.5,
+      "currency": "EUR",
+      "transaction_type": "Expenses",
+      "category": "Body care",
+      "merchant": "dm",
+      "date": "2025-11-04"
+    },
+    "raw_input": "45,50 EUR at dm"
+  }
+]
 
 ## Example 6: Context-based category
 Input: "20 for lunch with friends yesterday"
 Output:
-{
-  "category": "budget",
-  "confidence": 0.90,
-  "extracted_data": {
-    "amount": 20.0,
-    "currency": "BGN",
-    "transaction_type": "Expenses",
-    "category": "Eat out",
-    "merchant": "lunch",
-    "date": "2025-11-03"
-  },
-  "raw_input": "20 for lunch with friends yesterday"
-}
+[
+  {
+    "category": "budget",
+    "confidence": 0.90,
+    "extracted_data": {
+      "amount": 20.0,
+      "currency": "BGN",
+      "transaction_type": "Expenses",
+      "category": "Eat out",
+      "merchant": "lunch",
+      "date": "2025-11-03"
+    },
+    "raw_input": "20 for lunch with friends yesterday"
+  }
+]
 
 ## Example 7: No merchant specified
 Input: "paid 85 bgn"
 Output:
-{
-  "category": "budget",
-  "confidence": 0.75,
-  "extracted_data": {
-    "amount": 85.0,
-    "currency": "BGN",
-    "transaction_type": "Expenses",
-    "category": "Other",
-    "merchant": null,
-    "date": "2025-11-04"
-  },
-  "raw_input": "paid 85 bgn"
-}
+[
+  {
+    "category": "budget",
+    "confidence": 0.75,
+    "extracted_data": {
+      "amount": 85.0,
+      "currency": "BGN",
+      "transaction_type": "Expenses",
+      "category": "Other",
+      "merchant": null,
+      "date": "2025-11-04"
+    },
+    "raw_input": "paid 85 bgn"
+  }
+]
 
 ## Example 8: Subscription service
 Input: "12.99 for spotify"
 Output:
-{
-  "category": "budget",
-  "confidence": 0.92,
-  "extracted_data": {
-    "amount": 12.99,
-    "currency": "BGN",
-    "transaction_type": "Expenses",
-    "category": "Subscriptions",
-    "merchant": "spotify",
-    "date": "2025-11-04"
-  },
-  "raw_input": "12.99 for spotify"
-}
+[
+  {
+    "category": "budget",
+    "confidence": 0.92,
+    "extracted_data": {
+      "amount": 12.99,
+      "currency": "BGN",
+      "transaction_type": "Expenses",
+      "category": "Subscriptions",
+      "merchant": "spotify",
+      "date": "2025-11-04"
+    },
+    "raw_input": "12.99 for spotify"
+  }
+]
 
 ## Example 9: Transport expense
 Input: "15.50 bolt ride"
 Output:
-{
-  "category": "budget",
-  "confidence": 0.91,
-  "extracted_data": {
-    "amount": 15.5,
-    "currency": "BGN",
-    "transaction_type": "Expenses",
-    "category": "Transport",
-    "merchant": "bolt",
-    "date": "2025-11-04"
-  },
-  "raw_input": "15.50 bolt ride"
-}
+[
+  {
+    "category": "budget",
+    "confidence": 0.91,
+    "extracted_data": {
+      "amount": 15.5,
+      "currency": "BGN",
+      "transaction_type": "Expenses",
+      "category": "Transport",
+      "merchant": "bolt",
+      "date": "2025-11-04"
+    },
+    "raw_input": "15.50 bolt ride"
+  }
+]
 
 ## Example 10: Groceries with known store
 Input: "spent 75 at kaufland"
 Output:
-{
-  "category": "budget",
-  "confidence": 0.95,
-  "extracted_data": {
-    "amount": 75.0,
-    "currency": "BGN",
-    "transaction_type": "Expenses",
-    "category": "Groceries",
-    "merchant": "kaufland",
-    "date": "2025-11-04"
-  },
-  "raw_input": "spent 75 at kaufland"
-}
+[
+  {
+    "category": "budget",
+    "confidence": 0.95,
+    "extracted_data": {
+      "amount": 75.0,
+      "currency": "BGN",
+      "transaction_type": "Expenses",
+      "category": "Groceries",
+      "merchant": "kaufland",
+      "date": "2025-11-04"
+    },
+    "raw_input": "spent 75 at kaufland"
+  }
+]
 
 ## Example 11: Income without merchant
 Input: "received 2500 salary"
 Output:
-{
-  "category": "budget",
-  "confidence": 0.94,
-  "extracted_data": {
-    "amount": 2500.0,
-    "currency": "BGN",
-    "transaction_type": "Income",
-    "category": "Salary",
-    "merchant": "salary",
-    "date": "2025-11-04"
-  },
-  "raw_input": "received 2500 salary"
-}
+[
+  {
+    "category": "budget",
+    "confidence": 0.94,
+    "extracted_data": {
+      "amount": 2500.0,
+      "currency": "BGN",
+      "transaction_type": "Income",
+      "category": "Salary",
+      "merchant": "salary",
+      "date": "2025-11-04"
+    },
+    "raw_input": "received 2500 salary"
+  }
+]
 
 ## Example 12: Body care products
 Input: "32 EUR douglas"
 Output:
-{
-  "category": "budget",
-  "confidence": 0.93,
-  "extracted_data": {
-    "amount": 32.0,
-    "currency": "EUR",
-    "transaction_type": "Expenses",
-    "category": "Body care",
-    "merchant": "douglas",
-    "date": "2025-11-04"
+[
+  {
+    "category": "budget",
+    "confidence": 0.93,
+    "extracted_data": {
+      "amount": 32.0,
+      "currency": "EUR",
+      "transaction_type": "Expenses",
+      "category": "Body care",
+      "merchant": "douglas",
+      "date": "2025-11-04"
+    },
+    "raw_input": "32 EUR douglas"
+  }
+]
+
+## Example 13: Multi-transaction with comma separators
+Input: "I spent 50 at DM, 120 at Next, 5 at the bakery"
+Output:
+[
+  {
+    "category": "budget",
+    "confidence": 0.95,
+    "extracted_data": {
+      "amount": 50.0,
+      "currency": "BGN",
+      "transaction_type": "Expenses",
+      "category": "Body care",
+      "merchant": "dm",
+      "date": "2025-11-04"
+    },
+    "raw_input": "50 at DM"
   },
-  "raw_input": "32 EUR douglas"
-}
+  {
+    "category": "budget",
+    "confidence": 0.95,
+    "extracted_data": {
+      "amount": 120.0,
+      "currency": "EUR",
+      "transaction_type": "Expenses",
+      "category": "Clothes",
+      "merchant": "next",
+      "date": "2025-11-04"
+    },
+    "raw_input": "120 at Next"
+  },
+  {
+    "category": "budget",
+    "confidence": 0.90,
+    "extracted_data": {
+      "amount": 5.0,
+      "currency": "BGN",
+      "transaction_type": "Expenses",
+      "category": "Eat out",
+      "merchant": "the bakery",
+      "date": "2025-11-04"
+    },
+    "raw_input": "5 at the bakery"
+  }
+]
+
+## Example 14: Multi-transaction with shared context (date)
+Input: "yesterday I spent 50 at DM and 120 at Next"
+Output:
+[
+  {
+    "category": "budget",
+    "confidence": 0.95,
+    "extracted_data": {
+      "amount": 50.0,
+      "currency": "BGN",
+      "transaction_type": "Expenses",
+      "category": "Body care",
+      "merchant": "dm",
+      "date": "2025-11-03"
+    },
+    "raw_input": "50 at DM yesterday"
+  },
+  {
+    "category": "budget",
+    "confidence": 0.95,
+    "extracted_data": {
+      "amount": 120.0,
+      "currency": "EUR",
+      "transaction_type": "Expenses",
+      "category": "Clothes",
+      "merchant": "next",
+      "date": "2025-11-03"
+    },
+    "raw_input": "120 at Next yesterday"
+  }
+]
+
+## Example 15: Single transaction (still returns array)
+Input: "spent 50 at DM"
+Output:
+[
+  {
+    "category": "budget",
+    "confidence": 0.95,
+    "extracted_data": {
+      "amount": 50.0,
+      "currency": "BGN",
+      "transaction_type": "Expenses",
+      "category": "Body care",
+      "merchant": "dm",
+      "date": "2025-11-04"
+    },
+    "raw_input": "spent 50 at DM"
+  }
+]
+
+## Example 16: Ambiguous transaction boundaries
+Input: "I spent 50 and 120 at DM"
+Output:
+[
+  {
+    "category": "unknown",
+    "confidence": 0.3,
+    "extracted_data": {
+      "error": "Ambiguous transaction boundaries - unclear if '50 and 120' are two transactions or one total"
+    },
+    "raw_input": "I spent 50 and 120 at DM"
+  }
+]
 
 ---
 

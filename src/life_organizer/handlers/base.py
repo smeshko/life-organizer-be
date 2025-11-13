@@ -1,6 +1,7 @@
 """Base handler class defining the handler contract."""
 
 from abc import ABC, abstractmethod
+from typing import Union
 
 from life_organizer.schemas.classification import ClassifiedInput
 from life_organizer.schemas.responses import ProcessingResponse
@@ -59,13 +60,15 @@ class BaseHandler(ABC):
         pass
 
     @abstractmethod
-    async def execute(self, classified_input: ClassifiedInput) -> ProcessingResponse:
-        """Process the classified input and return the result.
+    async def execute(
+        self, classified_inputs: Union[list[ClassifiedInput], ClassifiedInput]
+    ) -> list[ProcessingResponse]:
+        """Process the classified inputs and return the results.
 
         Args:
-            classified_input: The classified user input with extracted data
+            classified_inputs: List (or single) of classified user inputs with extracted data
 
         Returns:
-            ProcessingResponse indicating what happened and any required follow-up actions
+            List of ProcessingResponse objects indicating what happened for each input
         """
         pass
