@@ -3,7 +3,7 @@
 import datetime
 import logging
 from decimal import Decimal
-from typing import Literal, cast
+from typing import Literal, Union, cast
 
 from life_organizer.db.models.budget import BudgetTransaction
 from life_organizer.db.session import async_session_factory
@@ -78,11 +78,13 @@ class BudgetEntryHandler(BaseHandler):
         """
         return False
 
-    async def execute(self, classified_inputs: list[ClassifiedInput]) -> list[ProcessingResponse]:
+    async def execute(
+        self, classified_inputs: Union[list[ClassifiedInput], ClassifiedInput]
+    ) -> list[ProcessingResponse]:
         """Process budget entries from LLM-extracted data and persist to database.
 
         Args:
-            classified_inputs: List of classifications with extracted_data containing:
+            classified_inputs: List (or single) of classifications with extracted_data containing:
                 - amount (float): Transaction amount
                 - currency (str): Currency code (EUR, BGN, USD)
                 - transaction_type (str): Expenses, Income, or Savings
@@ -93,6 +95,10 @@ class BudgetEntryHandler(BaseHandler):
         Returns:
             List of ProcessingResponse objects (one per input) with success status.
         """
+        # Compatibility: Accept both single ClassifiedInput and list
+        if isinstance(classified_inputs, ClassifiedInput):
+            classified_inputs = [classified_inputs]
+
         results: list[ProcessingResponse] = []
         transactions_to_commit: list[BudgetTransaction] = []
 

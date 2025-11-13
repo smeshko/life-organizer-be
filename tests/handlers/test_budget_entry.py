@@ -3,7 +3,6 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 
 from life_organizer.handlers.budget_entry import BudgetEntryHandler, _convert_to_bgn
 from life_organizer.schemas.classification import ClassifiedInput
@@ -56,9 +55,12 @@ class TestBudgetEntryHandlerExecute:
 
         result = await handler.execute(classified)
 
-        assert result.success is True
-        assert result.action_type == ActionType.BACKEND_HANDLED
-        assert result.message == "Logged expenses: 234.6 BGN in Clothes"
+        # Handler always returns a list, even for single transaction
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0].success is True
+        assert result[0].action_type == ActionType.BACKEND_HANDLED
+        assert result[0].message == "Logged expenses: 234.6 BGN in Clothes"
 
         # Verify database operations were called
         mock_session.add.assert_called_once()
@@ -88,9 +90,12 @@ class TestBudgetEntryHandlerExecute:
 
         result = await handler.execute(classified)
 
-        assert result.success is True
-        assert result.action_type == ActionType.BACKEND_HANDLED
-        assert result.message == "Logged income: 250.0 BGN in Rent"
+        # Handler always returns a list, even for single transaction
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0].success is True
+        assert result[0].action_type == ActionType.BACKEND_HANDLED
+        assert result[0].message == "Logged income: 250.0 BGN in Rent"
 
         # Verify database operations were called
         mock_session.add.assert_called_once()
@@ -119,19 +124,22 @@ class TestBudgetEntryHandlerExecute:
 
         result = await handler.execute(classified)
 
-        assert result.success is True
-        assert result.action_type == ActionType.BACKEND_HANDLED
-        assert result.message == "Logged savings: 1220.0 BGN in Savings"
+        # Handler always returns a list, even for single transaction
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0].success is True
+        assert result[0].action_type == ActionType.BACKEND_HANDLED
+        assert result[0].message == "Logged savings: 1220.0 BGN in Savings"
 
         # Verify database operations were called
         mock_session.add.assert_called_once()
         mock_session.commit.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_missing_required_fields_raises_exception(
+    async def test_missing_required_fields_returns_failure(
         self, handler: BudgetEntryHandler
     ) -> None:
-        """Missing required extracted fields should raise HTTPException."""
+        """Missing required extracted fields should return failure response."""
         classified = _classified_input(
             {
                 "amount": 50.0,
@@ -142,17 +150,20 @@ class TestBudgetEntryHandlerExecute:
             }
         )
 
-        with pytest.raises(HTTPException) as exc_info:
-            await handler.execute(classified)
+        result = await handler.execute(classified)
 
-        assert exc_info.value.status_code == 422
-        assert "Missing required fields: transaction_type" in exc_info.value.detail
+        # Handler always returns a list, even for single transaction
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0].success is False
+        assert result[0].action_type == ActionType.BACKEND_HANDLED
+        assert "Missing required fields: transaction_type" in result[0].message
 
     @pytest.mark.asyncio
-    async def test_invalid_transaction_type_raises_exception(
+    async def test_invalid_transaction_type_returns_failure(
         self, handler: BudgetEntryHandler
     ) -> None:
-        """Unexpected transaction_type should raise HTTPException."""
+        """Unexpected transaction_type should return failure response."""
         classified = _classified_input(
             {
                 "amount": 45.0,
@@ -163,14 +174,17 @@ class TestBudgetEntryHandlerExecute:
             }
         )
 
-        with pytest.raises(HTTPException) as exc_info:
-            await handler.execute(classified)
+        result = await handler.execute(classified)
 
-        assert exc_info.value.status_code == 422
-        assert "Invalid transaction_type" in exc_info.value.detail
+        # Handler always returns a list, even for single transaction
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0].success is False
+        assert result[0].action_type == ActionType.BACKEND_HANDLED
+        assert "Invalid transaction_type" in result[0].message
 
     @pytest.mark.asyncio
-    async def test_non_positive_amount_raises_exception(self, handler: BudgetEntryHandler) -> None:
+    async def test_non_positive_amount_returns_failure(self, handler: BudgetEntryHandler) -> None:
         """Amounts that are zero or negative should be rejected."""
         classified = _classified_input(
             {
@@ -182,11 +196,14 @@ class TestBudgetEntryHandlerExecute:
             }
         )
 
-        with pytest.raises(HTTPException) as exc_info:
-            await handler.execute(classified)
+        result = await handler.execute(classified)
 
-        assert exc_info.value.status_code == 422
-        assert "Amount must be positive" in exc_info.value.detail
+        # Handler always returns a list, even for single transaction
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0].success is False
+        assert result[0].action_type == ActionType.BACKEND_HANDLED
+        assert "Amount must be positive" in result[0].message
 
 
 class TestConvertToBGN:

@@ -1,5 +1,6 @@
 """LLM-based classifier using Claude Haiku for intelligent text classification."""
 
+import datetime
 import json
 import logging
 from pathlib import Path
@@ -16,12 +17,12 @@ from life_organizer.schemas.enums import Category
 
 logger = logging.getLogger(__name__)
 
-# Load system prompt from file
+# Load system prompt template from file
 _PROMPT_DIR = Path(__file__).parent.parent / "prompts"
 _SYSTEM_PROMPT_FILE = _PROMPT_DIR / "classifier_system_prompt.txt"
 
 with _SYSTEM_PROMPT_FILE.open(encoding="utf-8") as f:
-    SYSTEM_PROMPT = f.read()
+    _SYSTEM_PROMPT_TEMPLATE = f.read()
 
 
 class ClaudeClassifier:
@@ -44,6 +45,28 @@ class ClaudeClassifier:
         self.client = anthropic.AsyncAnthropic(api_key=api_key, timeout=10.0)
         self.model = model
         logger.info(f"Initialized ClaudeClassifier with model: {model}")
+
+    def _get_system_prompt_with_current_date(self) -> str:
+        """Get system prompt with today's date injected.
+
+        Returns:
+            System prompt with current date replacing placeholders
+        """
+        today = datetime.date.today()
+        today_iso = today.isoformat()  # YYYY-MM-DD
+        today_long = today.strftime("%B %-d, %Y")  # e.g., "November 12, 2025"
+
+        # Calculate yesterday
+        yesterday = today - datetime.timedelta(days=1)
+        yesterday_iso = yesterday.isoformat()
+
+        # Replace placeholders in template
+        prompt = _SYSTEM_PROMPT_TEMPLATE
+        prompt = prompt.replace("November 4, 2025", today_long)
+        prompt = prompt.replace("2025-11-04", today_iso)
+        prompt = prompt.replace("2025-11-03", yesterday_iso)
+
+        return prompt
 
     def _get_required_fields(self, category: Category) -> list[str]:
         """Return required fields for each category.
@@ -114,6 +137,9 @@ class ClaudeClassifier:
             ]
 
         try:
+            # Get system prompt with current date
+            system_prompt = self._get_system_prompt_with_current_date()
+
             # Call Claude API with prompt caching for system prompt
             message = await self.client.messages.create(
                 model=self.model,
@@ -121,7 +147,7 @@ class ClaudeClassifier:
                 system=[
                     {
                         "type": "text",
-                        "text": SYSTEM_PROMPT,
+                        "text": system_prompt,
                         "cache_control": {"type": "ephemeral"},
                     }
                 ],
@@ -134,7 +160,11 @@ class ClaudeClassifier:
                 logger.error(f"Unexpected response block type: {type(first_block)}")
                 raise ValueError(f"Expected TextBlock, got {type(first_block)}")
             response_text = first_block.text
-            logger.debug(f"Claude response: {response_text}")
+            logger.debug(
+                f"Raw LLM response: {response_text[:200]}..."
+                if len(response_text) > 200
+                else f"Raw LLM response: {response_text}"
+            )
 
             # Strip markdown code fences if present
             response_text = response_text.strip()
@@ -150,6 +180,9 @@ class ClaudeClassifier:
 
             # Parse JSON array
             data_array = json.loads(response_text)
+            logger.debug(
+                f"Parsed {len(data_array) if isinstance(data_array, list) else 0} transaction(s) from LLM response"
+            )
 
             # Validate it's a list
             if not isinstance(data_array, list):
@@ -163,9 +196,43 @@ class ClaudeClassifier:
                 category_str = item_data.get("category", "unknown").lower()
                 item_data["category"] = self._normalize_category(category_str)
 
-                # Ensure extracted_data has expected fields
+                # Check if extracted_data is incorrectly a list (LLM mistake)
+                extracted_data_raw = item_data.get("extracted_data", {})
+                if isinstance(extracted_data_raw, list) and len(extracted_data_raw) > 1:
+                    # LLM returned multiple transactions in extracted_data array
+                    # This is incorrect format - should be separate objects in top-level array
+                    # Unroll: create separate ClassifiedInput for each transaction
+                    logger.warning(
+                        f"LLM returned extracted_data as array with {len(extracted_data_raw)} items. "
+                        f"Unrolling into {len(extracted_data_raw)} separate transactions."
+                    )
+                    for tx_idx, transaction_data in enumerate(extracted_data_raw):
+                        if not isinstance(transaction_data, dict):
+                            logger.warning(f"Skipping non-dict item at index {tx_idx}")
+                            continue
+
+                        # Create a new item_data for this transaction
+                        unrolled_item = {
+                            "category": item_data["category"],
+                            "confidence": item_data.get("confidence", 0.8),
+                            "extracted_data": transaction_data,
+                            "raw_input": item_data.get("raw_input", ""),
+                            "classifier_source": "llm",
+                        }
+
+                        # Validate extracted_data fields
+                        unrolled_item["extracted_data"] = self._ensure_extracted_data_fields(
+                            unrolled_item["category"], unrolled_item["extracted_data"]
+                        )
+
+                        # Validate with Pydantic
+                        result = ClassifiedInput.model_validate(unrolled_item)
+                        results.append(result)
+                    continue  # Skip normal processing for this item
+
+                # Normal case: extracted_data is a dict or single-item list
                 item_data["extracted_data"] = self._ensure_extracted_data_fields(
-                    item_data["category"], item_data.get("extracted_data", {})
+                    item_data["category"], extracted_data_raw
                 )
 
                 # Set classifier source
@@ -281,30 +348,47 @@ class ClaudeClassifier:
     def _ensure_extracted_data_fields(
         self,
         category: Category,
-        extracted_data: dict[str, Any],
+        extracted_data: Any,  # Can be dict or list (LLM sometimes returns list)
     ) -> dict[str, Any]:
         """Ensure extracted_data has expected fields for category."""
+        # Defensive check: if extracted_data is not a dict, handle it
+        result_dict: dict[str, Any]
+        if not isinstance(extracted_data, dict):
+            if isinstance(extracted_data, list) and len(extracted_data) > 0:
+                # LLM sometimes returns extracted_data as a list (first item is the actual data)
+                logger.warning(
+                    f"extracted_data is a list with {len(extracted_data)} items, taking first item"
+                )
+                result_dict = extracted_data[0] if isinstance(extracted_data[0], dict) else {}
+            else:
+                logger.warning(
+                    f"extracted_data is not a dict: {type(extracted_data)}, converting to empty dict"
+                )
+                result_dict = {}
+        else:
+            result_dict = extracted_data
+
         # Validate and add defaults for category-specific fields
         if category == Category.BUDGET:
             # Validate critical fields exist (let retry logic handle missing fields)
-            if "amount" not in extracted_data:
+            if "amount" not in result_dict:
                 logger.warning("LLM returned BUDGET without amount field")
-            if "currency" not in extracted_data:
+            if "currency" not in result_dict:
                 logger.warning("LLM returned BUDGET without currency field")
-            if "transaction_type" not in extracted_data:
+            if "transaction_type" not in result_dict:
                 logger.warning("LLM returned BUDGET without transaction_type field")
-            if "category" not in extracted_data:
+            if "category" not in result_dict:
                 logger.warning("LLM returned BUDGET without category field")
-            if "date" not in extracted_data:
+            if "date" not in result_dict:
                 logger.warning("LLM returned BUDGET without date field")
 
         elif category == Category.SHOPPING:
-            if "items" not in extracted_data or not isinstance(extracted_data["items"], list):
+            if "items" not in result_dict or not isinstance(result_dict["items"], list):
                 logger.warning("LLM returned SHOPPING without items list, adding empty list")
-                extracted_data["items"] = []
-        elif category == Category.REMINDER and "action" not in extracted_data:
+                result_dict["items"] = []
+        elif category == Category.REMINDER and "action" not in result_dict:
             logger.debug("LLM returned REMINDER without action field")
-        elif category == Category.CALENDAR and "time_reference" not in extracted_data:
+        elif category == Category.CALENDAR and "time_reference" not in result_dict:
             logger.debug("LLM returned CALENDAR without time_reference field")
 
-        return extracted_data
+        return result_dict
