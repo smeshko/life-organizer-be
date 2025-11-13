@@ -125,7 +125,7 @@ Map to budget category using merchant context:
 - spotify, netflix, subscriptions → "Subscriptions"
 - ibkr, savings account → "Savings"
 - bolt, uber, taxi, transport → "Transport"
-- rent, utilities → "Bills"
+- water, electricity, gas, internet, phone → "Utilities"
 
 **Context-based inference:**
 - "groceries", "food shopping" → "Groceries"

@@ -8,6 +8,7 @@ from typing import Literal, Union, cast
 from life_organizer.db.models.budget import BudgetTransaction
 from life_organizer.db.session import async_session_factory
 from life_organizer.handlers.base import BaseHandler
+from life_organizer.schemas.budget import ExpenseCategory, IncomeCategory, SavingsCategory
 from life_organizer.schemas.classification import ClassifiedInput
 from life_organizer.schemas.enums import ActionType, Category
 from life_organizer.schemas.responses import ProcessingResponse
@@ -143,11 +144,39 @@ class BudgetEntryHandler(BaseHandler):
                             )
                         transaction_type = cast("TransactionType", transaction_type_raw)
 
+                        # Validate category against appropriate enum based on transaction_type
+                        category_raw = str(classified_input.extracted_data["category"])
+                        category_enum: Union[ExpenseCategory, IncomeCategory, SavingsCategory]
+                        if transaction_type == "Expenses":
+                            try:
+                                category_enum = ExpenseCategory(category_raw)
+                            except ValueError:
+                                raise ValueError(
+                                    f"Invalid expense category: {category_raw}. "
+                                    f"Must be one of: {', '.join([c.value for c in ExpenseCategory])}"
+                                ) from None
+                        elif transaction_type == "Income":
+                            try:
+                                category_enum = IncomeCategory(category_raw)
+                            except ValueError:
+                                raise ValueError(
+                                    f"Invalid income category: {category_raw}. "
+                                    f"Must be one of: {', '.join([c.value for c in IncomeCategory])}"
+                                ) from None
+                        elif transaction_type == "Savings":
+                            try:
+                                category_enum = SavingsCategory(category_raw)
+                            except ValueError:
+                                raise ValueError(
+                                    f"Invalid savings category: {category_raw}. "
+                                    f"Must be one of: {', '.join([c.value for c in SavingsCategory])}"
+                                ) from None
+
                         # TRANSFORMATION PHASE
                         amount_bgn = _convert_to_bgn(amount, currency)
 
                         # Extract other fields
-                        category = str(classified_input.extracted_data["category"])
+                        category = category_enum.value
                         date_iso = str(classified_input.extracted_data["date"])
                         merchant = classified_input.extracted_data.get("merchant")
                         details = str(merchant) if merchant else None
