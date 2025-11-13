@@ -134,23 +134,34 @@ paths:
 
   /api/v1/process:
     post:
-      summary: Process user input
+      summary: Process user input (supports multi-transaction)
       description: |
         Classify user voice or text input and execute the appropriate handler.
 
-        This endpoint combines classification and handler execution. It:
+        **Supports multiple transactions in a single request** (up to 15 transactions).
+
+        This endpoint:
         1. Validates the input
-        2. Classifies it into a category (budget, shopping, reminder, calendar)
-        3. Executes the appropriate handler
-        4. Returns a ProcessingResponse with either:
-           - A confirmation that the backend handled it
-           - An action for the iOS app to perform
+        2. Classifies it into categories (budget, shopping, reminder, calendar)
+        3. Extracts multiple transactions if present
+        4. Executes the appropriate handler for each transaction
+        5. Returns an array of ProcessingResponse (one per transaction)
+
+        ## Multi-Transaction Support
+        - Single input: `"spent 50 at DM"` → Returns 1 response
+        - Multiple: `"yesterday I spent 50 at DM and 120 at Next, today 5 at bakery"` → Returns 3 responses
+        - Maximum: 15 transactions per request
+        - Partial success: Some transactions may succeed while others fail
 
         ## Example Flows
 
-        ### Budget Entry (App Action)
-        Request: "spent 120eur at next"
-        Response: Returns app_action to log budget entry in Excel sheet
+        ### Single Budget Entry
+        Request: `"spent 120eur at next"`
+        Response: Array with 1 backend_handled response
+
+        ### Multiple Budget Entries
+        Request: `"I spent 50 at DM, 120 at Next, and 5 at the bakery"`
+        Response: Array with 3 backend_handled responses
       operationId: processInput
       tags:
         - classification
@@ -161,31 +172,61 @@ paths:
             schema:
               $ref: '#/components/schemas/ClassifyRequest'
             examples:
-              budget_expense:
-                summary: Budget expense entry
+              single_transaction:
+                summary: Single budget expense
                 value:
                   input: "spent 120eur at next"
+              multi_transaction:
+                summary: Multiple transactions
+                value:
+                  input: "yesterday i spent 50 at dm and 5 at the bakery, today 120 at next"
+              shared_context:
+                summary: Shared date context
+                value:
+                  input: "yesterday I spent 50 at DM and 120 at Next"
       responses:
         '200':
-          description: Successfully processed input
+          description: Successfully processed input (always returns array, even for single transaction)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProcessingResponse'
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProcessingResponse'
               examples:
-                budget_entry:
-                  summary: Budget entry requiring app action
+                single_transaction:
+                  summary: Single transaction (backend handled)
                   value:
-                    success: true
-                    action_type: app_action_required
-                    message: "Logged expenses: 234.6 BGN in Clothes"
-                    app_action:
-                      type: log_budget_entry
-                      amount: 234.6
-                      date: "2025-11-03"
-                      transaction_type: Expenses
-                      category: Clothes
-                      details: "next"
+                    - success: true
+                      action_type: backend_handled
+                      message: "Logged expenses: 234.6 BGN in Clothes"
+                      app_action: null
+                multi_transaction:
+                  summary: Multiple transactions (all successful)
+                  value:
+                    - success: true
+                      action_type: backend_handled
+                      message: "Logged expenses: 98.0 BGN in Body care"
+                      app_action: null
+                    - success: true
+                      action_type: backend_handled
+                      message: "Logged expenses: 9.8 BGN in Eat out"
+                      app_action: null
+                    - success: true
+                      action_type: backend_handled
+                      message: "Logged expenses: 234.6 BGN in Clothes"
+                      app_action: null
+                partial_failure:
+                  summary: Partial success (some transactions failed)
+                  value:
+                    - success: true
+                      action_type: backend_handled
+                      message: "Logged expenses: 98.0 BGN in Groceries"
+                      app_action: null
+                    - success: false
+                      action_type: backend_handled
+                      message: "Failed to save budget transaction to database"
+                      app_action: null
         '422':
           description: Validation error
           content:
@@ -197,6 +238,10 @@ paths:
                   summary: Empty input
                   value:
                     detail: "Input cannot be empty or whitespace only"
+                too_many_transactions:
+                  summary: Exceeds transaction limit
+                  value:
+                    detail: "Too many transactions detected (16). Maximum allowed: 15"
                 validation_error:
                   summary: Budget entry validation error
                   value:
