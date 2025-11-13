@@ -205,6 +205,58 @@ class TestBudgetEntryHandlerExecute:
         assert result[0].action_type == ActionType.BACKEND_HANDLED
         assert "Amount must be positive" in result[0].message
 
+    @pytest.mark.asyncio
+    async def test_invalid_expense_category_returns_failure(
+        self, handler: BudgetEntryHandler
+    ) -> None:
+        """Invalid expense category should be rejected with clear error message."""
+        classified = _classified_input(
+            {
+                "amount": 39.0,
+                "currency": "BGN",
+                "transaction_type": "Expenses",
+                "category": "Bills",  # Invalid - not in ExpenseCategory enum
+                "merchant": "water utilities",
+                "date": "2025-11-13",
+            }
+        )
+
+        result = await handler.execute(classified)
+
+        # Handler always returns a list, even for single transaction
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0].success is False
+        assert result[0].action_type == ActionType.BACKEND_HANDLED
+        assert "Invalid expense category: Bills" in result[0].message
+        assert "Must be one of:" in result[0].message
+
+    @pytest.mark.asyncio
+    async def test_invalid_income_category_returns_failure(
+        self, handler: BudgetEntryHandler
+    ) -> None:
+        """Invalid income category should be rejected with clear error message."""
+        classified = _classified_input(
+            {
+                "amount": 250.0,
+                "currency": "BGN",
+                "transaction_type": "Income",
+                "category": "Freelance",  # Invalid - not in IncomeCategory enum
+                "merchant": "client",
+                "date": "2025-11-13",
+            }
+        )
+
+        result = await handler.execute(classified)
+
+        # Handler always returns a list, even for single transaction
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0].success is False
+        assert result[0].action_type == ActionType.BACKEND_HANDLED
+        assert "Invalid income category: Freelance" in result[0].message
+        assert "Must be one of:" in result[0].message
+
 
 class TestConvertToBGN:
     """Unit tests for currency conversion helper."""
