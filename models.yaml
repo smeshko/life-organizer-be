@@ -34,6 +34,8 @@ components:
         - shopping  # Shopping list items
         - reminder  # Time-based reminders
         - calendar  # Calendar events
+        - note      # Note-taking
+        - quote     # Quote/snippet storage
         - unknown   # Could not classify
       description: Input classification category
 
@@ -98,6 +100,10 @@ components:
           maxLength: 1000
           description: Text input to classify (voice transcription or typed text)
           example: "spent 120eur at next"
+        category:
+          $ref: '#/components/schemas/Category'
+          nullable: true
+          description: Pre-classified category from front-end (optional, defaults to budget if not provided)
       description: Primary request model for processing user input
 
     # =============================================================================
