@@ -23,6 +23,8 @@ class Category(StrEnum):
         SHOPPING: Shopping list items
         REMINDER: Time-based reminders
         CALENDAR: Calendar events
+        NOTE: Quick notes and memos
+        QUOTE: Inspirational quotes
         UNKNOWN: Could not classify input
     """
 
@@ -30,4 +32,6 @@ class Category(StrEnum):
     SHOPPING = "shopping"
     REMINDER = "reminder"
     CALENDAR = "calendar"
+    NOTE = "note"
+    QUOTE = "quote"
     UNKNOWN = "unknown"

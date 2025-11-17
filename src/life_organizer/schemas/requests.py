@@ -4,6 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from life_organizer.schemas.enums import Category
+
 
 class ProcessInputRequest(BaseModel):
     """Request model for processing user voice/text input.
@@ -38,6 +40,7 @@ class ClassifyRequest(BaseModel):
 
     Attributes:
         input: Text input to classify (e.g., 'Spent 45 euros at restaurant')
+        category: Pre-classified category from front-end (optional, defaults to note)
     """
 
     input: str = Field(
@@ -45,4 +48,8 @@ class ClassifyRequest(BaseModel):
         description="Text input to classify",
         min_length=1,
         max_length=1000,
+    )
+    category: Category | None = Field(
+        default=None,
+        description="Pre-classified category from front-end (optional, defaults to note if not provided)",
     )

@@ -17,12 +17,16 @@ from life_organizer.schemas.enums import Category
 
 logger = logging.getLogger(__name__)
 
-# Load system prompt template from file
+# Load category-specific system prompts from files
 _PROMPT_DIR = Path(__file__).parent.parent / "prompts"
-_SYSTEM_PROMPT_FILE = _PROMPT_DIR / "classifier_system_prompt.txt"
+_PROMPTS: dict[str, str] = {}
 
-with _SYSTEM_PROMPT_FILE.open(encoding="utf-8") as f:
-    _SYSTEM_PROMPT_TEMPLATE = f.read()
+for category in ["budget", "shopping", "reminder", "calendar", "note", "quote"]:
+    prompt_file = _PROMPT_DIR / f"{category}_system_prompt_v1.txt"
+    with prompt_file.open(encoding="utf-8") as f:
+        _PROMPTS[category] = f.read()
+
+logger.info(f"Loaded {len(_PROMPTS)} category-specific prompts")
 
 
 class ClaudeClassifier:
@@ -46,12 +50,18 @@ class ClaudeClassifier:
         self.model = model
         logger.info(f"Initialized ClaudeClassifier with model: {model}")
 
-    def _get_system_prompt_with_current_date(self) -> str:
+    def _get_system_prompt_with_current_date(self, category: str | None = None) -> str:
         """Get system prompt with today's date injected.
+
+        Args:
+            category: Category name for prompt selection (defaults to "note")
 
         Returns:
             System prompt with current date replacing placeholders
         """
+        # Default to note category if not specified
+        category = category or "note"
+
         today = datetime.date.today()
         today_iso = today.isoformat()  # YYYY-MM-DD
         today_long = today.strftime("%B %-d, %Y")  # e.g., "November 12, 2025"
@@ -60,8 +70,8 @@ class ClaudeClassifier:
         yesterday = today - datetime.timedelta(days=1)
         yesterday_iso = yesterday.isoformat()
 
-        # Replace placeholders in template
-        prompt = _SYSTEM_PROMPT_TEMPLATE
+        # Select category-specific prompt and replace date placeholders
+        prompt = _PROMPTS[category]
         prompt = prompt.replace("November 4, 2025", today_long)
         prompt = prompt.replace("2025-11-04", today_iso)
         prompt = prompt.replace("2025-11-03", yesterday_iso)
@@ -110,12 +120,15 @@ class ClaudeClassifier:
         # e.g., "50 at DM, 120 at Next" has 1 comma = 2 transactions
         return max(1, comma_count + and_count + 1)
 
-    async def _classify_internal(self, text: str) -> list[ClassifiedInput]:
+    async def _classify_internal(
+        self, text: str, category: str | None = None
+    ) -> list[ClassifiedInput]:
         """
         Internal classification logic without retry/validation.
 
         Args:
             text: User input to classify
+            category: Category for prompt selection (defaults to "note")
 
         Returns:
             List of classified inputs parsed from LLM array response.
@@ -138,7 +151,7 @@ class ClaudeClassifier:
 
         try:
             # Get system prompt with current date
-            system_prompt = self._get_system_prompt_with_current_date()
+            system_prompt = self._get_system_prompt_with_current_date(category)
 
             # Call Claude API with prompt caching for system prompt
             message = await self.client.messages.create(
@@ -267,7 +280,7 @@ class ClaudeClassifier:
         wait=wait_exponential(multiplier=1, min=1, max=5),
         reraise=True,
     )
-    async def classify(self, text: str) -> list[ClassifiedInput]:
+    async def classify(self, text: str, category: str | None = None) -> list[ClassifiedInput]:
         """
         Classify input text using Claude Haiku with validation and single retry.
 
@@ -277,6 +290,7 @@ class ClaudeClassifier:
 
         Args:
             text: User input to classify
+            category: Optional category for prompt selection (defaults to "note")
 
         Returns:
             List of ClassifiedInput objects (one or more items).
@@ -312,7 +326,7 @@ class ClaudeClassifier:
             )
 
         # First attempt
-        results = await self._classify_internal(text)
+        results = await self._classify_internal(text, category=category)
 
         # Check for required fields in each result (category-specific)
         # Note: For multi-transaction, we don't retry on missing fields

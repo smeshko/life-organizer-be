@@ -30,12 +30,13 @@ class ClassifierOrchestrator:
         self.llm_classifier = llm_classifier
         logger.info("ClassifierOrchestrator initialized with LLM classifier")
 
-    async def classify(self, text: str) -> list[ClassifiedInput]:
+    async def classify(self, text: str, category: str | None = None) -> list[ClassifiedInput]:
         """
         Classify user input using LLM classifier.
 
         Args:
             text: Raw user input to classify
+            category: Optional category for prompt selection (defaults to "note")
 
         Returns:
             List of ClassifiedInput objects (one or more transactions).
@@ -45,10 +46,10 @@ class ClassifierOrchestrator:
             anthropic.APIError: If LLM API fails
             ValidationError: If required fields missing after retry
         """
-        logger.info(f"Classifying input: '{text[:50]}...'")
+        logger.info(f"Classifying input with category: {category or 'default (note)'}")
 
         # Route directly to LLM classifier (now returns list)
-        results = await self.llm_classifier.classify(text)
+        results = await self.llm_classifier.classify(text, category=category)
 
         logger.info(f"Classification complete: {len(results)} transaction(s)")
 

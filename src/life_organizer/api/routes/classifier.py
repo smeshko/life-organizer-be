@@ -123,8 +123,11 @@ async def process_input(request: ClassifyRequest) -> list[ProcessingResponse]:
         if not request.input.strip():
             raise HTTPException(status_code=422, detail="Input cannot be empty or whitespace only")
 
-        # Classify input (returns List[ClassifiedInput])
-        classified_list = await orchestrator.classify(request.input)
+        # Extract category and convert enum to string
+        category = request.category.value if request.category else None
+
+        # Classify input with category-specific prompt (returns List[ClassifiedInput])
+        classified_list = await orchestrator.classify(request.input, category=category)
 
         # Validate we have results
         if not classified_list:
