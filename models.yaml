@@ -103,7 +103,7 @@ components:
         category:
           $ref: '#/components/schemas/Category'
           nullable: true
-          description: Pre-classified category from front-end (optional, defaults to budget if not provided)
+          description: Pre-classified category from front-end (optional, defaults to note if not provided)
       description: Primary request model for processing user input
 
     # =============================================================================

@@ -40,7 +40,7 @@ class ClassifyRequest(BaseModel):
 
     Attributes:
         input: Text input to classify (e.g., 'Spent 45 euros at restaurant')
-        category: Pre-classified category from front-end (optional, defaults to budget)
+        category: Pre-classified category from front-end (optional, defaults to note)
     """
 
     input: str = Field(
@@ -51,5 +51,5 @@ class ClassifyRequest(BaseModel):
     )
     category: Category | None = Field(
         default=None,
-        description="Pre-classified category from front-end (optional, defaults to budget if not provided)",
+        description="Pre-classified category from front-end (optional, defaults to note if not provided)",
     )

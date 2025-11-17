@@ -36,7 +36,7 @@ class ClassifierOrchestrator:
 
         Args:
             text: Raw user input to classify
-            category: Optional category for prompt selection (defaults to "budget")
+            category: Optional category for prompt selection (defaults to "note")
 
         Returns:
             List of ClassifiedInput objects (one or more transactions).
@@ -46,7 +46,7 @@ class ClassifierOrchestrator:
             anthropic.APIError: If LLM API fails
             ValidationError: If required fields missing after retry
         """
-        logger.info(f"Classifying input with category: {category or 'default (budget)'}")
+        logger.info(f"Classifying input with category: {category or 'default (note)'}")
 
         # Route directly to LLM classifier (now returns list)
         results = await self.llm_classifier.classify(text, category=category)

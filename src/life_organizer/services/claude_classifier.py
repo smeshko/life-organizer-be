@@ -54,13 +54,13 @@ class ClaudeClassifier:
         """Get system prompt with today's date injected.
 
         Args:
-            category: Category name for prompt selection (defaults to "budget")
+            category: Category name for prompt selection (defaults to "note")
 
         Returns:
             System prompt with current date replacing placeholders
         """
-        # Default to budget category if not specified
-        category = category or "budget"
+        # Default to note category if not specified
+        category = category or "note"
 
         today = datetime.date.today()
         today_iso = today.isoformat()  # YYYY-MM-DD
@@ -128,7 +128,7 @@ class ClaudeClassifier:
 
         Args:
             text: User input to classify
-            category: Category for prompt selection (defaults to "budget")
+            category: Category for prompt selection (defaults to "note")
 
         Returns:
             List of classified inputs parsed from LLM array response.
@@ -290,7 +290,7 @@ class ClaudeClassifier:
 
         Args:
             text: User input to classify
-            category: Optional category for prompt selection (defaults to "budget")
+            category: Optional category for prompt selection (defaults to "note")
 
         Returns:
             List of ClassifiedInput objects (one or more items).
