@@ -91,24 +91,24 @@ Remove these from the beginning of the input:
 
 # DATE/TIME EXTRACTION
 
-Parse dates and times to ISO 8601 format. Assume current date is November 23, 2025.
+Parse dates and times to ISO 8601 format. Assume current date is November 4, 2025.
 
 ## Relative Dates
-- "today" → 2025-11-23
-- "tomorrow" → 2025-11-24
+- "today" → 2025-11-04
+- "tomorrow" → 2025-11-05
 - "in X hours" → calculate from current time
 - "in X days" → add X days to current date
 - "next week" → add 7 days to current date
 
 ## Day Names
 Calculate to the next occurrence of that day:
-- "Monday" → next Monday (2025-11-24)
-- "Tuesday" → next Tuesday (2025-11-25)
-- "Wednesday" → next Wednesday (2025-11-26)
-- "Thursday" → next Thursday (2025-11-27)
-- "Friday" → next Friday (2025-11-28)
-- "Saturday" → next Saturday (2025-11-29)
-- "Sunday" → next Sunday (2025-11-30)
+- "Monday" → next Monday (2025-11-10)
+- "Tuesday" → next Tuesday (2025-11-11)
+- "Wednesday" → next Wednesday (2025-11-05)
+- "Thursday" → next Thursday (2025-11-06)
+- "Friday" → next Friday (2025-11-07)
+- "Saturday" → next Saturday (2025-11-08)
+- "Sunday" → next Sunday (2025-11-09)
 
 Use "by Friday" or "on Friday" patterns to extract the date.
 
@@ -127,7 +127,7 @@ Use "by Friday" or "on Friday" patterns to extract the date.
 
 ## Missing Time/Date Rules
 - **No date AND no time specified**: Return null for due_date
-- **Date but no time**: Return null for due_date (let app decide default time)
+- **Day name without time** (e.g., "by Friday"): Return date with T23:59:00 (end of day)
 - **Time but no date**: Assume today if time hasn't passed, otherwise tomorrow
 
 ---
@@ -186,7 +186,7 @@ Output:
     "confidence": 0.95,
     "extracted_data": {
       "title": "call mom",
-      "due_date": "2025-11-24T17:00:00",
+      "due_date": "2025-11-05T17:00:00",
       "notes": null
     },
     "raw_input": "remind me to call mom tomorrow at 5pm"
@@ -218,7 +218,7 @@ Output:
     "confidence": 0.92,
     "extracted_data": {
       "title": "submit the report",
-      "due_date": null,
+      "due_date": "2025-11-07T23:59:00",
       "notes": null
     },
     "raw_input": "I need to remember to submit the report by Friday"
@@ -250,7 +250,7 @@ Output:
     "confidence": 0.90,
     "extracted_data": {
       "title": "take medicine",
-      "due_date": "2025-11-23T20:00:00",
+      "due_date": "2025-11-04T20:00:00",
       "notes": null
     },
     "raw_input": "remind me to take medicine at 8pm"
@@ -266,7 +266,7 @@ Output:
     "confidence": 0.88,
     "extracted_data": {
       "title": "water plants",
-      "due_date": "2025-11-24T09:00:00",
+      "due_date": "2025-11-05T09:00:00",
       "notes": null
     },
     "raw_input": "remind me to water plants in the morning"
