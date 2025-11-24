@@ -5,7 +5,7 @@ info:
     Voice-first intelligent agent for life organization.
 
     This API provides endpoints for processing user voice/text input and converting it into actionable items.
-    The backend classifies inputs into categories (budget, shopping, reminders, calendar) and either handles
+    The backend classifies inputs into categories (budget, reminder, shopping, calendar) and either handles
     them directly or returns actions for the iOS app to perform.
 
     ## Architecture
@@ -186,6 +186,16 @@ paths:
                 summary: Shared date context
                 value:
                   input: "yesterday I spent 50 at DM and 120 at Next"
+              reminder_with_time:
+                summary: Reminder with due date
+                value:
+                  input: "remind me to call mom tomorrow at 5pm"
+                  category: "reminder"
+              reminder_no_time:
+                summary: Reminder without time
+                value:
+                  input: "don't forget to buy groceries"
+                  category: "reminder"
       responses:
         '200':
           description: Successfully processed input (always returns array, even for single transaction)
@@ -229,6 +239,30 @@ paths:
                       action_type: backend_handled
                       message: "Failed to save budget transaction to database"
                       app_action: null
+                reminder_with_time:
+                  summary: Reminder with due date (app action required)
+                  value:
+                    - success: true
+                      action_type: app_action_required
+                      message: "Reminder ready to create: 'call mom' due Nov 05 at 05:00 PM"
+                      app_action:
+                        type: create_reminder
+                        title: "call mom"
+                        due_date: "2025-11-05T17:00:00"
+                        list_id: null
+                        notes: null
+                reminder_no_time:
+                  summary: Reminder without time
+                  value:
+                    - success: true
+                      action_type: app_action_required
+                      message: "Reminder ready to create: 'buy groceries'"
+                      app_action:
+                        type: create_reminder
+                        title: "buy groceries"
+                        due_date: null
+                        list_id: null
+                        notes: null
         '422':
           description: Validation error
           content:

@@ -133,10 +133,12 @@ components:
             Check the 'type' field to determine which action to perform
           oneOf:
             - $ref: '#/components/schemas/LogBudgetEntryAction'
+            - $ref: '#/components/schemas/CreateReminderAction'
           discriminator:
             propertyName: type
             mapping:
               log_budget_entry: '#/components/schemas/LogBudgetEntryAction'
+              create_reminder: '#/components/schemas/CreateReminderAction'
       description: |
         Main response model returned from /api/v1/process endpoint.
         Check action_type to determine how to handle the response.
@@ -191,6 +193,41 @@ components:
         Log a budget entry (expense/income/savings) to Excel tracking sheet.
         All amounts are in BGN (Bulgarian Lev) after EUR conversion.
 
+    CreateReminderAction:
+      type: object
+      required:
+        - type
+        - title
+      properties:
+        type:
+          type: string
+          enum: [create_reminder]
+          description: Action type discriminator
+        title:
+          type: string
+          minLength: 1
+          description: Reminder title/description (the action to remember)
+          example: "call mom"
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the reminder is due (ISO 8601 format). Null if no time specified.
+          example: "2025-11-05T17:00:00"
+        list_id:
+          type: string
+          nullable: true
+          description: Target reminders list ID (null uses default list)
+          example: null
+        notes:
+          type: string
+          nullable: true
+          description: Additional context or notes
+          example: "about the project meeting"
+      description: |
+        Create a reminder in iOS Reminders app.
+        The iOS app receives this action and creates the reminder locally.
+
   # =============================================================================
   # EXAMPLE API RESPONSES
   # =============================================================================
@@ -226,3 +263,39 @@ components:
           action_type: "backend_handled"
           message: "Your total expenses this month are 1234.56 BGN"
           app_action: null
+
+    reminder_with_time:
+      summary: User creates a reminder with due date
+      description: User creates a reminder with a specific time
+      value:
+        request:
+          input: "remind me to call mom tomorrow at 5pm"
+          category: "reminder"
+        response:
+          success: true
+          action_type: "app_action_required"
+          message: "Reminder ready to create: 'call mom' due Nov 05 at 05:00 PM"
+          app_action:
+            type: "create_reminder"
+            title: "call mom"
+            due_date: "2025-11-05T17:00:00"
+            list_id: null
+            notes: null
+
+    reminder_no_time:
+      summary: User creates a reminder without time
+      description: User creates a reminder without a specific due date
+      value:
+        request:
+          input: "don't forget to buy groceries"
+          category: "reminder"
+        response:
+          success: true
+          action_type: "app_action_required"
+          message: "Reminder ready to create: 'buy groceries'"
+          app_action:
+            type: "create_reminder"
+            title: "buy groceries"
+            due_date: null
+            list_id: null
+            notes: null
