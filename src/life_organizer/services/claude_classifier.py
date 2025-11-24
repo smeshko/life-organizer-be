@@ -92,7 +92,7 @@ class ClaudeClassifier:
         elif category == Category.SHOPPING:
             return ["items"]
         elif category == Category.REMINDER:
-            return ["action"]
+            return ["title"]
         elif category == Category.CALENDAR:
             return ["time_reference"]
         return []  # UNKNOWN has no required fields
