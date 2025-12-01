@@ -1,4 +1,12 @@
-"""Unit tests for budget category robustness and fallback behavior."""
+"""Unit tests for ClaudeClassifier response parsing and validation logic.
+
+NOTE: These tests use mocked LLM responses and do NOT validate system prompt behavior.
+They verify that the classifier code correctly parses, validates, and handles various
+response formats from the LLM.
+
+For actual prompt validation with real LLM calls, see:
+- tests/integration/test_budget_prompt_validation.py
+"""
 
 import json
 from unittest.mock import AsyncMock, Mock
