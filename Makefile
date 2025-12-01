@@ -1,4 +1,4 @@
-.PHONY: help install dev run stop restart test lint format type-check clean pre-commit docker-build docker-up docker-down docker-logs docker-shell docker-db
+.PHONY: help install dev run stop restart test test-unit test-integration test-fast lint format type-check clean pre-commit docker-build docker-up docker-down docker-logs docker-shell docker-db
 
 # Default target
 help:
@@ -12,11 +12,14 @@ help:
 	@echo "  make restart      - Restart the development server"
 	@echo ""
 	@echo "Testing & Quality:"
-	@echo "  make test         - Run tests with coverage"
-	@echo "  make lint         - Run linter (Ruff)"
-	@echo "  make format       - Format code with Ruff"
-	@echo "  make type-check   - Run type checker (MyPy)"
-	@echo "  make pre-commit   - Run all pre-commit hooks"
+	@echo "  make test              - Run all tests (unit + integration) with coverage"
+	@echo "  make test-unit         - Run only unit tests (fast, no API calls)"
+	@echo "  make test-integration  - Run only integration tests (requires API key)"
+	@echo "  make test-fast         - Run unit tests only (alias for test-unit)"
+	@echo "  make lint              - Run linter (Ruff)"
+	@echo "  make format            - Format code with Ruff"
+	@echo "  make type-check        - Run type checker (MyPy)"
+	@echo "  make pre-commit        - Run all pre-commit hooks"
 	@echo ""
 	@echo "Docker:"
 	@echo "  make docker-build - Build Docker images"
@@ -52,9 +55,32 @@ run: stop
 # Restart the development server
 restart: stop run
 
-# Run tests with coverage
+# Run all tests (unit + integration) with coverage
 test:
+	@echo "Running all tests (unit + integration)..."
+	@echo "Note: Integration tests require ANTHROPIC_API_KEY environment variable"
 	uv run pytest
+
+# Run only unit tests (fast, no API calls)
+test-unit:
+	@echo "Running unit tests only (no integration tests)..."
+	uv run pytest -m "not integration" -v
+
+# Run only integration tests (requires API key)
+test-integration:
+	@echo "Running integration tests (requires ANTHROPIC_API_KEY)..."
+	@if [ -z "$$ANTHROPIC_API_KEY" ] && [ -z "$$CLAUDE_API_KEY" ]; then \
+		echo ""; \
+		echo "ERROR: API key not found!"; \
+		echo "Please set ANTHROPIC_API_KEY or CLAUDE_API_KEY environment variable:"; \
+		echo "  export ANTHROPIC_API_KEY=your_key_here"; \
+		echo ""; \
+		exit 1; \
+	fi
+	uv run pytest -m integration -v
+
+# Alias for test-unit (commonly used for CI/CD)
+test-fast: test-unit
 
 # Run linter
 lint:
