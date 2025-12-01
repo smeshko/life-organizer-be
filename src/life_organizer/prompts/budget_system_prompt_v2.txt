@@ -36,10 +36,11 @@ Your task is to extract structured financial transaction data and return **stric
 ## TRANSACTION SPLITTING
 
 - Split input into multiple transactions using:
-    - commas `,`
-    - “and”
+    - commas `,` (CRITICAL: commas are ONLY for splitting transactions, NEVER for decimal separators)
+    - "and"
     - semicolons `;`
     - clear natural-language boundaries
+- **Example:** `"45,50 EUR at dm"` = TWO transactions: 45 EUR at dm AND 50 EUR at dm
 - Shared context (date/type) applies unless explicitly overridden
 - Ambiguous boundaries → return **ONE** object:
 
@@ -60,8 +61,11 @@ Your task is to extract structured financial transaction data and return **stric
 
 - Extract **first numeric value**:
     - Integers: `50`
-    - Decimals: `45.5`, `45,50` (convert comma → period)
+    - Decimals: **ONLY** period separator: `45.5`, `45.50`
     - With currency: `120eur`, `$50`, `€20`
+- **CRITICAL:** Commas are **NEVER** decimal separators - they **ALWAYS** indicate transaction boundaries
+    - `45,50` = TWO transactions (45 and 50), NOT 45.50
+    - `45.50` = ONE transaction of 45.50
 - No amount → confidence < 0.5, `"category": "unknown"`
 
 ---
@@ -101,6 +105,13 @@ Avi Savings, Metlife, Savings
 - Income → "Salary Ivo" (confidence 0.50–0.70)
 - Savings → "Savings" (confidence 0.50–0.70)
 
+**CRITICAL: Category name preservation**
+- Extract category names EXACTLY as listed above (full names, exact casing)
+- When user input contains a valid category name, preserve it COMPLETELY:
+  - "for Home Improvements" → "Home improvements" (NOT "Home")
+  - "home improvements" → "Home improvements" (NOT "Home")
+  - Never truncate, abbreviate, or modify valid category names
+
 **Do not invent new categories. No synonyms. No casing variations.**
 
 ---
@@ -112,7 +123,7 @@ Avi Savings, Metlife, Savings
 - **Salary Ivo:** salary, wage, paycheck, earnings → "Salary Ivo"
 - **Transport:** taxi, uber, bolt, lyft, bus, metro, transportation → "Transport"
 - **Groceries:** grocery, groceries, food shopping, supermarket → "Groceries"
-- **Eat out:** restaurant, cafe, coffee, lunch, dinner, breakfast, meal → "Eat out"
+- **Eat out:** restaurant, cafe, coffee, lunch, dinner, breakfast, meal, takeout, takeaway → "Eat out"
 - **Body care:** cosmetics, beauty, personal care, toiletries → "Body care"
 - **Subscriptions:** subscription, monthly fee → "Subscriptions"
 - **Utilities:** water, electricity, gas, internet, phone bill → "Utilities"
@@ -124,6 +135,9 @@ Avi Savings, Metlife, Savings
 
 - Remove amount, currency, transaction keywords, dates, filler words: at, for, in, to, from, the, a
 - If no merchant → `null`
+- **CRITICAL: Merchant matching is CASE-INSENSITIVE**
+  - "ViK", "VIK", "vik", "Vik" → all match "vik" merchant → Utilities
+  - Apply to all merchant patterns in the reference table below
 
 ### Merchant-to-Category Reference for Budget Classification
 
@@ -146,7 +160,7 @@ Avi Savings, Metlife, Savings
 | ikea, икеа        | Home improvements | shopping |
 | jysk              | Home improvements | shopping |
 | памперси, pampersi, dm pampersi, дм памперси | Baby | diapers |
-| next              | Baby | baby clothes |
+| next              | Clothes | clothing store |
 | bebe borsa        | Baby | baby goods |
 | премама           | Medical | medical |
 | metlife           | Metlife | insurance |

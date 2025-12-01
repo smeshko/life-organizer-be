@@ -32,7 +32,7 @@
     },
     {
       "id": "salary_ivo_fallback",
-      "description": "Generic salary should map to Salary Ivo",
+      "description": "Generic salary should map to Salary Ivo via synonym",
       "input": "7700bgn salary",
       "expected": {
         "category": "budget",
@@ -41,8 +41,7 @@
           "currency": "BGN",
           "transaction_type": "Income",
           "category": "Salary Ivo",
-          "min_confidence": 0.5,
-          "max_confidence": 0.75
+          "min_confidence": 0.7
         }
       }
     },
@@ -233,18 +232,25 @@
       }
     },
     {
-      "id": "decimal_comma_format",
-      "description": "Amount with comma as decimal separator",
+      "id": "comma_separator_multi_transaction",
+      "description": "Comma always means transaction separator (not decimal)",
       "input": "45,50 EUR at dm",
       "expected": {
         "category": "budget",
-        "extracted_data": {
-          "amount": 45.5,
-          "currency": "EUR",
-          "transaction_type": "Expenses",
-          "category": "Body care",
-          "min_confidence": 0.8
-        }
+        "multi_transaction": true,
+        "expected_count": 2,
+        "transactions": [
+          {
+            "amount": 45.0,
+            "currency": "EUR",
+            "category": "Body care"
+          },
+          {
+            "amount": 50.0,
+            "currency": "EUR",
+            "category": "Body care"
+          }
+        ]
       }
     },
     {
@@ -295,7 +301,7 @@
     },
     {
       "id": "wage_to_salary_ivo",
-      "description": "Wage should map to Salary Ivo",
+      "description": "Wage should map to Salary Ivo via synonym",
       "input": "5000 wage payment",
       "expected": {
         "category": "budget",
@@ -304,8 +310,7 @@
           "currency": "BGN",
           "transaction_type": "Income",
           "category": "Salary Ivo",
-          "min_confidence": 0.5,
-          "max_confidence": 0.75
+          "min_confidence": 0.7
         }
       }
     },
@@ -321,6 +326,84 @@
           "transaction_type": "Expenses",
           "category": "Home improvements",
           "min_confidence": 0.7
+        }
+      }
+    },
+    {
+      "id": "amount_no_space_currency",
+      "description": "Amount directly followed by currency code (no space)",
+      "input": "5bgn for groceries",
+      "expected": {
+        "category": "budget",
+        "extracted_data": {
+          "amount": 5.0,
+          "currency": "BGN",
+          "transaction_type": "Expenses",
+          "category": "Groceries",
+          "min_confidence": 0.7
+        }
+      }
+    },
+    {
+      "id": "takeout_to_eat_out",
+      "description": "Takeout should map to Eat out category",
+      "input": "39bgn for takeout",
+      "expected": {
+        "category": "budget",
+        "extracted_data": {
+          "amount": 39.0,
+          "currency": "BGN",
+          "transaction_type": "Expenses",
+          "category": "Eat out",
+          "min_confidence": 0.7
+        }
+      }
+    },
+    {
+      "id": "vik_utilities_case_insensitive",
+      "description": "ViK merchant (capitalized) should match 'vik' and map to Utilities",
+      "input": "56bgn at ViK",
+      "expected": {
+        "category": "budget",
+        "extracted_data": {
+          "amount": 56.0,
+          "currency": "BGN",
+          "transaction_type": "Expenses",
+          "category": "Utilities",
+          "merchant": "ViK",
+          "min_confidence": 0.8
+        }
+      }
+    },
+    {
+      "id": "explicit_home_improvements_phrase",
+      "description": "User explicitly says 'for home improvements' - must preserve full category",
+      "input": "422bgn at praktiker for home improvements",
+      "expected": {
+        "category": "budget",
+        "extracted_data": {
+          "amount": 422.0,
+          "currency": "BGN",
+          "transaction_type": "Expenses",
+          "category": "Home improvements",
+          "merchant": "praktiker",
+          "min_confidence": 0.7
+        }
+      }
+    },
+    {
+      "id": "kickstarter_other_fallback",
+      "description": "Unknown merchant/purpose should fallback to Other",
+      "input": "90 dollars for a Kickstarter project",
+      "expected": {
+        "category": "budget",
+        "extracted_data": {
+          "amount": 90.0,
+          "currency": "USD",
+          "transaction_type": "Expenses",
+          "category": "Other",
+          "min_confidence": 0.5,
+          "max_confidence": 0.75
         }
       }
     }

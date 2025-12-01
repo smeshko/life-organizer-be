@@ -106,11 +106,11 @@ class TestBudgetPromptValidation:
                 "amount": 7700.0,
                 "currency": "BGN",
                 "transaction_type": "Income",
-                "category": "Salary Ivo",  # Fallback to default
+                "category": "Salary Ivo",  # Maps via synonym
             },
         )
-        # Fallback should have lower confidence
-        assert_confidence_threshold(transaction.confidence, min_threshold=0.5, max_threshold=0.75)
+        # Synonym mapping produces high confidence
+        assert_confidence_threshold(transaction.confidence, min_threshold=0.7)
 
     async def test_medical_synonym_healthcare(self, real_classifier: ClaudeClassifier):
         """Test that 'doctor visit' maps to 'Medical' (not 'Healthcare')."""
@@ -174,13 +174,28 @@ async def test_budget_golden_dataset(test_case: TestCase, real_classifier: Claud
         test_case: TestCase object from fixture
         real_classifier: Real ClaudeClassifier with API key
     """
-    # Skip multi-transaction cases for now (tested separately)
-    if test_case.is_multi_transaction:
-        pytest.skip("Multi-transaction test cases handled separately")
-
     # Call real LLM
     result = await real_classifier.classify(test_case.input, category="budget")
 
+    # Handle multi-transaction cases
+    if test_case.is_multi_transaction:
+        expected_count = test_case.expected.get("expected_count", 0)
+        assert len(result) == expected_count, (
+            f"Expected {expected_count} transactions, got {len(result)}"
+        )
+
+        # Validate each transaction
+        expected_transactions = test_case.expected.get("transactions", [])
+        for i, expected_tx in enumerate(expected_transactions):
+            assert result[i].category == Category.BUDGET
+            assert_extracted_data_matches(
+                result[i].extracted_data,
+                expected_tx,
+                amount_tolerance=PromptValidationConfig.AMOUNT_TOLERANCE,
+            )
+        return
+
+    # Handle single-transaction cases
     # Basic assertions
     assert len(result) >= 1, f"Expected at least 1 result, got {len(result)}"
     transaction = result[0]
