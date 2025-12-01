@@ -17,14 +17,30 @@ from life_organizer.schemas.enums import Category
 
 logger = logging.getLogger(__name__)
 
+# Configuration for prompt versions per category
+# This allows different categories to use different prompt versions
+PROMPT_VERSIONS: dict[str, int] = {
+    "budget": 2,  # Budget uses v2 (improved prompt with explicit categories)
+    "shopping": 1,
+    "reminder": 1,
+    "calendar": 1,
+    "note": 1,
+    "quote": 1,
+}
+
 # Load category-specific system prompts from files
 _PROMPT_DIR = Path(__file__).parent.parent / "prompts"
 _PROMPTS: dict[str, str] = {}
 
-for category in ["budget", "shopping", "reminder", "calendar", "note", "quote"]:
-    prompt_file = _PROMPT_DIR / f"{category}_system_prompt_v1.txt"
-    with prompt_file.open(encoding="utf-8") as f:
-        _PROMPTS[category] = f.read()
+for category, version in PROMPT_VERSIONS.items():
+    prompt_file = _PROMPT_DIR / f"{category}_system_prompt_v{version}.txt"
+    try:
+        with prompt_file.open(encoding="utf-8") as f:
+            _PROMPTS[category] = f.read()
+        logger.debug(f"Loaded {category} prompt (v{version})")
+    except FileNotFoundError:
+        logger.error(f"Prompt file not found: {prompt_file}")
+        raise
 
 logger.info(f"Loaded {len(_PROMPTS)} category-specific prompts")
 
