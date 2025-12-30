@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from life_organizer.handlers.budget_entry import BudgetEntryHandler, _convert_to_bgn
+from life_organizer.handlers.budget_entry import BudgetEntryHandler, _convert_to_eur
 from life_organizer.schemas.classification import ClassifiedInput
 from life_organizer.schemas.enums import ActionType, Category
 
@@ -33,10 +33,10 @@ class TestBudgetEntryHandlerExecute:
 
     @pytest.mark.asyncio
     @patch("life_organizer.handlers.budget_entry.async_session_factory")
-    async def test_expense_in_eur_converts_to_bgn(
+    async def test_expense_in_eur_persisted(
         self, mock_session_factory: MagicMock, handler: BudgetEntryHandler
     ) -> None:
-        """Expense entries in EUR should be converted to BGN and persisted to database."""
+        """Expense entries in EUR should be persisted to database."""
         # Mock database session
         mock_session = AsyncMock()
         mock_session_factory.return_value.__aenter__.return_value = mock_session
@@ -60,7 +60,7 @@ class TestBudgetEntryHandlerExecute:
         assert len(result) == 1
         assert result[0].success is True
         assert result[0].action_type == ActionType.BACKEND_HANDLED
-        assert result[0].message == "Logged expenses: 234.6 BGN in Clothes"
+        assert result[0].message == "Logged expenses: 120.0 EUR in Clothes"
 
         # Verify database operations were called
         mock_session.add.assert_called_once()
@@ -79,13 +79,13 @@ class TestBudgetEntryHandlerExecute:
         classified = _classified_input(
             {
                 "amount": 250.0,
-                "currency": "BGN",
+                "currency": "EUR",
                 "transaction_type": "Income",
                 "category": "Rent",
                 "merchant": "tenant",
                 "date": "2025-10-31",
             },
-            raw_input="received 250 bgn rent",
+            raw_input="received 250 eur rent",
         )
 
         result = await handler.execute(classified)
@@ -95,7 +95,7 @@ class TestBudgetEntryHandlerExecute:
         assert len(result) == 1
         assert result[0].success is True
         assert result[0].action_type == ActionType.BACKEND_HANDLED
-        assert result[0].message == "Logged income: 250.0 BGN in Rent"
+        assert result[0].message == "Logged income: 250.0 EUR in Rent"
 
         # Verify database operations were called
         mock_session.add.assert_called_once()
@@ -114,7 +114,7 @@ class TestBudgetEntryHandlerExecute:
         classified = _classified_input(
             {
                 "amount": 1220.0,
-                "currency": "BGN",
+                "currency": "EUR",
                 "transaction_type": "Savings",
                 "category": "Savings",
                 "date": "2025-11-04",
@@ -129,7 +129,7 @@ class TestBudgetEntryHandlerExecute:
         assert len(result) == 1
         assert result[0].success is True
         assert result[0].action_type == ActionType.BACKEND_HANDLED
-        assert result[0].message == "Logged savings: 1220.0 BGN in Savings"
+        assert result[0].message == "Logged savings: 1220.0 EUR in Savings"
 
         # Verify database operations were called
         mock_session.add.assert_called_once()
@@ -143,7 +143,7 @@ class TestBudgetEntryHandlerExecute:
         classified = _classified_input(
             {
                 "amount": 50.0,
-                "currency": "BGN",
+                "currency": "EUR",
                 # transaction_type missing
                 "category": "Groceries",
                 "date": "2025-11-04",
@@ -167,7 +167,7 @@ class TestBudgetEntryHandlerExecute:
         classified = _classified_input(
             {
                 "amount": 45.0,
-                "currency": "BGN",
+                "currency": "EUR",
                 "transaction_type": "Gift",
                 "category": "Other",
                 "date": "2025-11-04",
@@ -189,7 +189,7 @@ class TestBudgetEntryHandlerExecute:
         classified = _classified_input(
             {
                 "amount": 0,
-                "currency": "BGN",
+                "currency": "EUR",
                 "transaction_type": "Expenses",
                 "category": "Groceries",
                 "date": "2025-11-04",
@@ -213,7 +213,7 @@ class TestBudgetEntryHandlerExecute:
         classified = _classified_input(
             {
                 "amount": 39.0,
-                "currency": "BGN",
+                "currency": "EUR",
                 "transaction_type": "Expenses",
                 "category": "Bills",  # Invalid - not in ExpenseCategory enum
                 "merchant": "water utilities",
@@ -239,7 +239,7 @@ class TestBudgetEntryHandlerExecute:
         classified = _classified_input(
             {
                 "amount": 250.0,
-                "currency": "BGN",
+                "currency": "EUR",
                 "transaction_type": "Income",
                 "category": "Freelance",  # Invalid - not in IncomeCategory enum
                 "merchant": "client",
@@ -258,21 +258,17 @@ class TestBudgetEntryHandlerExecute:
         assert "Must be one of:" in result[0].message
 
 
-class TestConvertToBGN:
+class TestConvertToEUR:
     """Unit tests for currency conversion helper."""
 
-    def test_eur_to_bgn(self) -> None:
-        """120 EUR should convert to 234.60 BGN."""
-        assert _convert_to_bgn(120.0, "EUR") == pytest.approx(234.6)
+    def test_eur_passthrough(self) -> None:
+        """EUR amounts should remain unchanged."""
+        assert _convert_to_eur(120.0, "EUR") == pytest.approx(120.0)
 
-    def test_bgn_passthrough(self) -> None:
-        """BGN amounts should remain unchanged."""
-        assert _convert_to_bgn(95.0, "BGN") == pytest.approx(95.0)
+    def test_usd_to_eur(self) -> None:
+        """100 USD should convert to 92.00 EUR."""
+        assert _convert_to_eur(100.0, "USD") == pytest.approx(92.0)
 
-    def test_usd_conversion(self) -> None:
-        """USD amounts use approximate conversion rate."""
-        assert _convert_to_bgn(10.0, "USD") == pytest.approx(18.0)
-
-    def test_unknown_currency_defaults_to_bgn(self) -> None:
-        """Unknown currencies are treated as BGN."""
-        assert _convert_to_bgn(42.0, "JPY") == pytest.approx(42.0)
+    def test_unknown_currency_defaults_to_eur(self) -> None:
+        """Unknown currencies are treated as EUR."""
+        assert _convert_to_eur(42.0, "JPY") == pytest.approx(42.0)
