@@ -84,16 +84,16 @@ class TestCategoryRobustness:
             mock_anthropic_client,
             _budget_payload(
                 amount=423.0,
-                currency="BGN",
+                currency="EUR",
                 transaction_type="Expenses",
                 category="Home improvements",  # Exact enum value
                 merchant="home improvements",
-                raw_input="423 BGN for Home Improvements",
+                raw_input="423 EUR for Home Improvements",
             ),
         )
 
         results = await claude_classifier.classify(
-            "423 BGN for Home Improvements", category="budget"
+            "423 EUR for Home Improvements", category="budget"
         )
 
         assert len(results) == 1
@@ -112,7 +112,7 @@ class TestCategoryRobustness:
             mock_anthropic_client,
             _budget_payload(
                 amount=7700.0,
-                currency="BGN",
+                currency="EUR",
                 transaction_type="Income",
                 category="Salary Ivo",  # Fallback to default
                 merchant="salary",
@@ -138,7 +138,7 @@ class TestCategoryRobustness:
             mock_anthropic_client,
             _budget_payload(
                 amount=150.0,
-                currency="BGN",
+                currency="EUR",
                 transaction_type="Expenses",
                 category="Medical",  # Correct enum, not "Healthcare"
                 merchant="doctor's visit",
@@ -163,7 +163,7 @@ class TestCategoryRobustness:
             mock_anthropic_client,
             _budget_payload(
                 amount=50.0,
-                currency="BGN",
+                currency="EUR",
                 transaction_type="Expenses",
                 category="Other",
                 merchant=None,
@@ -188,7 +188,7 @@ class TestCategoryRobustness:
             mock_anthropic_client,
             _budget_payload(
                 amount=500.0,
-                currency="BGN",
+                currency="EUR",
                 transaction_type="Expenses",
                 category="Home improvements",  # Lowercase 'i'
                 merchant="contractor",
@@ -212,7 +212,7 @@ class TestCategoryRobustness:
             mock_anthropic_client,
             _budget_payload(
                 amount=100.0,
-                currency="BGN",
+                currency="EUR",
                 transaction_type="Expenses",
                 category="Medical",
                 merchant="healthcare visit",
@@ -234,7 +234,7 @@ class TestCategoryRobustness:
             mock_anthropic_client,
             _budget_payload(
                 amount=2000.0,
-                currency="BGN",
+                currency="EUR",
                 transaction_type="Expenses",
                 category="Home improvements",
                 merchant="home renovation",
@@ -256,7 +256,7 @@ class TestCategoryRobustness:
             mock_anthropic_client,
             _budget_payload(
                 amount=5000.0,
-                currency="BGN",
+                currency="EUR",
                 transaction_type="Income",
                 category="Salary Ivo",
                 merchant="wage payment",
@@ -281,11 +281,11 @@ class TestCategoryRobustness:
         payloads = [
             _budget_payload(
                 amount=74.0,
-                currency="BGN",
+                currency="EUR",
                 transaction_type="Expenses",
                 category="Groceries",
                 merchant="Metro cash and Carry",
-                raw_input="74 BGN at Metro",
+                raw_input="74 EUR at Metro",
             ),
             _budget_payload(
                 amount=58.0,
@@ -297,11 +297,11 @@ class TestCategoryRobustness:
             ),
             _budget_payload(
                 amount=423.0,
-                currency="BGN",
+                currency="EUR",
                 transaction_type="Expenses",
                 category="Home improvements",  # Full name, not "Home"
                 merchant="Home Improvements",
-                raw_input="423 BGN for Home Improvements",
+                raw_input="423 EUR for Home Improvements",
             ),
             _budget_payload(
                 amount=72.0,
@@ -318,7 +318,7 @@ class TestCategoryRobustness:
         mock_anthropic_client.messages.create.return_value = mock_response
 
         results = await claude_classifier.classify(
-            "74 BGN at Metro, 58 USD for Craft subscription, 423 BGN for Home Improvements, 72 USD for Dynamous subscription",
+            "74 EUR at Metro, 58 USD for Craft subscription, 423 EUR for Home Improvements, 72 USD for Dynamous subscription",
             category="budget",
         )
 
@@ -336,7 +336,7 @@ class TestCategoryRobustness:
         payloads = [
             _budget_payload(
                 amount=50.0,
-                currency="BGN",
+                currency="EUR",
                 transaction_type="Expenses",
                 category="Groceries",
                 merchant="Billa",
@@ -345,7 +345,7 @@ class TestCategoryRobustness:
             ),
             _budget_payload(
                 amount=30.0,
-                currency="BGN",
+                currency="EUR",
                 transaction_type="Expenses",
                 category="Other",  # Fallback for ambiguous
                 merchant=None,
@@ -354,7 +354,7 @@ class TestCategoryRobustness:
             ),
             _budget_payload(
                 amount=150.0,
-                currency="BGN",
+                currency="EUR",
                 transaction_type="Expenses",
                 category="Medical",  # Specific category after fallback
                 merchant="doctor",
