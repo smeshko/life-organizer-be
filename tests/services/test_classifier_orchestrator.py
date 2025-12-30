@@ -36,7 +36,7 @@ class TestClassifierOrchestrator:
         mock_llm_classifier: AsyncMock,
     ) -> None:
         """Test successful LLM classification."""
-        # Mock LLM result
+        # Mock LLM result (now returns a list)
         llm_result = ClassifiedInput(
             category=Category.BUDGET,
             confidence=0.95,
@@ -51,17 +51,18 @@ class TestClassifierOrchestrator:
             raw_input="spent 120eur at next",
             classifier_source="llm",
         )
-        mock_llm_classifier.classify.return_value = llm_result
+        mock_llm_classifier.classify.return_value = [llm_result]
 
         # Classify
-        result = await orchestrator.classify("spent 120eur at next")
+        results = await orchestrator.classify("spent 120eur at next")
 
         # Assertions
-        assert result == llm_result
-        assert result.category == Category.BUDGET
-        assert result.confidence == 0.95
-        assert result.classifier_source == "llm"
-        mock_llm_classifier.classify.assert_called_once_with("spent 120eur at next")
+        assert len(results) == 1
+        assert results[0] == llm_result
+        assert results[0].category == Category.BUDGET
+        assert results[0].confidence == 0.95
+        assert results[0].classifier_source == "llm"
+        mock_llm_classifier.classify.assert_called_once_with("spent 120eur at next", category=None)
 
     @pytest.mark.asyncio
     async def test_llm_api_error_propagates(
@@ -132,7 +133,7 @@ class TestClassifierOrchestrator:
         mock_llm_classifier: AsyncMock,
     ) -> None:
         """Test classification returns UNKNOWN for unclear input."""
-        # Mock LLM returning UNKNOWN
+        # Mock LLM returning UNKNOWN (now returns a list)
         unknown_result = ClassifiedInput(
             category=Category.UNKNOWN,
             confidence=0.2,
@@ -140,12 +141,13 @@ class TestClassifierOrchestrator:
             raw_input="gibberish xyz 123",
             classifier_source="llm",
         )
-        mock_llm_classifier.classify.return_value = unknown_result
+        mock_llm_classifier.classify.return_value = [unknown_result]
 
         # Classify
-        result = await orchestrator.classify("gibberish xyz 123")
+        results = await orchestrator.classify("gibberish xyz 123")
 
         # Assertions
-        assert result.category == Category.UNKNOWN
-        assert result.confidence < 0.5
+        assert len(results) == 1
+        assert results[0].category == Category.UNKNOWN
+        assert results[0].confidence < 0.5
         mock_llm_classifier.classify.assert_called_once()
