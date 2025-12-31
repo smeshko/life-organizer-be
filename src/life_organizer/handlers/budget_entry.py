@@ -19,29 +19,26 @@ logger = logging.getLogger(__name__)
 TransactionType = Literal["Expenses", "Income", "Savings"]
 
 # Constants
-EUR_TO_BGN_RATE = 1.955
+USD_TO_EUR_RATE = 0.92
 
 
-def _convert_to_bgn(amount: float, currency: str) -> float:
-    """Convert amount to BGN.
+def _convert_to_eur(amount: float, currency: str) -> float:
+    """Convert amount to EUR.
 
     Args:
         amount: Amount in source currency
-        currency: Currency code (EUR, BGN, USD)
+        currency: Currency code (EUR, USD)
 
     Returns:
-        Amount in BGN
+        Amount in EUR
     """
     if currency == "EUR":
-        return round(amount * EUR_TO_BGN_RATE, 2)
-    elif currency == "BGN":
         return round(amount, 2)
     elif currency == "USD":
-        # Rough approximation: 1 USD ≈ 1.8 BGN
-        return round(amount * 1.8, 2)
+        return round(amount * USD_TO_EUR_RATE, 2)
     else:
-        # Unknown currency, assume BGN
-        logger.warning(f"Unknown currency '{currency}', assuming BGN")
+        # Unknown currency, assume EUR
+        logger.warning(f"Unknown currency '{currency}', assuming EUR")
         return round(amount, 2)
 
 
@@ -173,7 +170,7 @@ class BudgetEntryHandler(BaseHandler):
                                 ) from None
 
                         # TRANSFORMATION PHASE
-                        amount_bgn = _convert_to_bgn(amount, currency)
+                        amount_eur = _convert_to_eur(amount, currency)
 
                         # Extract other fields
                         category = category_enum.value
@@ -182,10 +179,14 @@ class BudgetEntryHandler(BaseHandler):
                         details = str(merchant) if merchant else None
 
                         # Create transaction model (not yet persisted)
+                        # Note: amount_bgn is set to 0 for new EUR transactions (historical field)
                         transaction = BudgetTransaction(
                             amount=Decimal(str(amount)),
                             currency=currency,
-                            amount_bgn=Decimal(str(amount_bgn)),
+                            amount_bgn=Decimal(
+                                "0"
+                            ),  # Historical field, not used for new transactions
+                            amount_eur=Decimal(str(amount_eur)),
                             date=datetime.date.fromisoformat(date_iso),
                             transaction_type=transaction_type,
                             category=category,
@@ -201,7 +202,7 @@ class BudgetEntryHandler(BaseHandler):
                             ProcessingResponse(
                                 success=True,
                                 action_type=ActionType.BACKEND_HANDLED,
-                                message=f"Logged {transaction_type.lower()}: {amount_bgn} BGN in {category}",
+                                message=f"Logged {transaction_type.lower()}: {amount_eur} EUR in {category}",
                             )
                         )
 

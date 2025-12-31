@@ -71,9 +71,8 @@ Your task is to extract structured financial transaction data and return **stric
     | Input | Output |
     |-------|--------|
     | eur, euro, euros, € | "EUR" |
-    | bgn, lev, leva | "BGN" |
     | $ | "USD" |
-    | default | "BGN" |
+    | default | "EUR" |
 
 ---
 

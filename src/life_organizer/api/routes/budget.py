@@ -39,7 +39,7 @@ async def export_budget(
     - Date: Transaction date (YYYY-MM-DD)
     - Type: Transaction type (Expenses, Income, or Savings)
     - Category: Transaction category
-    - Amount: Amount in BGN as integer (rounded up)
+    - Amount: Amount in EUR as integer (rounded up), falls back to BGN for historical records
     - Details: Merchant or description (empty if null)
 
     Transactions are filtered by start_date (inclusive) and sorted by date ascending.
@@ -64,8 +64,11 @@ async def export_budget(
         lines = []
 
         for transaction in transactions:
-            # Round up amount to integer
-            amount_int = math.ceil(float(transaction.amount_bgn))
+            # Use amount_eur for new transactions, fallback to amount_bgn for historical
+            amount_value = (
+                transaction.amount_eur if transaction.amount_eur else transaction.amount_bgn
+            )
+            amount_int = math.ceil(float(amount_value))
 
             # Handle null details
             details = transaction.details or ""

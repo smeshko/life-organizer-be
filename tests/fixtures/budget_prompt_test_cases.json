@@ -8,7 +8,7 @@
         "category": "budget",
         "extracted_data": {
           "amount": 50.0,
-          "currency": "BGN",
+          "currency": "EUR",
           "transaction_type": "Expenses",
           "category": "Body care",
           "min_confidence": 0.7
@@ -18,12 +18,12 @@
     {
       "id": "home_improvements_full_name",
       "description": "Home improvements expense - must extract full category name",
-      "input": "423 BGN for Home Improvements",
+      "input": "423 EUR for Home Improvements",
       "expected": {
         "category": "budget",
         "extracted_data": {
           "amount": 423.0,
-          "currency": "BGN",
+          "currency": "EUR",
           "transaction_type": "Expenses",
           "category": "Home improvements",
           "min_confidence": 0.7
@@ -33,12 +33,12 @@
     {
       "id": "salary_ivo_fallback",
       "description": "Generic salary should map to Salary Ivo via synonym",
-      "input": "7700bgn salary",
+      "input": "7700eur salary",
       "expected": {
         "category": "budget",
         "extracted_data": {
           "amount": 7700.0,
-          "currency": "BGN",
+          "currency": "EUR",
           "transaction_type": "Income",
           "category": "Salary Ivo",
           "min_confidence": 0.7
@@ -53,7 +53,7 @@
         "category": "budget",
         "extracted_data": {
           "amount": 150.0,
-          "currency": "BGN",
+          "currency": "EUR",
           "transaction_type": "Expenses",
           "category": "Medical",
           "min_confidence": 0.7
@@ -68,7 +68,7 @@
         "category": "budget",
         "extracted_data": {
           "amount": 7.0,
-          "currency": "BGN",
+          "currency": "EUR",
           "transaction_type": "Expenses",
           "category": "Eat out",
           "date_relative": "yesterday",
@@ -99,7 +99,7 @@
         "category": "budget",
         "extracted_data": {
           "amount": 80.0,
-          "currency": "BGN",
+          "currency": "EUR",
           "transaction_type": "Expenses",
           "category": "Clothes",
           "min_confidence": 0.7
@@ -114,7 +114,7 @@
         "category": "budget",
         "extracted_data": {
           "amount": 15.5,
-          "currency": "BGN",
+          "currency": "EUR",
           "transaction_type": "Expenses",
           "category": "Transport",
           "min_confidence": 0.7
@@ -129,7 +129,7 @@
         "category": "budget",
         "extracted_data": {
           "amount": 1220.0,
-          "currency": "BGN",
+          "currency": "EUR",
           "transaction_type": "Savings",
           "category": "Savings",
           "min_confidence": 0.7
@@ -139,12 +139,12 @@
     {
       "id": "income_rent",
       "description": "Income from rent",
-      "input": "received 250bgn rent on Monday",
+      "input": "received 250eur rent on Monday",
       "expected": {
         "category": "budget",
         "extracted_data": {
           "amount": 250.0,
-          "currency": "BGN",
+          "currency": "EUR",
           "transaction_type": "Income",
           "category": "Rent",
           "min_confidence": 0.7
@@ -162,12 +162,12 @@
         "transactions": [
           {
             "amount": 50.0,
-            "currency": "BGN",
+            "currency": "EUR",
             "category": "Body care"
           },
           {
             "amount": 120.0,
-            "currency": "BGN",
+            "currency": "EUR",
             "category": "Clothes"
           }
         ]
@@ -176,7 +176,7 @@
     {
       "id": "multi_transaction_mixed",
       "description": "Multiple transactions with mixed categories",
-      "input": "74 BGN at Metro, 58 USD for Craft subscription, 423 BGN for Home Improvements",
+      "input": "74 EUR at Metro, 58 USD for Craft subscription, 423 EUR for Home Improvements",
       "expected": {
         "category": "budget",
         "multi_transaction": true,
@@ -184,7 +184,7 @@
         "transactions": [
           {
             "amount": 74.0,
-            "currency": "BGN",
+            "currency": "EUR",
             "category": "Groceries"
           },
           {
@@ -194,7 +194,7 @@
           },
           {
             "amount": 423.0,
-            "currency": "BGN",
+            "currency": "EUR",
             "category": "Home improvements"
           }
         ]
@@ -208,7 +208,7 @@
         "category": "budget",
         "extracted_data": {
           "amount": 12.99,
-          "currency": "BGN",
+          "currency": "EUR",
           "transaction_type": "Expenses",
           "category": "Subscriptions",
           "min_confidence": 0.8
@@ -223,7 +223,7 @@
         "category": "budget",
         "extracted_data": {
           "amount": 50.0,
-          "currency": "BGN",
+          "currency": "EUR",
           "transaction_type": "Expenses",
           "category": "Other",
           "min_confidence": 0.5,
@@ -261,7 +261,7 @@
         "category": "budget",
         "extracted_data": {
           "amount": 20.0,
-          "currency": "BGN",
+          "currency": "EUR",
           "transaction_type": "Expenses",
           "category": "Eat out",
           "date_relative": "yesterday",
@@ -277,7 +277,7 @@
         "category": "budget",
         "extracted_data": {
           "amount": 85.0,
-          "currency": "BGN",
+          "currency": "EUR",
           "transaction_type": "Expenses",
           "category": "Utilities",
           "min_confidence": 0.7
@@ -292,7 +292,7 @@
         "category": "budget",
         "extracted_data": {
           "amount": 2000.0,
-          "currency": "BGN",
+          "currency": "EUR",
           "transaction_type": "Expenses",
           "category": "Home improvements",
           "min_confidence": 0.7
@@ -307,7 +307,7 @@
         "category": "budget",
         "extracted_data": {
           "amount": 5000.0,
-          "currency": "BGN",
+          "currency": "EUR",
           "transaction_type": "Income",
           "category": "Salary Ivo",
           "min_confidence": 0.7
@@ -322,7 +322,7 @@
         "category": "budget",
         "extracted_data": {
           "amount": 500.0,
-          "currency": "BGN",
+          "currency": "EUR",
           "transaction_type": "Expenses",
           "category": "Home improvements",
           "min_confidence": 0.7
@@ -332,12 +332,12 @@
     {
       "id": "amount_no_space_currency",
       "description": "Amount directly followed by currency code (no space)",
-      "input": "5bgn for groceries",
+      "input": "5eur for groceries",
       "expected": {
         "category": "budget",
         "extracted_data": {
           "amount": 5.0,
-          "currency": "BGN",
+          "currency": "EUR",
           "transaction_type": "Expenses",
           "category": "Groceries",
           "min_confidence": 0.7
@@ -347,12 +347,12 @@
     {
       "id": "takeout_to_eat_out",
       "description": "Takeout should map to Eat out category",
-      "input": "39bgn for takeout",
+      "input": "39eur for takeout",
       "expected": {
         "category": "budget",
         "extracted_data": {
           "amount": 39.0,
-          "currency": "BGN",
+          "currency": "EUR",
           "transaction_type": "Expenses",
           "category": "Eat out",
           "min_confidence": 0.7
@@ -362,12 +362,12 @@
     {
       "id": "vik_utilities_case_insensitive",
       "description": "ViK merchant (capitalized) should match 'vik' and map to Utilities",
-      "input": "56bgn at ViK",
+      "input": "56eur at ViK",
       "expected": {
         "category": "budget",
         "extracted_data": {
           "amount": 56.0,
-          "currency": "BGN",
+          "currency": "EUR",
           "transaction_type": "Expenses",
           "category": "Utilities",
           "merchant": "ViK",
@@ -378,12 +378,12 @@
     {
       "id": "explicit_home_improvements_phrase",
       "description": "User explicitly says 'for home improvements' - must preserve full category",
-      "input": "422bgn at praktiker for home improvements",
+      "input": "422eur at praktiker for home improvements",
       "expected": {
         "category": "budget",
         "extracted_data": {
           "amount": 422.0,
-          "currency": "BGN",
+          "currency": "EUR",
           "transaction_type": "Expenses",
           "category": "Home improvements",
           "merchant": "praktiker",

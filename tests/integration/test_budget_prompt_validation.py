@@ -65,7 +65,7 @@ class TestBudgetPromptValidation:
             transaction.extracted_data,
             {
                 "amount": 50.0,
-                "currency": "BGN",
+                "currency": "EUR",
                 "transaction_type": "Expenses",
                 "category": "Body care",
             },
@@ -75,7 +75,7 @@ class TestBudgetPromptValidation:
 
     async def test_home_improvements_full_name(self, real_classifier: ClaudeClassifier):
         """Test that 'Home Improvements' maps to exact enum 'Home improvements' (not 'Home')."""
-        result = await real_classifier.classify("423 BGN for Home Improvements", category="budget")
+        result = await real_classifier.classify("423 EUR for Home Improvements", category="budget")
 
         assert len(result) == 1
         transaction = result[0]
@@ -85,7 +85,7 @@ class TestBudgetPromptValidation:
             transaction.extracted_data,
             {
                 "amount": 423.0,
-                "currency": "BGN",
+                "currency": "EUR",
                 "transaction_type": "Expenses",
                 "category": "Home improvements",  # Exact match required
             },
@@ -94,7 +94,7 @@ class TestBudgetPromptValidation:
 
     async def test_salary_ivo_fallback(self, real_classifier: ClaudeClassifier):
         """Test that generic 'salary' maps to 'Salary Ivo' (not invalid 'Salary')."""
-        result = await real_classifier.classify("7700bgn salary", category="budget")
+        result = await real_classifier.classify("7700eur salary", category="budget")
 
         assert len(result) == 1
         transaction = result[0]
@@ -104,7 +104,7 @@ class TestBudgetPromptValidation:
             transaction.extracted_data,
             {
                 "amount": 7700.0,
-                "currency": "BGN",
+                "currency": "EUR",
                 "transaction_type": "Income",
                 "category": "Salary Ivo",  # Maps via synonym
             },
@@ -124,7 +124,7 @@ class TestBudgetPromptValidation:
             transaction.extracted_data,
             {
                 "amount": 150.0,
-                "currency": "BGN",
+                "currency": "EUR",
                 "transaction_type": "Expenses",
                 "category": "Medical",  # Not "Healthcare"
             },
@@ -143,7 +143,7 @@ class TestBudgetPromptValidation:
             result[0].extracted_data,
             {
                 "amount": 50.0,
-                "currency": "BGN",
+                "currency": "EUR",
                 "category": "Body care",
             },
         )
@@ -154,7 +154,7 @@ class TestBudgetPromptValidation:
             result[1].extracted_data,
             {
                 "amount": 120.0,
-                "currency": "BGN",
+                "currency": "EUR",
                 "category": "Clothes",
             },
         )

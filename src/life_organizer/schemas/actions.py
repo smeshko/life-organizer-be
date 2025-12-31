@@ -83,11 +83,11 @@ class LogBudgetEntryAction(BaseAppAction):
     """Action to log a budget entry (expense/income/savings) in Excel sheet.
 
     The iOS app receives this action and populates the budget tracking Excel sheet
-    with the transaction details. All amounts are in BGN after EUR conversion.
+    with the transaction details. All amounts are in EUR.
 
     Attributes:
         type: Always "log_budget_entry"
-        amount: Amount in BGN (after EUR conversion if needed)
+        amount: Amount in EUR
         date: Transaction date in ISO format (YYYY-MM-DD)
         transaction_type: One of "Expenses", "Income", "Savings"
         category: Budget category name (from predefined categories)
@@ -95,7 +95,7 @@ class LogBudgetEntryAction(BaseAppAction):
     """
 
     type: Literal["log_budget_entry"] = "log_budget_entry"
-    amount: float = Field(..., description="Amount in BGN", gt=0)
+    amount: float = Field(..., description="Amount in EUR", gt=0)
     date: str = Field(..., description="Date in ISO format (YYYY-MM-DD)")
     transaction_type: Literal["Expenses", "Income", "Savings"] = Field(
         ..., description="Type of transaction"
