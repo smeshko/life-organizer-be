@@ -51,7 +51,7 @@ class BudgetTransaction(Base):
         Index("ix_budget_transactions_date", "date"),
         Index("ix_budget_transactions_type", "transaction_type"),
         CheckConstraint("amount > 0", name="check_amount_positive"),
-        CheckConstraint("amount_bgn > 0", name="check_amount_bgn_positive"),
+        CheckConstraint("amount_bgn >= 0", name="check_amount_bgn_non_negative"),
         {"schema": "budget"},
     )
 
