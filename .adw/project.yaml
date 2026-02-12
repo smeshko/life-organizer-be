@@ -8,7 +8,7 @@
 name: python
 language: python
 platform: api
-# framework: null  # Framework being used (e.g., fastapi)
+framework: fastapi
 
 # === Commands ===
 commands:

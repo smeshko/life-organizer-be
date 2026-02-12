@@ -12,8 +12,8 @@
   },
   "project_root": "/Users/A1E6E98/Developer/Projects/life-organizer/life-organizer-be",
   "output_folder": "/Users/A1E6E98/Developer/Projects/life-organizer/life-organizer-be/_bmad-output",
-  "completed_steps": ["step-01", "step-04", "step-05", "step-06", "step-07", "step-08", "step-09"],
-  "current_step": "step-10",
+  "completed_steps": ["step-01", "step-04", "step-05", "step-06", "step-07", "step-08", "step-09", "step-10", "step-12", "step-13", "step-14"],
+  "current_step": "complete",
   "warnings": [],
   "errors": [],
   "findings": {
@@ -67,5 +67,5 @@
     ],
     "architecture_pattern": "Async REST API backend with LLM integration (FastAPI + SQLAlchemy + Anthropic Claude)"
   },
-  "outputs_generated": ["project-scan-report.json", "api-contracts-life-organizer-be.md", "data-models-life-organizer-be.md", "source-tree-analysis.md"]
+  "outputs_generated": ["project-scan-report.json", "api-contracts-life-organizer-be.md", "data-models-life-organizer-be.md", "source-tree-analysis.md", "development-guide.md", "deployment-guide.md", "architecture.md", "project-overview.md", "index.md"]
 }

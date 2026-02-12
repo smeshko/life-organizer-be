@@ -57,10 +57,9 @@ workflow_status:
 
   - id: "create-epics-and-stories"
     phase: 2
-    status: "required"
+    status: "_bmad-output/epics.md"
     agent: "pm"
     command: "/bmad:bmm:workflows:create-epics-and-stories"
-    note: "NEXT: Break down PRD into implementable epics and stories"
 
   - id: "test-design"
     phase: 2
