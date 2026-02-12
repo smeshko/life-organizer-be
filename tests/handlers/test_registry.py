@@ -147,14 +147,14 @@ class TestHandlerRegistry:
             result = get_handler(expense_input)
             assert result is expense_handler
 
-            # Test category with no handler (SHOPPING)
-            shopping_input = ClassifiedInput(
-                category=Category.SHOPPING,
+            # Test category with no handler (NOTE)
+            note_input = ClassifiedInput(
+                category=Category.NOTE,
                 confidence=0.8,
-                raw_input="Buy milk",
+                raw_input="Remember to call dentist",
                 classifier_source="keyword",
             )
-            result = get_handler(shopping_input)
+            result = get_handler(note_input)
             assert result is None
         finally:
             # Restore original handlers

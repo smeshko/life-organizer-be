@@ -117,13 +117,13 @@ class TestConcreteHandlerImplementation:
         assert handler.can_handle(expense_input) is True
 
         # Should not handle other categories
-        shopping_input = ClassifiedInput(
-            category=Category.SHOPPING,
+        note_input = ClassifiedInput(
+            category=Category.NOTE,
             confidence=0.9,
-            raw_input="Buy milk",
+            raw_input="Remember to call dentist",
             classifier_source="keyword",
         )
-        assert handler.can_handle(shopping_input) is False
+        assert handler.can_handle(note_input) is False
 
     def test_concrete_handler_execute(self):
         """Test that concrete handler can execute and return ProcessingResponse."""

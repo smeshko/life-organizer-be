@@ -45,18 +45,18 @@ def test_classification_without_extracted_data():
 def test_classification_serialization():
     """Test JSON serialization of ClassifiedInput."""
     classified = ClassifiedInput(
-        category=Category.SHOPPING,
+        category=Category.NOTE,
         confidence=0.85,
-        extracted_data={"item": "milk", "quantity": 1},
-        raw_input="Buy milk",
+        extracted_data={"content": "Remember to call dentist"},
+        raw_input="Remember to call dentist",
         classifier_source="keyword",
     )
 
     json_data = classified.model_dump_json()
-    assert "shopping" in json_data  # Category serializes to string
+    assert "note" in json_data  # Category serializes to string
     assert "0.85" in json_data
-    assert "milk" in json_data
-    assert "Buy milk" in json_data
+    assert "dentist" in json_data
+    assert "Remember to call dentist" in json_data
 
 
 def test_classification_deserialization():
@@ -185,19 +185,18 @@ def test_invalid_category():
 def test_extracted_data_complex_types():
     """Test extracted_data with complex nested data."""
     classified = ClassifiedInput(
-        category=Category.CALENDAR,
+        category=Category.NOTE,
         confidence=0.88,
         extracted_data={
-            "title": "Team Meeting",
-            "start_time": "2025-11-05T14:00:00",
-            "end_time": "2025-11-05T15:00:00",
-            "attendees": ["Alice", "Bob"],
-            "location": {"type": "virtual", "url": "https://meet.example.com"},
+            "title": "Team Meeting Notes",
+            "content": "Discussed Q4 goals",
+            "tags": ["meeting", "planning"],
+            "metadata": {"source": "voice", "language": "en"},
         },
-        raw_input="Schedule team meeting on Nov 5 at 2pm",
+        raw_input="Team meeting notes about Q4 goals",
         classifier_source="keyword",
     )
 
-    assert classified.extracted_data["title"] == "Team Meeting"
-    assert classified.extracted_data["attendees"] == ["Alice", "Bob"]
-    assert isinstance(classified.extracted_data["location"], dict)
+    assert classified.extracted_data["title"] == "Team Meeting Notes"
+    assert classified.extracted_data["tags"] == ["meeting", "planning"]
+    assert isinstance(classified.extracted_data["metadata"], dict)
