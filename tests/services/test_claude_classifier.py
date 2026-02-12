@@ -228,48 +228,6 @@ class TestClaudeClassifierExtraction:
         assert result.extracted_data["date"] == "2025-01-05"
 
     @pytest.mark.asyncio
-    async def test_shopping_category_success(
-        self, claude_classifier: ClaudeClassifier, mock_anthropic_client: AsyncMock
-    ) -> None:
-        payload = {
-            "category": "shopping",
-            "confidence": 0.9,
-            "extracted_data": {"items": ["milk", "eggs", "bread"]},
-            "raw_input": "Buy milk, eggs and bread",
-        }
-        _set_llm_response(mock_anthropic_client, payload)
-
-        results = await claude_classifier.classify("Buy milk, eggs and bread")
-
-        # Classifier always returns a list
-        assert len(results) == 1
-        result = results[0]
-
-        assert result.category == Category.SHOPPING
-        assert result.extracted_data["items"] == ["milk", "eggs", "bread"]
-
-    @pytest.mark.asyncio
-    async def test_calendar_category_success(
-        self, claude_classifier: ClaudeClassifier, mock_anthropic_client: AsyncMock
-    ) -> None:
-        payload = {
-            "category": "calendar",
-            "confidence": 0.88,
-            "extracted_data": {"time_reference": "Monday 3pm"},
-            "raw_input": "Meeting on Monday at 3pm",
-        }
-        _set_llm_response(mock_anthropic_client, payload)
-
-        results = await claude_classifier.classify("Meeting on Monday at 3pm")
-
-        # Classifier always returns a list
-        assert len(results) == 1
-        result = results[0]
-
-        assert result.category == Category.CALENDAR
-        assert result.extracted_data["time_reference"] == "Monday 3pm"
-
-    @pytest.mark.asyncio
     async def test_unknown_category_success(
         self, claude_classifier: ClaudeClassifier, mock_anthropic_client: AsyncMock
     ) -> None:

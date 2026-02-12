@@ -21,8 +21,6 @@ logger = logging.getLogger(__name__)
 # This allows different categories to use different prompt versions
 PROMPT_VERSIONS: dict[str, int] = {
     "budget": 2,  # Budget uses v2 (improved prompt with explicit categories)
-    "shopping": 1,
-    "calendar": 1,
     "note": 1,
     "quote": 1,
 }
@@ -104,10 +102,6 @@ class ClaudeClassifier:
         """
         if category == Category.BUDGET:
             return ["amount", "currency", "transaction_type", "category", "date"]
-        elif category == Category.SHOPPING:
-            return ["items"]
-        elif category == Category.CALENDAR:
-            return ["time_reference"]
         return []  # UNKNOWN has no required fields
 
     def _estimate_transaction_count(self, text: str) -> int:
@@ -365,8 +359,6 @@ class ClaudeClassifier:
         """Map LLM category string to Category enum."""
         category_map = {
             "budget": Category.BUDGET,
-            "shopping": Category.SHOPPING,
-            "calendar": Category.CALENDAR,
             "unknown": Category.UNKNOWN,
         }
         return category_map.get(category_str.lower(), Category.UNKNOWN)
@@ -407,12 +399,5 @@ class ClaudeClassifier:
                 logger.warning("LLM returned BUDGET without category field")
             if "date" not in result_dict:
                 logger.warning("LLM returned BUDGET without date field")
-
-        elif category == Category.SHOPPING:
-            if "items" not in result_dict or not isinstance(result_dict["items"], list):
-                logger.warning("LLM returned SHOPPING without items list, adding empty list")
-                result_dict["items"] = []
-        elif category == Category.CALENDAR and "time_reference" not in result_dict:
-            logger.debug("LLM returned CALENDAR without time_reference field")
 
         return result_dict

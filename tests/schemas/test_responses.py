@@ -1,11 +1,6 @@
 """Tests for response schemas."""
 
-from datetime import UTC, datetime
-
-from life_organizer.schemas.actions import (
-    AddToShoppingListAction,
-    CreateCalendarEventAction,
-)
+from life_organizer.schemas.actions import LogBudgetEntryAction
 from life_organizer.schemas.enums import ActionType
 from life_organizer.schemas.responses import ProcessingResponse
 
@@ -25,74 +20,54 @@ class TestProcessingResponse:
         assert result.message == "Expense logged successfully"
         assert result.app_action is None
 
-    def test_app_action_required_with_shopping_list(self):
-        """Test app_action_required response with AddToShoppingListAction."""
-        shopping_action = AddToShoppingListAction(
-            item="Eggs",
-            quantity="1 dozen",
-            list_id="shopping_list",
-            notes="Organic if possible",
+    def test_app_action_required_with_budget_entry(self):
+        """Test app_action_required response with LogBudgetEntryAction."""
+        budget_action = LogBudgetEntryAction(
+            amount=50.0,
+            date="2025-11-05",
+            transaction_type="Expenses",
+            category="Groceries",
+            details="billa",
         )
 
         result = ProcessingResponse(
             success=True,
             action_type=ActionType.APP_ACTION_REQUIRED,
-            message="Shopping item ready to add",
-            app_action=shopping_action,
+            message="Budget entry ready to log",
+            app_action=budget_action,
         )
 
         assert result.success is True
         assert result.app_action is not None
-        assert isinstance(result.app_action, AddToShoppingListAction)
-        assert result.app_action.item == "Eggs"
-        assert result.app_action.type == "add_to_shopping_list"
+        assert isinstance(result.app_action, LogBudgetEntryAction)
+        assert result.app_action.amount == 50.0
+        assert result.app_action.type == "log_budget_entry"
 
-    def test_app_action_required_with_calendar_event(self):
-        """Test app_action_required response with CreateCalendarEventAction."""
-        calendar_action = CreateCalendarEventAction(
-            title="Team Meeting",
-            start_time=datetime(2025, 11, 2, 14, 0, tzinfo=UTC),
-            end_time=datetime(2025, 11, 2, 15, 0, tzinfo=UTC),
-            location="Conference Room A",
-            notes="Quarterly planning",
+    def test_json_serialization_with_budget_action(self):
+        """Test JSON serialization preserves action type field."""
+        budget_action = LogBudgetEntryAction(
+            amount=50.0,
+            date="2025-11-05",
+            transaction_type="Expenses",
+            category="Groceries",
         )
 
         result = ProcessingResponse(
             success=True,
             action_type=ActionType.APP_ACTION_REQUIRED,
-            message="Calendar event ready to create",
-            app_action=calendar_action,
-        )
-
-        assert result.success is True
-        assert result.app_action is not None
-        assert isinstance(result.app_action, CreateCalendarEventAction)
-        assert result.app_action.title == "Team Meeting"
-        assert result.app_action.type == "create_calendar_event"
-
-    def test_json_serialization_with_discriminated_union(self):
-        """Test JSON serialization preserves discriminated union type field."""
-        shopping_action = AddToShoppingListAction(
-            item="Eggs",
-            quantity="1 dozen",
-        )
-
-        result = ProcessingResponse(
-            success=True,
-            action_type=ActionType.APP_ACTION_REQUIRED,
-            message="Shopping item ready",
-            app_action=shopping_action,
+            message="Budget entry ready",
+            app_action=budget_action,
         )
 
         json_data = result.model_dump()
-        assert json_data["app_action"]["type"] == "add_to_shopping_list"
-        assert json_data["app_action"]["item"] == "Eggs"
+        assert json_data["app_action"]["type"] == "log_budget_entry"
+        assert json_data["app_action"]["amount"] == 50.0
 
         # Test deserialization
         json_str = result.model_dump_json()
         reconstructed = ProcessingResponse.model_validate_json(json_str)
-        assert isinstance(reconstructed.app_action, AddToShoppingListAction)
-        assert reconstructed.app_action.item == "Eggs"
+        assert isinstance(reconstructed.app_action, LogBudgetEntryAction)
+        assert reconstructed.app_action.amount == 50.0
 
     def test_optional_fields_are_truly_optional(self):
         """Test that app_action is optional."""

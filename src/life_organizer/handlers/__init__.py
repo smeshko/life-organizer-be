@@ -25,7 +25,6 @@ from life_organizer.schemas.classification import ClassifiedInput
 # Order matters: first matching handler is selected
 HANDLERS: list[BaseHandler] = [
     BudgetEntryHandler(),  # Budget entries (expenses/income/savings)
-    # Future: ShoppingHandler(),
 ]
 
 

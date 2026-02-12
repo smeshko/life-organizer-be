@@ -8,7 +8,7 @@ class ActionType(StrEnum):
 
     Attributes:
         BACKEND_HANDLED: Action was completed by backend (e.g., logged to database)
-        APP_ACTION_REQUIRED: iOS app needs to perform an action (e.g., add to shopping list)
+        APP_ACTION_REQUIRED: iOS app needs to perform an action (e.g., log a budget entry)
     """
 
     BACKEND_HANDLED = "backend_handled"
@@ -20,16 +20,12 @@ class Category(StrEnum):
 
     Attributes:
         BUDGET: Financial budget tracking (expenses, income, savings)
-        SHOPPING: Shopping list items
-        CALENDAR: Calendar events
         NOTE: Quick notes and memos
         QUOTE: Inspirational quotes
         UNKNOWN: Could not classify input
     """
 
     BUDGET = "budget"
-    SHOPPING = "shopping"
-    CALENDAR = "calendar"
     NOTE = "note"
     QUOTE = "quote"
     UNKNOWN = "unknown"
