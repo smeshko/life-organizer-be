@@ -23,24 +23,6 @@ class BaseAppAction(BaseModel):
     type: str = Field(..., description="Action type discriminator")
 
 
-class CreateReminderAction(BaseAppAction):
-    """Action to create a reminder in iOS Reminders app.
-
-    Attributes:
-        type: Always "create_reminder"
-        title: Reminder title/description
-        due_date: When the reminder is due (optional)
-        list_id: Which reminders list to add to (optional)
-        notes: Additional notes/context (optional)
-    """
-
-    type: Literal["create_reminder"] = "create_reminder"
-    title: str = Field(..., description="Reminder title", min_length=1)
-    due_date: datetime | None = Field(default=None, description="When reminder is due")
-    list_id: str | None = Field(default=None, description="Target reminders list ID")
-    notes: str | None = Field(default=None, description="Additional notes")
-
-
 class AddToShoppingListAction(BaseAppAction):
     """Action to add an item to a shopping list.
 
@@ -105,9 +87,4 @@ class LogBudgetEntryAction(BaseAppAction):
 
 
 # Type alias for discriminated union
-AppAction = (
-    CreateReminderAction
-    | AddToShoppingListAction
-    | CreateCalendarEventAction
-    | LogBudgetEntryAction
-)
+AppAction = AddToShoppingListAction | CreateCalendarEventAction | LogBudgetEntryAction
