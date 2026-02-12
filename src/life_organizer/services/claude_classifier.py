@@ -21,8 +21,6 @@ logger = logging.getLogger(__name__)
 # This allows different categories to use different prompt versions
 PROMPT_VERSIONS: dict[str, int] = {
     "budget": 2,  # Budget uses v2 (improved prompt with explicit categories)
-    "shopping": 1,
-    "calendar": 1,
     "note": 1,
     "quote": 1,
 }
