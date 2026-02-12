@@ -5,7 +5,6 @@ from datetime import UTC, datetime
 from life_organizer.schemas.actions import (
     AddToShoppingListAction,
     CreateCalendarEventAction,
-    CreateReminderAction,
 )
 from life_organizer.schemas.enums import ActionType
 from life_organizer.schemas.responses import ProcessingResponse
@@ -25,29 +24,6 @@ class TestProcessingResponse:
         assert result.action_type == ActionType.BACKEND_HANDLED
         assert result.message == "Expense logged successfully"
         assert result.app_action is None
-
-    def test_app_action_required_with_reminder(self):
-        """Test app_action_required response with CreateReminderAction."""
-        reminder_action = CreateReminderAction(
-            title="Buy milk",
-            due_date=datetime(2025, 11, 2, 10, 0, tzinfo=UTC),
-            list_id="groceries",
-            notes="Don't forget whole milk",
-        )
-
-        result = ProcessingResponse(
-            success=True,
-            action_type=ActionType.APP_ACTION_REQUIRED,
-            message="Reminder ready to create",
-            app_action=reminder_action,
-        )
-
-        assert result.success is True
-        assert result.action_type == ActionType.APP_ACTION_REQUIRED
-        assert result.app_action is not None
-        assert isinstance(result.app_action, CreateReminderAction)
-        assert result.app_action.title == "Buy milk"
-        assert result.app_action.type == "create_reminder"
 
     def test_app_action_required_with_shopping_list(self):
         """Test app_action_required response with AddToShoppingListAction."""
@@ -96,27 +72,27 @@ class TestProcessingResponse:
 
     def test_json_serialization_with_discriminated_union(self):
         """Test JSON serialization preserves discriminated union type field."""
-        reminder_action = CreateReminderAction(
-            title="Call dentist",
-            due_date=datetime(2025, 11, 5, 9, 0, tzinfo=UTC),
+        shopping_action = AddToShoppingListAction(
+            item="Eggs",
+            quantity="1 dozen",
         )
 
         result = ProcessingResponse(
             success=True,
             action_type=ActionType.APP_ACTION_REQUIRED,
-            message="Reminder created",
-            app_action=reminder_action,
+            message="Shopping item ready",
+            app_action=shopping_action,
         )
 
         json_data = result.model_dump()
-        assert json_data["app_action"]["type"] == "create_reminder"
-        assert json_data["app_action"]["title"] == "Call dentist"
+        assert json_data["app_action"]["type"] == "add_to_shopping_list"
+        assert json_data["app_action"]["item"] == "Eggs"
 
         # Test deserialization
         json_str = result.model_dump_json()
         reconstructed = ProcessingResponse.model_validate_json(json_str)
-        assert isinstance(reconstructed.app_action, CreateReminderAction)
-        assert reconstructed.app_action.title == "Call dentist"
+        assert isinstance(reconstructed.app_action, AddToShoppingListAction)
+        assert reconstructed.app_action.item == "Eggs"
 
     def test_optional_fields_are_truly_optional(self):
         """Test that app_action is optional."""
