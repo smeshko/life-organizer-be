@@ -21,7 +21,6 @@ class Category(StrEnum):
     Attributes:
         BUDGET: Financial budget tracking (expenses, income, savings)
         SHOPPING: Shopping list items
-        REMINDER: Time-based reminders
         CALENDAR: Calendar events
         NOTE: Quick notes and memos
         QUOTE: Inspirational quotes
@@ -30,7 +29,6 @@ class Category(StrEnum):
 
     BUDGET = "budget"
     SHOPPING = "shopping"
-    REMINDER = "reminder"
     CALENDAR = "calendar"
     NOTE = "note"
     QUOTE = "quote"
