@@ -11,7 +11,7 @@ class ClassifiedInput(BaseModel):
     """Result of classifying user input through the classification engine.
 
     The classification engine analyzes raw user input and determines:
-    - What category it belongs to (expense, shopping, reminder, etc.)
+    - What category it belongs to (budget, shopping, calendar, etc.)
     - How confident it is in that classification (0.0-1.0)
     - What specific data was extracted (amounts, items, dates, etc.)
 

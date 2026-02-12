@@ -9,9 +9,9 @@ from pydantic import BaseModel, Field
 class BaseAppAction(BaseModel):
     """Base model for iOS app actions that the backend requests.
 
-    When the backend cannot handle an action directly (e.g., creating a reminder
-    requires iOS Reminders app access), it returns an app action that tells the
-    iOS client what to do.
+    When the backend cannot handle an action directly (e.g., adding to a shopping
+    list requires iOS app access), it returns an app action that tells the iOS
+    client what to do.
 
     Subclasses define specific action types with their required fields.
     The iOS app uses the 'type' field to determine which action to perform.
