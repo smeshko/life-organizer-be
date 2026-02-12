@@ -20,16 +20,12 @@ class Category(StrEnum):
 
     Attributes:
         BUDGET: Financial budget tracking (expenses, income, savings)
-        SHOPPING: Shopping list items
-        CALENDAR: Calendar events
         NOTE: Quick notes and memos
         QUOTE: Inspirational quotes
         UNKNOWN: Could not classify input
     """
 
     BUDGET = "budget"
-    SHOPPING = "shopping"
-    CALENDAR = "calendar"
     NOTE = "note"
     QUOTE = "quote"
     UNKNOWN = "unknown"
