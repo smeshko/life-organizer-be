@@ -19,14 +19,12 @@ Example:
 
 from life_organizer.handlers.base import BaseHandler
 from life_organizer.handlers.budget_entry import BudgetEntryHandler
-from life_organizer.handlers.reminder_handler import ReminderHandler
 from life_organizer.schemas.classification import ClassifiedInput
 
 # Handler registry - add concrete handlers here as they're implemented
 # Order matters: first matching handler is selected
 HANDLERS: list[BaseHandler] = [
     BudgetEntryHandler(),  # Budget entries (expenses/income/savings)
-    ReminderHandler(),  # Reminder creation for iOS app
     # Future: ShoppingHandler(),
 ]
 
@@ -54,4 +52,4 @@ def get_handler(classified_input: ClassifiedInput) -> BaseHandler | None:
     return None
 
 
-__all__ = ["HANDLERS", "BaseHandler", "BudgetEntryHandler", "ReminderHandler", "get_handler"]
+__all__ = ["HANDLERS", "BaseHandler", "BudgetEntryHandler", "get_handler"]

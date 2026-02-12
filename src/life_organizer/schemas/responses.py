@@ -17,7 +17,7 @@ class ProcessingResponse(BaseModel):
         success: Whether the action was successful
         action_type: Type of action (backend_handled, app_action_required)
         message: Human-readable message about what happened
-        app_action: Optional AppAction (CreateReminderAction | AddToShoppingListAction | CreateCalendarEventAction)
+        app_action: Optional AppAction (AddToShoppingListAction | CreateCalendarEventAction | LogBudgetEntryAction)
     """
 
     success: bool = Field(..., description="Whether the action was successful")
@@ -26,5 +26,5 @@ class ProcessingResponse(BaseModel):
     app_action: AppAction | None = Field(
         default=None,
         description="iOS app action (when action_type is app_action_required). "
-        "Discriminated union of CreateReminderAction | AddToShoppingListAction | CreateCalendarEventAction",
+        "Discriminated union of AddToShoppingListAction | CreateCalendarEventAction | LogBudgetEntryAction",
     )

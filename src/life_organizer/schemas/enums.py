@@ -8,7 +8,7 @@ class ActionType(StrEnum):
 
     Attributes:
         BACKEND_HANDLED: Action was completed by backend (e.g., logged to database)
-        APP_ACTION_REQUIRED: iOS app needs to perform an action (e.g., create reminder)
+        APP_ACTION_REQUIRED: iOS app needs to perform an action (e.g., add to shopping list)
     """
 
     BACKEND_HANDLED = "backend_handled"
@@ -21,7 +21,6 @@ class Category(StrEnum):
     Attributes:
         BUDGET: Financial budget tracking (expenses, income, savings)
         SHOPPING: Shopping list items
-        REMINDER: Time-based reminders
         CALENDAR: Calendar events
         NOTE: Quick notes and memos
         QUOTE: Inspirational quotes
@@ -30,7 +29,6 @@ class Category(StrEnum):
 
     BUDGET = "budget"
     SHOPPING = "shopping"
-    REMINDER = "reminder"
     CALENDAR = "calendar"
     NOTE = "note"
     QUOTE = "quote"

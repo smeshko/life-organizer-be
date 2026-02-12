@@ -5,7 +5,6 @@ from life_organizer.schemas.actions import (
     AppAction,
     BaseAppAction,
     CreateCalendarEventAction,
-    CreateReminderAction,
 )
 from life_organizer.schemas.classification import ClassifiedInput
 from life_organizer.schemas.enums import ActionType, Category
@@ -20,7 +19,6 @@ __all__ = [
     "Category",
     "ClassifiedInput",
     "CreateCalendarEventAction",
-    "CreateReminderAction",
     "ProcessInputRequest",
     "ProcessingResponse",
 ]

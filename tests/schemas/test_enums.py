@@ -19,7 +19,6 @@ def test_category_values():
     """Test Category enum has correct string values."""
     assert Category.BUDGET == "budget"
     assert Category.SHOPPING == "shopping"
-    assert Category.REMINDER == "reminder"
     assert Category.CALENDAR == "calendar"
     assert Category.UNKNOWN == "unknown"
 
@@ -28,7 +27,6 @@ def test_category_string_type():
     """Test Category values are strings (StrEnum)."""
     assert isinstance(Category.BUDGET, str)
     assert isinstance(Category.SHOPPING, str)
-    assert isinstance(Category.REMINDER, str)
     assert isinstance(Category.CALENDAR, str)
     assert isinstance(Category.UNKNOWN, str)
 
@@ -57,6 +55,6 @@ def test_category_comparison():
 
 def test_enum_in_list():
     """Test enums work correctly in collections."""
-    valid_categories = [Category.BUDGET, Category.SHOPPING, Category.REMINDER]
+    valid_categories = [Category.BUDGET, Category.SHOPPING]
     assert Category.BUDGET in valid_categories
     assert Category.CALENDAR not in valid_categories

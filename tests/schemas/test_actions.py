@@ -9,74 +9,8 @@ from life_organizer.schemas.actions import (
     AddToShoppingListAction,
     BaseAppAction,
     CreateCalendarEventAction,
-    CreateReminderAction,
+    LogBudgetEntryAction,
 )
-
-# CreateReminderAction Tests
-
-
-def test_create_reminder_action_minimal():
-    """Test CreateReminderAction with only required fields."""
-    action = CreateReminderAction(title="Buy milk")
-
-    assert action.type == "create_reminder"
-    assert action.title == "Buy milk"
-    assert action.due_date is None
-    assert action.list_id is None
-    assert action.notes is None
-
-
-def test_create_reminder_action_full():
-    """Test CreateReminderAction with all fields."""
-    due = datetime(2025, 11, 5, 10, 0, 0)
-    action = CreateReminderAction(
-        title="Team meeting",
-        due_date=due,
-        list_id="work_list",
-        notes="Bring laptop",
-    )
-
-    assert action.type == "create_reminder"
-    assert action.title == "Team meeting"
-    assert action.due_date == due
-    assert action.list_id == "work_list"
-    assert action.notes == "Bring laptop"
-
-
-def test_create_reminder_action_empty_title():
-    """Test validation error for empty reminder title."""
-    with pytest.raises(ValidationError) as exc_info:
-        CreateReminderAction(title="")
-
-    errors = exc_info.value.errors()
-    assert len(errors) == 1
-    assert errors[0]["loc"] == ("title",)
-    assert "at least 1 character" in str(errors[0]["msg"]).lower()
-
-
-def test_create_reminder_action_serialization():
-    """Test CreateReminderAction JSON serialization."""
-    action = CreateReminderAction(title="Buy milk", due_date=datetime(2025, 11, 5, 10, 0, 0))
-
-    json_data = action.model_dump_json()
-    assert "create_reminder" in json_data
-    assert "Buy milk" in json_data
-    assert "2025-11-05" in json_data
-
-
-def test_create_reminder_action_deserialization():
-    """Test CreateReminderAction from JSON."""
-    data = {
-        "type": "create_reminder",
-        "title": "Call dentist",
-        "due_date": "2025-11-05T14:30:00",
-    }
-
-    action = CreateReminderAction(**data)
-    assert action.type == "create_reminder"
-    assert action.title == "Call dentist"
-    assert action.due_date == datetime(2025, 11, 5, 14, 30, 0)
-
 
 # AddToShoppingListAction Tests
 
@@ -247,31 +181,30 @@ def test_create_calendar_event_action_deserialization():
 
 
 def test_appaction_type_alias():
-    """Test AppAction type alias includes all three action types."""
+    """Test AppAction type alias includes all action types."""
     # This is mainly for documentation and type checking
     # The union should work with isinstance checks
-    reminder = CreateReminderAction(title="Test")
     shopping = AddToShoppingListAction(item="Test")
     calendar = CreateCalendarEventAction(
         title="Test",
         start_time=datetime(2025, 11, 5, 14, 0, 0),
         end_time=datetime(2025, 11, 5, 15, 0, 0),
     )
+    budget = LogBudgetEntryAction(
+        amount=50.0,
+        date="2025-11-05",
+        transaction_type="Expenses",
+        category="Groceries",
+    )
 
     # All should be instances of BaseAppAction
-    assert isinstance(reminder, BaseAppAction)
     assert isinstance(shopping, BaseAppAction)
     assert isinstance(calendar, BaseAppAction)
+    assert isinstance(budget, BaseAppAction)
 
 
 def test_discriminated_union_parsing():
     """Test that Pydantic can discriminate based on type field."""
-    # Test parsing reminder
-    reminder_data = {"type": "create_reminder", "title": "Test reminder"}
-    reminder = CreateReminderAction(**reminder_data)
-    assert isinstance(reminder, CreateReminderAction)
-    assert reminder.type == "create_reminder"
-
     # Test parsing shopping list
     shopping_data = {"type": "add_to_shopping_list", "item": "Test item"}
     shopping = AddToShoppingListAction(**shopping_data)
@@ -292,13 +225,13 @@ def test_discriminated_union_parsing():
 
 def test_action_type_field_validation():
     """Test that type field is validated as a Literal."""
-    action = CreateReminderAction(title="Test")
-    assert action.type == "create_reminder"
+    action = AddToShoppingListAction(item="Test")
+    assert action.type == "add_to_shopping_list"
 
     # The type field should always be the literal value
     # Pydantic validates the Literal type and rejects wrong values
     with pytest.raises(ValidationError) as exc_info:
-        CreateReminderAction(type="wrong_type", title="Test")
+        AddToShoppingListAction(type="wrong_type", item="Test")
 
     errors = exc_info.value.errors()
     assert len(errors) == 1

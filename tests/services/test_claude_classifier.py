@@ -249,27 +249,6 @@ class TestClaudeClassifierExtraction:
         assert result.extracted_data["items"] == ["milk", "eggs", "bread"]
 
     @pytest.mark.asyncio
-    async def test_reminder_category_success(
-        self, claude_classifier: ClaudeClassifier, mock_anthropic_client: AsyncMock
-    ) -> None:
-        payload = {
-            "category": "reminder",
-            "confidence": 0.85,
-            "extracted_data": {"action": "call dentist"},
-            "raw_input": "Call dentist tomorrow",
-        }
-        _set_llm_response(mock_anthropic_client, payload)
-
-        results = await claude_classifier.classify("Call dentist tomorrow")
-
-        # Classifier always returns a list
-        assert len(results) == 1
-        result = results[0]
-
-        assert result.category == Category.REMINDER
-        assert result.extracted_data["action"] == "call dentist"
-
-    @pytest.mark.asyncio
     async def test_calendar_category_success(
         self, claude_classifier: ClaudeClassifier, mock_anthropic_client: AsyncMock
     ) -> None:

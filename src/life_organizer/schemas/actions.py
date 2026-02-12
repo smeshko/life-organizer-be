@@ -9,9 +9,9 @@ from pydantic import BaseModel, Field
 class BaseAppAction(BaseModel):
     """Base model for iOS app actions that the backend requests.
 
-    When the backend cannot handle an action directly (e.g., creating a reminder
-    requires iOS Reminders app access), it returns an app action that tells the
-    iOS client what to do.
+    When the backend cannot handle an action directly (e.g., adding to a shopping
+    list requires iOS app access), it returns an app action that tells the iOS
+    client what to do.
 
     Subclasses define specific action types with their required fields.
     The iOS app uses the 'type' field to determine which action to perform.
@@ -21,24 +21,6 @@ class BaseAppAction(BaseModel):
     """
 
     type: str = Field(..., description="Action type discriminator")
-
-
-class CreateReminderAction(BaseAppAction):
-    """Action to create a reminder in iOS Reminders app.
-
-    Attributes:
-        type: Always "create_reminder"
-        title: Reminder title/description
-        due_date: When the reminder is due (optional)
-        list_id: Which reminders list to add to (optional)
-        notes: Additional notes/context (optional)
-    """
-
-    type: Literal["create_reminder"] = "create_reminder"
-    title: str = Field(..., description="Reminder title", min_length=1)
-    due_date: datetime | None = Field(default=None, description="When reminder is due")
-    list_id: str | None = Field(default=None, description="Target reminders list ID")
-    notes: str | None = Field(default=None, description="Additional notes")
 
 
 class AddToShoppingListAction(BaseAppAction):
@@ -105,9 +87,4 @@ class LogBudgetEntryAction(BaseAppAction):
 
 
 # Type alias for discriminated union
-AppAction = (
-    CreateReminderAction
-    | AddToShoppingListAction
-    | CreateCalendarEventAction
-    | LogBudgetEntryAction
-)
+AppAction = AddToShoppingListAction | CreateCalendarEventAction | LogBudgetEntryAction

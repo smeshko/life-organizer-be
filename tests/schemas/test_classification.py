@@ -62,19 +62,20 @@ def test_classification_serialization():
 def test_classification_deserialization():
     """Test ClassifiedInput from JSON data."""
     data = {
-        "category": "reminder",
+        "category": "budget",
         "confidence": 0.9,
-        "extracted_data": {"title": "Meeting", "due_date": "2025-11-05"},
-        "raw_input": "Remind me about meeting on Nov 5",
+        "extracted_data": {"amount": 45, "currency": "EUR", "category": "restaurant"},
+        "raw_input": "Spent 45 at restaurant",
         "classifier_source": "keyword",
     }
 
     classified = ClassifiedInput(**data)
-    assert classified.category == Category.REMINDER
+    assert classified.category == Category.BUDGET
     assert classified.confidence == 0.9
     assert classified.extracted_data == {
-        "title": "Meeting",
-        "due_date": "2025-11-05",
+        "amount": 45,
+        "currency": "EUR",
+        "category": "restaurant",
     }
 
 
