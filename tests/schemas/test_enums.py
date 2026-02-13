@@ -53,6 +53,14 @@ def test_category_comparison():
     assert cat1 == "budget"  # StrEnum compares with strings
 
 
+def test_category_has_exactly_four_members():
+    """Test Category enum contains exactly BUDGET, NOTE, QUOTE, UNKNOWN."""
+    expected_members = {"BUDGET", "NOTE", "QUOTE", "UNKNOWN"}
+    actual_members = {member.name for member in Category}
+    assert actual_members == expected_members
+    assert len(Category) == 4
+
+
 def test_enum_in_list():
     """Test enums work correctly in collections."""
     valid_categories = [Category.BUDGET, Category.NOTE]

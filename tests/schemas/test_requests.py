@@ -121,6 +121,21 @@ def test_invalid_timestamp_format():
     assert errors[0]["type"] in ["datetime_from_date_parsing", "datetime_parsing"]
 
 
+def test_classify_request_rejects_reminder_category():
+    """Test ClassifyRequest rejects deprecated 'reminder' category."""
+    from life_organizer.schemas.requests import ClassifyRequest
+
+    with pytest.raises(ValidationError) as exc_info:
+        ClassifyRequest(
+            input="Call the dentist",
+            category="reminder",
+        )
+
+    errors = exc_info.value.errors()
+    assert len(errors) >= 1
+    assert any(error["loc"] == ("category",) for error in errors)
+
+
 def test_whitespace_only_input():
     """Test validation error for whitespace-only input."""
     # Note: min_length=1 allows whitespace, but we'll test it anyway

@@ -182,6 +182,21 @@ def test_invalid_category():
     assert any(error["loc"] == ("category",) for error in errors)
 
 
+def test_rejected_deprecated_category_reminder():
+    """Test ClassifiedInput rejects deprecated 'reminder' category."""
+    with pytest.raises(ValidationError) as exc_info:
+        ClassifiedInput(
+            category="reminder",
+            confidence=0.9,
+            raw_input="Call the dentist",
+            classifier_source="keyword",
+        )
+
+    errors = exc_info.value.errors()
+    assert len(errors) >= 1
+    assert any(error["loc"] == ("category",) for error in errors)
+
+
 def test_extracted_data_complex_types():
     """Test extracted_data with complex nested data."""
     classified = ClassifiedInput(
