@@ -44,3 +44,14 @@ def test_api_status():
     assert data["api_version"] == "v1"
     assert "debug" in data
     assert "endpoints" in data
+
+
+def test_process_rejects_reminder_category():
+    """Test POST /api/v1/process returns 422 for deprecated 'reminder' category."""
+    response = client.post(
+        "/api/v1/process",
+        json={"input": "Call the dentist", "category": "reminder"},
+    )
+    assert response.status_code == 422
+    data = response.json()
+    assert "detail" in data
