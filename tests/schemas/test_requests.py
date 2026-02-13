@@ -5,7 +5,7 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
-from life_organizer.schemas.requests import ProcessInputRequest
+from life_organizer.schemas.requests import ClassifyRequest, ProcessInputRequest
 
 
 def test_valid_request():
@@ -123,8 +123,6 @@ def test_invalid_timestamp_format():
 
 def test_classify_request_rejects_reminder_category():
     """Test ClassifyRequest rejects deprecated 'reminder' category."""
-    from life_organizer.schemas.requests import ClassifyRequest
-
     with pytest.raises(ValidationError) as exc_info:
         ClassifyRequest(
             input="Call the dentist",
