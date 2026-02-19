@@ -1,9 +1,31 @@
-"""Tests for feedback schema validation and API route."""
+"""Tests for feedback schema validation and API endpoint."""
 
+from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock
 
 import pytest
+from fastapi.testclient import TestClient
 from pydantic import ValidationError
+
+from life_organizer.db.session import get_db
+from life_organizer.main import app
+
+FEEDBACK_URL = "/api/v1/feedback"
+
+
+async def _mock_get_db() -> AsyncGenerator[AsyncMock]:
+    """Mock database session for endpoint tests."""
+    session = AsyncMock()
+    yield session
+
+
+@pytest.fixture
+def client():
+    """TestClient with mocked database dependency."""
+    app.dependency_overrides[get_db] = _mock_get_db
+    with TestClient(app) as c:
+        yield c
+    app.dependency_overrides.clear()
 
 
 @pytest.mark.unit
@@ -172,3 +194,135 @@ class TestFeedbackRoute:
         assert added_model.original_input == "buy milk"
         assert added_model.wrong_category == "note"
         assert added_model.correct_category == "budget"
+
+
+@pytest.mark.unit
+class TestFeedbackEndpoint:
+    """Integration tests for POST /api/v1/feedback endpoint."""
+
+    def test_submit_feedback_success(self, client):
+        """Test happy path: valid payload returns 201 with success response."""
+        response = client.post(
+            FEEDBACK_URL,
+            json={
+                "original_input": "buy milk",
+                "wrong_category": "note",
+                "correct_category": "budget",
+            },
+        )
+        assert response.status_code == 201
+        data = response.json()
+        assert data["success"] is True
+        assert data["message"] == "Feedback recorded"
+
+    def test_submit_feedback_case_insensitive(self, client):
+        """Test uppercase category values are accepted and normalized."""
+        response = client.post(
+            FEEDBACK_URL,
+            json={
+                "original_input": "remember this quote",
+                "wrong_category": "NOTE",
+                "correct_category": "QUOTE",
+            },
+        )
+        assert response.status_code == 201
+        data = response.json()
+        assert data["success"] is True
+
+    def test_missing_original_input_returns_422(self, client):
+        """Test missing original_input field returns 422."""
+        response = client.post(
+            FEEDBACK_URL,
+            json={
+                "wrong_category": "note",
+                "correct_category": "budget",
+            },
+        )
+        assert response.status_code == 422
+
+    def test_missing_wrong_category_returns_422(self, client):
+        """Test missing wrong_category field returns 422."""
+        response = client.post(
+            FEEDBACK_URL,
+            json={
+                "original_input": "buy milk",
+                "correct_category": "budget",
+            },
+        )
+        assert response.status_code == 422
+
+    def test_missing_correct_category_returns_422(self, client):
+        """Test missing correct_category field returns 422."""
+        response = client.post(
+            FEEDBACK_URL,
+            json={
+                "original_input": "buy milk",
+                "wrong_category": "note",
+            },
+        )
+        assert response.status_code == 422
+
+    def test_invalid_wrong_category_returns_422(self, client):
+        """Test invalid wrong_category value returns 422."""
+        response = client.post(
+            FEEDBACK_URL,
+            json={
+                "original_input": "buy milk",
+                "wrong_category": "shopping",
+                "correct_category": "budget",
+            },
+        )
+        assert response.status_code == 422
+
+    def test_invalid_correct_category_returns_422(self, client):
+        """Test invalid correct_category value returns 422."""
+        response = client.post(
+            FEEDBACK_URL,
+            json={
+                "original_input": "buy milk",
+                "wrong_category": "note",
+                "correct_category": "invalid",
+            },
+        )
+        assert response.status_code == 422
+
+    def test_same_categories_returns_422(self, client):
+        """Test wrong_category == correct_category returns 422."""
+        response = client.post(
+            FEEDBACK_URL,
+            json={
+                "original_input": "buy milk",
+                "wrong_category": "note",
+                "correct_category": "note",
+            },
+        )
+        assert response.status_code == 422
+
+    def test_empty_original_input_returns_422(self, client):
+        """Test empty original_input returns 422."""
+        response = client.post(
+            FEEDBACK_URL,
+            json={
+                "original_input": "",
+                "wrong_category": "note",
+                "correct_category": "budget",
+            },
+        )
+        assert response.status_code == 422
+
+    def test_whitespace_only_input_returns_422(self, client):
+        """Test whitespace-only original_input returns 422."""
+        response = client.post(
+            FEEDBACK_URL,
+            json={
+                "original_input": "   ",
+                "wrong_category": "note",
+                "correct_category": "budget",
+            },
+        )
+        assert response.status_code == 422
+
+    def test_empty_body_returns_422(self, client):
+        """Test completely empty JSON body returns 422."""
+        response = client.post(FEEDBACK_URL, json={})
+        assert response.status_code == 422
