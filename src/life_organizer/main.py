@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from life_organizer.api.routes import budget, classifier
+from life_organizer.api.routes import budget, classifier, feedback
 from life_organizer.config import get_settings
 from life_organizer.db.session import engine
 from life_organizer.logging_config import get_logger, setup_logging
@@ -91,6 +91,11 @@ app.include_router(
     budget.router,
     prefix=f"/api/{settings.api_version}/budget",
     tags=["budget"],
+)
+app.include_router(
+    feedback.router,
+    prefix=f"/api/{settings.api_version}/feedback",
+    tags=["feedback"],
 )
 
 
