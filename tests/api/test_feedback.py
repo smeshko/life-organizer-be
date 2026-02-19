@@ -1,4 +1,6 @@
-"""Tests for feedback schema validation."""
+"""Tests for feedback schema validation and API route."""
+
+from unittest.mock import AsyncMock
 
 import pytest
 from pydantic import ValidationError
@@ -139,3 +141,34 @@ class TestFeedbackResponseSchema:
         resp = FeedbackResponse(success=True, message="Feedback recorded")
         assert resp.success is True
         assert resp.message == "Feedback recorded"
+
+
+@pytest.mark.unit
+class TestFeedbackRoute:
+    """Tests for the feedback route handler logic."""
+
+    @pytest.mark.asyncio
+    async def test_submit_feedback_creates_model_and_adds_to_session(self):
+        """Test that submit_feedback creates a MisclassificationFeedback and adds to db."""
+        from life_organizer.api.routes.feedback import submit_feedback
+        from life_organizer.schemas.feedback import FeedbackRequest
+
+        mock_db = AsyncMock()
+
+        request = FeedbackRequest(
+            original_input="buy milk",
+            wrong_category="note",
+            correct_category="budget",
+        )
+
+        response = await submit_feedback(request=request, db=mock_db)
+
+        assert response.success is True
+        assert response.message == "Feedback recorded"
+        mock_db.add.assert_called_once()
+
+        # Verify the model passed to db.add has correct values
+        added_model = mock_db.add.call_args[0][0]
+        assert added_model.original_input == "buy milk"
+        assert added_model.wrong_category == "note"
+        assert added_model.correct_category == "budget"
