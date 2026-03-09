@@ -4,7 +4,6 @@
 # Uncomment settings to customize this phase.
 
 enabled: true
-# timeout_seconds: 300  # Phase-specific timeout
 
 # input_files:  # Variable → file mappings for templates
 #   prd: docs/prd.md
