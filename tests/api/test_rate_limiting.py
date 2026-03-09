@@ -60,6 +60,23 @@ class TestBudgetRateLimiting:
 
     @patch("life_organizer.api.routes.budget.budget_service")
     @patch("life_organizer.api.routes.budget.claude_service")
+    def test_429_response_has_retry_after_header(
+        self, mock_claude: AsyncMock, mock_budget: AsyncMock
+    ):
+        """429 response includes a Retry-After header."""
+        mock_claude.parse_budget_text = AsyncMock(return_value=[])
+        mock_budget.create_entries = AsyncMock(return_value=[])
+
+        client = _make_client()
+        for i in range(10):
+            client.post("/api/v1/budget/", json={"input": f"coffee {i}"})
+
+        response = client.post("/api/v1/budget/", json={"input": "coffee 11"})
+        assert response.status_code == 429
+        assert "retry-after" in response.headers
+
+    @patch("life_organizer.api.routes.budget.budget_service")
+    @patch("life_organizer.api.routes.budget.claude_service")
     def test_429_response_has_error_message(self, mock_claude: AsyncMock, mock_budget: AsyncMock):
         """429 response body contains a clear error message."""
         mock_claude.parse_budget_text = AsyncMock(return_value=[])
