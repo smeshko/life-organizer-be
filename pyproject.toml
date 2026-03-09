@@ -26,6 +26,7 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.0",  # SQLAlchemy 2.0 with async support
     "asyncpg>=0.30.0",  # Fast async PostgreSQL driver
     "alembic>=1.13.0",  # Database migrations
+    "slowapi>=0.1.9",  # Rate limiting for FastAPI endpoints
 ]
 
 [project.optional-dependencies]
@@ -138,6 +139,11 @@ ignore_missing_imports = true
 # SQLAlchemy type stubs have some compatibility issues
 [[tool.mypy.overrides]]
 module = "sqlalchemy.*"
+ignore_missing_imports = true
+
+# slowapi doesn't ship with type stubs
+[[tool.mypy.overrides]]
+module = "slowapi.*"
 ignore_missing_imports = true
 
 # Pytest Configuration
