@@ -1,15 +1,135 @@
-"""Budget export endpoint for TSV format."""
+"""Budget API endpoints for logging and exporting budget transactions."""
 
 import datetime
+import logging
 import math
 
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, HTTPException, Query, Response
 from sqlalchemy import select
 
+from life_organizer.config import get_settings
 from life_organizer.db.models.budget import BudgetTransaction
 from life_organizer.db.session import async_session_factory
+from life_organizer.schemas.requests import ClassifyRequest
+from life_organizer.schemas.responses import ProcessingResponse
+from life_organizer.services.budget_service import BudgetService
+from life_organizer.services.claude_service import ClaudeService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Initialize services
+settings = get_settings()
+claude_service = ClaudeService(api_key=settings.claude_api_key)
+budget_service = BudgetService(session_factory=async_session_factory)
+
+
+@router.post(
+    "/",
+    response_model=list[ProcessingResponse],
+    response_description="List of transaction processing results (always an array, even for single transaction)",
+    responses={
+        200: {
+            "description": "Successfully processed transaction(s)",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "single_transaction": {
+                            "summary": "Single Transaction",
+                            "value": [
+                                {
+                                    "success": True,
+                                    "action_type": "backend_handled",
+                                    "message": "Logged expenses: 4.5 EUR in Eat out",
+                                    "app_action": None,
+                                }
+                            ],
+                        },
+                        "multi_transaction": {
+                            "summary": "Multiple Transactions",
+                            "value": [
+                                {
+                                    "success": True,
+                                    "action_type": "backend_handled",
+                                    "message": "Logged expenses: 12.0 EUR in Eat out",
+                                    "app_action": None,
+                                },
+                                {
+                                    "success": True,
+                                    "action_type": "backend_handled",
+                                    "message": "Logged expenses: 4.5 EUR in Eat out",
+                                    "app_action": None,
+                                },
+                            ],
+                        },
+                        "partial_failure": {
+                            "summary": "Partial Success",
+                            "value": [
+                                {
+                                    "success": True,
+                                    "action_type": "backend_handled",
+                                    "message": "Logged expenses: 50.0 EUR in Groceries",
+                                    "app_action": None,
+                                },
+                                {
+                                    "success": False,
+                                    "action_type": "backend_handled",
+                                    "message": "Could not process budget entry: Missing required fields: amount",
+                                    "app_action": None,
+                                },
+                            ],
+                        },
+                    }
+                }
+            },
+        },
+        422: {
+            "description": "Validation error (empty input, too many transactions)",
+        },
+        500: {"description": "Server error during processing"},
+    },
+)
+async def process_budget(request: ClassifyRequest) -> list[ProcessingResponse]:
+    """Process natural language budget input and persist transactions.
+
+    Parses natural language input into structured budget transactions using Claude LLM,
+    then validates and persists them to the database.
+
+    Supports multi-transaction parsing from a single input.
+    For example: "lunch 12 eur, coffee 4.50"
+
+    **Important:** The response is ALWAYS an array, even for single transactions.
+
+    Args:
+        request: ClassifyRequest with text input (category field is ignored)
+
+    Returns:
+        List of ProcessingResponse objects (one per detected transaction)
+
+    Raises:
+        HTTPException 422: Input validation failed or transaction limit exceeded
+        HTTPException 500: Server error during processing
+    """
+    try:
+        # Input validation
+        if not request.input.strip():
+            raise HTTPException(
+                status_code=422,
+                detail="Input cannot be empty or whitespace only",
+            )
+
+        # Parse budget text using Claude
+        classified_list = await claude_service.parse_budget_text(request.input)
+
+        # Persist entries
+        return await budget_service.create_entries(classified_list)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Budget processing error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Processing error: {e!s}") from e
 
 
 @router.get(
