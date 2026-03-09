@@ -3,14 +3,16 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
 
 from life_organizer.api.routes import budget, feedback
 from life_organizer.config import get_settings
 from life_organizer.db.session import engine
 from life_organizer.logging_config import get_logger, setup_logging
+from life_organizer.rate_limit import limiter
 
 # Initialize settings and logging
 settings = get_settings()
@@ -80,6 +82,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Configure rate limiting
+app.state.limiter = limiter
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:  # noqa: ARG001
+    """Handle rate limit exceeded errors with Retry-After header."""
+    return JSONResponse(
+        status_code=429,
+        content={"error": f"Rate limit exceeded: {exc.detail}"},
+        headers={"Retry-After": str(60)},
+    )
+
 
 # Include routers
 app.include_router(

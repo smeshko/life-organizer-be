@@ -1,13 +1,28 @@
 """Tests for POST /api/v1/budget endpoint."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
+from starlette.requests import Request
 
 from life_organizer.schemas.classification import ClassifiedInput
 from life_organizer.schemas.enums import ActionType, Category
 from life_organizer.schemas.responses import ProcessingResponse
+
+
+def _make_mock_request() -> Request:
+    """Create a minimal Starlette Request for slowapi compatibility."""
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/api/v1/budget/",
+        "headers": [],
+        "query_string": b"",
+    }
+    request = Request(scope)
+    request._receive = MagicMock()
+    return request
 
 
 def _make_classified_input() -> ClassifiedInput:
@@ -51,8 +66,8 @@ class TestProcessBudget:
         mock_claude.parse_budget_text = AsyncMock(return_value=[_make_classified_input()])
         mock_budget.create_entries = AsyncMock(return_value=[_make_processing_response()])
 
-        request = ClassifyRequest(input="coffee 4.50")
-        result = await process_budget(request)
+        body = ClassifyRequest(input="coffee 4.50")
+        result = await process_budget(_make_mock_request(), body)
 
         assert len(result) == 1
         assert result[0].success is True
@@ -65,10 +80,10 @@ class TestProcessBudget:
         from life_organizer.api.routes.budget import process_budget
         from life_organizer.schemas.requests import ClassifyRequest
 
-        request = ClassifyRequest(input=" ")
+        body = ClassifyRequest(input=" ")
 
         with pytest.raises(HTTPException) as exc_info:
-            await process_budget(request)
+            await process_budget(_make_mock_request(), body)
 
         assert exc_info.value.status_code == 422
         assert "empty" in str(exc_info.value.detail).lower()
@@ -85,10 +100,10 @@ class TestProcessBudget:
 
         mock_claude.parse_budget_text = AsyncMock(side_effect=RuntimeError("Unexpected failure"))
 
-        request = ClassifyRequest(input="coffee 5")
+        body = ClassifyRequest(input="coffee 5")
 
         with pytest.raises(HTTPException) as exc_info:
-            await process_budget(request)
+            await process_budget(_make_mock_request(), body)
 
         assert exc_info.value.status_code == 500
         assert "Processing error" in str(exc_info.value.detail)
@@ -107,9 +122,9 @@ class TestProcessBudget:
             side_effect=HTTPException(status_code=422, detail="Too many transactions")
         )
 
-        request = ClassifyRequest(input="a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q")
+        body = ClassifyRequest(input="a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q")
 
         with pytest.raises(HTTPException) as exc_info:
-            await process_budget(request)
+            await process_budget(_make_mock_request(), body)
 
         assert exc_info.value.status_code == 422

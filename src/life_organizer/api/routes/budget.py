@@ -4,12 +4,13 @@ import datetime
 import logging
 import math
 
-from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from sqlalchemy import select
 
 from life_organizer.config import get_settings
 from life_organizer.db.models.budget import BudgetTransaction
 from life_organizer.db.session import async_session_factory
+from life_organizer.rate_limit import limiter
 from life_organizer.schemas.requests import ClassifyRequest
 from life_organizer.schemas.responses import ProcessingResponse
 from life_organizer.services.budget_service import BudgetService
@@ -85,7 +86,11 @@ budget_service = BudgetService(session_factory=async_session_factory)
         500: {"description": "Server error during processing"},
     },
 )
-async def process_budget(request: ClassifyRequest) -> list[ProcessingResponse]:
+@limiter.limit("10/minute")
+async def process_budget(
+    request: Request,  # noqa: ARG001 - required by slowapi rate limiter
+    body: ClassifyRequest,
+) -> list[ProcessingResponse]:
     """Process natural language budget input and persist transactions.
 
     Parses natural language input into structured budget transactions using Claude LLM,
@@ -97,25 +102,27 @@ async def process_budget(request: ClassifyRequest) -> list[ProcessingResponse]:
     **Important:** The response is ALWAYS an array, even for single transactions.
 
     Args:
-        request: ClassifyRequest with text input (category field is ignored)
+        request: Starlette Request object (required by slowapi rate limiter)
+        body: ClassifyRequest with text input (category field is ignored)
 
     Returns:
         List of ProcessingResponse objects (one per detected transaction)
 
     Raises:
         HTTPException 422: Input validation failed or transaction limit exceeded
+        HTTPException 429: Rate limit exceeded
         HTTPException 500: Server error during processing
     """
     try:
         # Input validation
-        if not request.input.strip():
+        if not body.input.strip():
             raise HTTPException(
                 status_code=422,
                 detail="Input cannot be empty or whitespace only",
             )
 
         # Parse budget text using Claude
-        classified_list = await claude_service.parse_budget_text(request.input)
+        classified_list = await claude_service.parse_budget_text(body.input)
 
         # Persist entries
         return await budget_service.create_entries(classified_list)
