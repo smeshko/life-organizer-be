@@ -11,7 +11,7 @@ class ProcessInputRequest(BaseModel):
     """Request model for processing user voice/text input.
 
     This is the primary API contract between the iOS app and backend.
-    The backend validates, classifies, and routes the input to appropriate handlers.
+    The backend validates and processes budget input directly.
 
     Attributes:
         user_id: Identifier for the family member making the request
@@ -40,7 +40,7 @@ class ClassifyRequest(BaseModel):
 
     Attributes:
         input: Text input to classify (e.g., 'Spent 45 euros at restaurant')
-        category: Pre-classified category from front-end (optional, defaults to note)
+        category: Pre-classified category from front-end (optional, defaults to budget)
     """
 
     input: str = Field(
@@ -51,5 +51,5 @@ class ClassifyRequest(BaseModel):
     )
     category: Category | None = Field(
         default=None,
-        description="Pre-classified category from front-end (optional, defaults to note if not provided)",
+        description="Pre-classified category from front-end (optional, defaults to budget)",
     )

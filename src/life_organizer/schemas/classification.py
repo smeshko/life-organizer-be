@@ -8,15 +8,12 @@ from life_organizer.schemas.enums import Category
 
 
 class ClassifiedInput(BaseModel):
-    """Result of classifying user input through the classification engine.
+    """Result of parsing user input through the budget classification engine.
 
-    The classification engine analyzes raw user input and determines:
-    - What category it belongs to (budget, note, quote, etc.)
+    The engine analyzes raw user input and determines:
+    - What category it belongs to (budget or unknown)
     - How confident it is in that classification (0.0-1.0)
     - What specific data was extracted (amounts, items, dates, etc.)
-
-    Handlers use this classification to determine if they can handle the input
-    and what actions to take.
 
     Attributes:
         category: The classified category type

@@ -31,11 +31,7 @@ except FileNotFoundError:
 
 
 class ClaudeService:
-    """Service for parsing natural language budget text using Claude LLM.
-
-    Replaces ClaudeClassifier + ClassifierOrchestrator with a single focused service
-    that only handles budget text parsing.
-    """
+    """Service for parsing natural language budget text using Claude LLM."""
 
     def __init__(self, api_key: str, model: str = "claude-haiku-4-5") -> None:
         """Initialize Claude service.

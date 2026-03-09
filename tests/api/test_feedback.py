@@ -38,11 +38,11 @@ class TestFeedbackRequestSchema:
 
         req = FeedbackRequest(
             original_input="buy milk",
-            wrong_category="note",
+            wrong_category="unknown",
             correct_category="budget",
         )
         assert req.original_input == "buy milk"
-        assert req.wrong_category.value == "note"
+        assert req.wrong_category.value == "unknown"
         assert req.correct_category.value == "budget"
 
     def test_case_insensitive_categories(self):
@@ -51,10 +51,10 @@ class TestFeedbackRequestSchema:
 
         req = FeedbackRequest(
             original_input="buy milk",
-            wrong_category="NOTE",
+            wrong_category="UNKNOWN",
             correct_category="BUDGET",
         )
-        assert req.wrong_category.value == "note"
+        assert req.wrong_category.value == "unknown"
         assert req.correct_category.value == "budget"
 
     def test_missing_original_input(self):
@@ -63,7 +63,7 @@ class TestFeedbackRequestSchema:
 
         with pytest.raises(ValidationError) as exc_info:
             FeedbackRequest(
-                wrong_category="note",
+                wrong_category="unknown",
                 correct_category="budget",
             )
         assert "original_input" in str(exc_info.value)
@@ -86,7 +86,7 @@ class TestFeedbackRequestSchema:
         with pytest.raises(ValidationError) as exc_info:
             FeedbackRequest(
                 original_input="buy milk",
-                wrong_category="note",
+                wrong_category="unknown",
             )
         assert "correct_category" in str(exc_info.value)
 
@@ -109,7 +109,7 @@ class TestFeedbackRequestSchema:
         with pytest.raises(ValidationError) as exc_info:
             FeedbackRequest(
                 original_input="buy milk",
-                wrong_category="note",
+                wrong_category="unknown",
                 correct_category="invalid",
             )
         assert "correct_category" in str(exc_info.value)
@@ -121,8 +121,8 @@ class TestFeedbackRequestSchema:
         with pytest.raises(ValidationError) as exc_info:
             FeedbackRequest(
                 original_input="buy milk",
-                wrong_category="note",
-                correct_category="note",
+                wrong_category="budget",
+                correct_category="budget",
             )
         errors = exc_info.value.errors()
         assert any("must differ" in str(e["msg"]).lower() for e in errors)
@@ -134,7 +134,7 @@ class TestFeedbackRequestSchema:
         with pytest.raises(ValidationError) as exc_info:
             FeedbackRequest(
                 original_input="",
-                wrong_category="note",
+                wrong_category="unknown",
                 correct_category="budget",
             )
         assert "original_input" in str(exc_info.value)
@@ -146,7 +146,7 @@ class TestFeedbackRequestSchema:
         with pytest.raises(ValidationError) as exc_info:
             FeedbackRequest(
                 original_input="   ",
-                wrong_category="note",
+                wrong_category="unknown",
                 correct_category="budget",
             )
         assert "original_input" in str(exc_info.value)
@@ -179,7 +179,7 @@ class TestFeedbackRoute:
 
         request = FeedbackRequest(
             original_input="buy milk",
-            wrong_category="note",
+            wrong_category="unknown",
             correct_category="budget",
         )
 
@@ -192,7 +192,7 @@ class TestFeedbackRoute:
         # Verify the model passed to db.add has correct values
         added_model = mock_db.add.call_args[0][0]
         assert added_model.original_input == "buy milk"
-        assert added_model.wrong_category == "note"
+        assert added_model.wrong_category == "unknown"
         assert added_model.correct_category == "budget"
 
 
@@ -206,7 +206,7 @@ class TestFeedbackEndpoint:
             FEEDBACK_URL,
             json={
                 "original_input": "buy milk",
-                "wrong_category": "note",
+                "wrong_category": "unknown",
                 "correct_category": "budget",
             },
         )
@@ -220,9 +220,9 @@ class TestFeedbackEndpoint:
         response = client.post(
             FEEDBACK_URL,
             json={
-                "original_input": "remember this quote",
-                "wrong_category": "NOTE",
-                "correct_category": "QUOTE",
+                "original_input": "should be budget",
+                "wrong_category": "UNKNOWN",
+                "correct_category": "BUDGET",
             },
         )
         assert response.status_code == 201
@@ -234,7 +234,7 @@ class TestFeedbackEndpoint:
         response = client.post(
             FEEDBACK_URL,
             json={
-                "wrong_category": "note",
+                "wrong_category": "unknown",
                 "correct_category": "budget",
             },
         )
@@ -257,7 +257,7 @@ class TestFeedbackEndpoint:
             FEEDBACK_URL,
             json={
                 "original_input": "buy milk",
-                "wrong_category": "note",
+                "wrong_category": "unknown",
             },
         )
         assert response.status_code == 422
@@ -280,7 +280,7 @@ class TestFeedbackEndpoint:
             FEEDBACK_URL,
             json={
                 "original_input": "buy milk",
-                "wrong_category": "note",
+                "wrong_category": "unknown",
                 "correct_category": "invalid",
             },
         )
@@ -292,8 +292,8 @@ class TestFeedbackEndpoint:
             FEEDBACK_URL,
             json={
                 "original_input": "buy milk",
-                "wrong_category": "note",
-                "correct_category": "note",
+                "wrong_category": "budget",
+                "correct_category": "budget",
             },
         )
         assert response.status_code == 422
@@ -304,7 +304,7 @@ class TestFeedbackEndpoint:
             FEEDBACK_URL,
             json={
                 "original_input": "",
-                "wrong_category": "note",
+                "wrong_category": "unknown",
                 "correct_category": "budget",
             },
         )
@@ -316,7 +316,7 @@ class TestFeedbackEndpoint:
             FEEDBACK_URL,
             json={
                 "original_input": "   ",
-                "wrong_category": "note",
+                "wrong_category": "unknown",
                 "correct_category": "budget",
             },
         )

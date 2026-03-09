@@ -14,7 +14,7 @@ Cost: ~$0.001-0.002 per test case (Claude Haiku pricing)
 import pytest
 
 from life_organizer.schemas.enums import Category
-from life_organizer.services.claude_classifier import ClaudeClassifier
+from life_organizer.services.claude_service import ClaudeService
 from tests.config.prompt_validation_config import (
     PromptValidationConfig,
     get_anthropic_api_key,
@@ -29,16 +29,12 @@ from tests.utils.test_case_loader import TestCase, load_test_cases
 
 @pytest.fixture
 def real_classifier():
-    """Create a ClaudeClassifier with real API key for integration testing.
-
-    Raises:
-        pytest.skip: If API key is not available
-    """
+    """Create a ClaudeService with real API key for integration testing."""
     api_key = get_anthropic_api_key()
     if not api_key:
         pytest.skip("API key not available")
 
-    return ClaudeClassifier(api_key=api_key)
+    return ClaudeService(api_key=api_key)
 
 
 @pytest.fixture
@@ -53,9 +49,9 @@ def budget_test_cases():
 class TestBudgetPromptValidation:
     """Integration tests for budget prompt using real LLM calls."""
 
-    async def test_simple_expense_dm(self, real_classifier: ClaudeClassifier):
+    async def test_simple_expense_dm(self, real_classifier: ClaudeService):
         """Test simple expense extraction - 50 at DM."""
-        result = await real_classifier.classify("50 at DM", category="budget")
+        result = await real_classifier.parse_budget_text("50 at DM")
 
         assert len(result) == 1
         transaction = result[0]
@@ -73,9 +69,9 @@ class TestBudgetPromptValidation:
         )
         assert_confidence_threshold(transaction.confidence, min_threshold=0.7)
 
-    async def test_home_improvements_full_name(self, real_classifier: ClaudeClassifier):
+    async def test_home_improvements_full_name(self, real_classifier: ClaudeService):
         """Test that 'Home Improvements' maps to exact enum 'Home improvements' (not 'Home')."""
-        result = await real_classifier.classify("423 EUR for Home Improvements", category="budget")
+        result = await real_classifier.parse_budget_text("423 EUR for Home Improvements")
 
         assert len(result) == 1
         transaction = result[0]
@@ -92,9 +88,9 @@ class TestBudgetPromptValidation:
         )
         assert_confidence_threshold(transaction.confidence, min_threshold=0.7)
 
-    async def test_salary_ivo_fallback(self, real_classifier: ClaudeClassifier):
+    async def test_salary_ivo_fallback(self, real_classifier: ClaudeService):
         """Test that generic 'salary' maps to 'Salary Ivo' (not invalid 'Salary')."""
-        result = await real_classifier.classify("7700eur salary", category="budget")
+        result = await real_classifier.parse_budget_text("7700eur salary")
 
         assert len(result) == 1
         transaction = result[0]
@@ -112,9 +108,9 @@ class TestBudgetPromptValidation:
         # Synonym mapping produces high confidence
         assert_confidence_threshold(transaction.confidence, min_threshold=0.7)
 
-    async def test_medical_synonym_healthcare(self, real_classifier: ClaudeClassifier):
+    async def test_medical_synonym_healthcare(self, real_classifier: ClaudeService):
         """Test that 'doctor visit' maps to 'Medical' (not 'Healthcare')."""
-        result = await real_classifier.classify("150 for a doctor's visit", category="budget")
+        result = await real_classifier.parse_budget_text("150 for a doctor's visit")
 
         assert len(result) == 1
         transaction = result[0]
@@ -131,9 +127,9 @@ class TestBudgetPromptValidation:
         )
         assert_confidence_threshold(transaction.confidence, min_threshold=0.7)
 
-    async def test_multi_transaction_simple(self, real_classifier: ClaudeClassifier):
+    async def test_multi_transaction_simple(self, real_classifier: ClaudeService):
         """Test multiple transactions separated by comma."""
-        result = await real_classifier.classify("50 at DM, 120 at Next", category="budget")
+        result = await real_classifier.parse_budget_text("50 at DM, 120 at Next")
 
         assert len(result) == 2
 
@@ -164,7 +160,7 @@ class TestBudgetPromptValidation:
 @pytest.mark.asyncio
 @skip_if_no_api_key()
 @pytest.mark.parametrize("test_case", load_test_cases("budget_prompt_test_cases.json"))
-async def test_budget_golden_dataset(test_case: TestCase, real_classifier: ClaudeClassifier):
+async def test_budget_golden_dataset(test_case: TestCase, real_classifier: ClaudeService):
     """Parameterized test that runs all test cases from golden dataset.
 
     This test uses pytest's parametrize to run each test case from the fixture file.
@@ -172,10 +168,10 @@ async def test_budget_golden_dataset(test_case: TestCase, real_classifier: Claud
 
     Args:
         test_case: TestCase object from fixture
-        real_classifier: Real ClaudeClassifier with API key
+        real_classifier: ClaudeService with API key
     """
     # Call real LLM
-    result = await real_classifier.classify(test_case.input, category="budget")
+    result = await real_classifier.parse_budget_text(test_case.input)
 
     # Handle multi-transaction cases
     if test_case.is_multi_transaction:
