@@ -92,3 +92,6 @@ Thumbs.db
 .vscode/
 docs/planning/work/*
 .linear
+
+# ADW worktree directory
+trees/
