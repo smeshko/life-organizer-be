@@ -45,18 +45,18 @@ def test_classification_without_extracted_data():
 def test_classification_serialization():
     """Test JSON serialization of ClassifiedInput."""
     classified = ClassifiedInput(
-        category=Category.NOTE,
+        category=Category.BUDGET,
         confidence=0.85,
-        extracted_data={"content": "Remember to call dentist"},
-        raw_input="Remember to call dentist",
+        extracted_data={"amount": 45, "currency": "EUR"},
+        raw_input="Spent 45 euros",
         classifier_source="keyword",
     )
 
     json_data = classified.model_dump_json()
-    assert "note" in json_data  # Category serializes to string
+    assert "budget" in json_data  # Category serializes to string
     assert "0.85" in json_data
-    assert "dentist" in json_data
-    assert "Remember to call dentist" in json_data
+    assert "45" in json_data
+    assert "Spent 45 euros" in json_data
 
 
 def test_classification_deserialization():
@@ -200,18 +200,18 @@ def test_rejected_deprecated_category_reminder():
 def test_extracted_data_complex_types():
     """Test extracted_data with complex nested data."""
     classified = ClassifiedInput(
-        category=Category.NOTE,
+        category=Category.BUDGET,
         confidence=0.88,
         extracted_data={
-            "title": "Team Meeting Notes",
-            "content": "Discussed Q4 goals",
-            "tags": ["meeting", "planning"],
+            "amount": 150.0,
+            "currency": "EUR",
+            "transaction_type": "Expenses",
             "metadata": {"source": "voice", "language": "en"},
         },
-        raw_input="Team meeting notes about Q4 goals",
+        raw_input="Spent 150 euros on groceries",
         classifier_source="keyword",
     )
 
-    assert classified.extracted_data["title"] == "Team Meeting Notes"
-    assert classified.extracted_data["tags"] == ["meeting", "planning"]
+    assert classified.extracted_data["amount"] == 150.0
+    assert classified.extracted_data["currency"] == "EUR"
     assert isinstance(classified.extracted_data["metadata"], dict)

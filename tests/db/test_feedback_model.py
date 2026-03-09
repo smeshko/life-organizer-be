@@ -7,11 +7,11 @@ def test_model_can_be_instantiated():
     """Test MisclassificationFeedback can be instantiated with required fields."""
     feedback = MisclassificationFeedback(
         original_input="Buy groceries",
-        wrong_category="note",
+        wrong_category="unknown",
         correct_category="budget",
     )
     assert feedback.original_input == "Buy groceries"
-    assert feedback.wrong_category == "note"
+    assert feedback.wrong_category == "unknown"
     assert feedback.correct_category == "budget"
 
 
@@ -35,13 +35,13 @@ def test_repr():
     feedback = MisclassificationFeedback(
         id=1,
         original_input="Buy groceries",
-        wrong_category="note",
+        wrong_category="unknown",
         correct_category="budget",
     )
     result = repr(feedback)
     assert "MisclassificationFeedback" in result
     assert "1" in result
-    assert "note" in result
+    assert "unknown" in result
     assert "budget" in result
 
 

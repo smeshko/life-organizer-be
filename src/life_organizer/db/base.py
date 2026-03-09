@@ -3,7 +3,7 @@
 from sqlalchemy.orm import DeclarativeBase
 
 
-class Base(DeclarativeBase):  # type: ignore[misc]
+class Base(DeclarativeBase):  # type: ignore[misc,unused-ignore]
     """Base class for all SQLAlchemy ORM models.
 
     All database models should inherit from this class to use SQLAlchemy's
