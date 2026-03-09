@@ -29,7 +29,7 @@ def _mock_claude_response(response_text: str) -> AsyncMock:
     return AsyncMock(return_value=message)
 
 
-class TestParsebudgetText:
+class TestParseBudgetText:
     """Tests for parse_budget_text method."""
 
     @pytest.mark.asyncio
