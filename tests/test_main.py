@@ -46,12 +46,10 @@ def test_api_status():
     assert "endpoints" in data
 
 
-def test_process_rejects_reminder_category():
-    """Test POST /api/v1/process returns 422 for deprecated 'reminder' category."""
+def test_process_endpoint_removed():
+    """Test POST /api/v1/process returns 404 (endpoint no longer exists)."""
     response = client.post(
         "/api/v1/process",
         json={"input": "Call the dentist", "category": "reminder"},
     )
-    assert response.status_code == 422
-    data = response.json()
-    assert "detail" in data
+    assert response.status_code == 404

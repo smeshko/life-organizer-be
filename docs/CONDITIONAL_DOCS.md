@@ -17,3 +17,10 @@ This guide helps you find relevant documentation based on what you're working on
     - When adding new models to the feedback domain
     - When building API endpoints for classification corrections
     - When implementing the classification feedback loop (Epic 2)
+
+- docs/features/direct-budget-flow.md
+  - Conditions:
+    - When creating new LLM-powered services in the budget domain
+    - When modifying the budget transaction processing pipeline
+    - When adding new transaction types or currencies to BudgetService
+    - When troubleshooting Claude API integration or retry behavior
