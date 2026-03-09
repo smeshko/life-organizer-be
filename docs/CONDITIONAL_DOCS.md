@@ -24,3 +24,10 @@ This guide helps you find relevant documentation based on what you're working on
     - When modifying the budget transaction processing pipeline
     - When adding new transaction types or currencies to BudgetService
     - When troubleshooting Claude API integration or retry behavior
+
+- docs/features/rate-limiting-llm-endpoints.md
+  - Conditions:
+    - When adding rate limiting to a new LLM-hitting endpoint
+    - When creating new endpoints that call the Claude API (e.g., meals/suggest)
+    - When modifying the rate limit configuration or exception handling for slowapi
+    - When troubleshooting 429 responses or Retry-After header behavior
