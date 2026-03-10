@@ -1,13 +1,16 @@
-"""Meals API endpoints for meal suggestion generation."""
+"""Meals API endpoints for meal suggestion generation and feedback."""
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from life_organizer.config import get_settings
-from life_organizer.db.session import async_session_factory
+from life_organizer.db.session import async_session_factory, get_db
 from life_organizer.rate_limit import limiter
 from life_organizer.schemas.meals import (
+    MealFeedbackRequest,
+    MealFeedbackResponse,
     MealSuggestRequest,
     MealSuggestResponse,
 )
@@ -125,4 +128,53 @@ async def suggest_meals(
         raise
     except Exception as e:
         logger.error(f"Meal suggestion error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error") from e
+
+
+@router.post(
+    "/feedback",
+    status_code=201,
+    response_model=MealFeedbackResponse,
+    responses={
+        201: {"description": "Feedback recorded successfully"},
+        404: {"description": "Recipe not found"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def submit_meal_feedback(
+    body: MealFeedbackRequest,
+    db: AsyncSession = Depends(get_db),
+) -> MealFeedbackResponse:
+    """Submit feedback for a meal recipe.
+
+    Records user feedback (liked/disliked) and creates a meal history entry.
+    If the recipe is liked and was LLM-generated (no recipe_id), it is
+    saved to the recipes table with source='liked'.
+
+    Args:
+        body: Feedback payload with recipe_name, liked, optional recipe_id and notes
+        db: Database session (injected via dependency)
+
+    Returns:
+        MealFeedbackResponse confirming feedback was recorded
+
+    Raises:
+        HTTPException 404: Recipe not found (when recipe_id provided but invalid)
+        HTTPException 422: Validation error (missing required fields)
+        HTTPException 500: Internal server error
+    """
+    try:
+        await meal_service.save_feedback(
+            recipe_id=body.recipe_id,
+            recipe_name=body.recipe_name,
+            liked=body.liked,
+            notes=body.notes,
+            session=db,
+        )
+        return MealFeedbackResponse(success=True, message="Feedback recorded")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Meal feedback error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error") from e

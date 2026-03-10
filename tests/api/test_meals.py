@@ -149,3 +149,99 @@ class TestSuggestMeals:
             requirements="vegetarian only",
             claude_service=mock_claude,
         )
+
+
+@pytest.mark.unit
+class TestMealFeedback:
+    """Tests for POST /api/v1/meals/feedback endpoint."""
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.meals.meal_service")
+    async def test_201_liked_no_recipe_id(self, mock_meal: AsyncMock) -> None:
+        """Liked feedback without recipe_id should return 201."""
+        from life_organizer.api.routes.meals import submit_meal_feedback
+        from life_organizer.schemas.meals import MealFeedbackRequest
+
+        mock_meal.save_feedback = AsyncMock()
+        body = MealFeedbackRequest(recipe_name="Greek Lemon Chicken", liked=True, notes="great")
+        mock_db = AsyncMock()
+
+        result = await submit_meal_feedback(body, mock_db)
+
+        assert result.success is True
+        assert result.message == "Feedback recorded"
+        mock_meal.save_feedback.assert_awaited_once_with(
+            recipe_id=None,
+            recipe_name="Greek Lemon Chicken",
+            liked=True,
+            notes="great",
+            session=mock_db,
+        )
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.meals.meal_service")
+    async def test_201_disliked(self, mock_meal: AsyncMock) -> None:
+        """Disliked feedback should return 201."""
+        from life_organizer.api.routes.meals import submit_meal_feedback
+        from life_organizer.schemas.meals import MealFeedbackRequest
+
+        mock_meal.save_feedback = AsyncMock()
+        body = MealFeedbackRequest(recipe_name="Bad Soup", liked=False)
+        mock_db = AsyncMock()
+
+        result = await submit_meal_feedback(body, mock_db)
+
+        assert result.success is True
+        mock_meal.save_feedback.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.meals.meal_service")
+    async def test_201_with_recipe_id(self, mock_meal: AsyncMock) -> None:
+        """Feedback with existing recipe_id should return 201."""
+        from life_organizer.api.routes.meals import submit_meal_feedback
+        from life_organizer.schemas.meals import MealFeedbackRequest
+
+        mock_meal.save_feedback = AsyncMock()
+        body = MealFeedbackRequest(recipe_id=5, recipe_name="Spaghetti", liked=True)
+        mock_db = AsyncMock()
+
+        result = await submit_meal_feedback(body, mock_db)
+
+        assert result.success is True
+        call_kwargs = mock_meal.save_feedback.call_args.kwargs
+        assert call_kwargs["recipe_id"] == 5
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.meals.meal_service")
+    async def test_404_nonexistent_recipe(self, mock_meal: AsyncMock) -> None:
+        """Non-existent recipe_id should return 404."""
+        from life_organizer.api.routes.meals import submit_meal_feedback
+        from life_organizer.schemas.meals import MealFeedbackRequest
+
+        mock_meal.save_feedback = AsyncMock(
+            side_effect=HTTPException(status_code=404, detail="Recipe not found")
+        )
+        body = MealFeedbackRequest(recipe_id=999, recipe_name="Missing", liked=True)
+        mock_db = AsyncMock()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await submit_meal_feedback(body, mock_db)
+
+        assert exc_info.value.status_code == 404
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.meals.meal_service")
+    async def test_500_unexpected_error(self, mock_meal: AsyncMock) -> None:
+        """Unexpected service error should return 500."""
+        from life_organizer.api.routes.meals import submit_meal_feedback
+        from life_organizer.schemas.meals import MealFeedbackRequest
+
+        mock_meal.save_feedback = AsyncMock(side_effect=RuntimeError("DB down"))
+        body = MealFeedbackRequest(recipe_name="Test", liked=True)
+        mock_db = AsyncMock()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await submit_meal_feedback(body, mock_db)
+
+        assert exc_info.value.status_code == 500
+        assert "Internal server error" in str(exc_info.value.detail)
