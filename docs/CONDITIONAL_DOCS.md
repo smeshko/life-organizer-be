@@ -52,3 +52,10 @@ This guide helps you find relevant documentation based on what you're working on
     - When modifying the meal suggestion prompt, context gathering, or response parsing
     - When building new service orchestrators that combine DB queries with Claude API calls
     - When extending meal suggestions with new context sources (e.g., dietary restrictions, seasonal ingredients)
+
+- docs/features/meal-feedback-endpoint.md
+  - Conditions:
+    - When adding feedback or rating endpoints to the meals domain
+    - When implementing recipe auto-save logic for LLM-generated content
+    - When creating non-LLM meal endpoints that use `Depends(get_db)` session injection
+    - When working with the meal feedback loop (FR20, FR21, FR22)
