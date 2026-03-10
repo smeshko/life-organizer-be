@@ -10,7 +10,7 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlalchemy import select
 
-from life_organizer.db.models.meals import MealHistory, RecipeFeedback
+from life_organizer.db.models.meals import MealHistory, Recipe, RecipeFeedback
 from life_organizer.schemas.meals import MealSuggestion
 
 if TYPE_CHECKING:
@@ -99,3 +99,69 @@ class MealService:
                 status_code=500,
                 detail="Failed to parse meal suggestions",
             ) from e
+
+    async def save_feedback(
+        self,
+        recipe_id: int | None,
+        recipe_name: str,
+        liked: bool,
+        notes: str | None,
+        session: AsyncSession,
+    ) -> None:
+        """Record meal feedback and history.
+
+        If liked=True and no recipe_id, saves the recipe with source='liked'.
+        If recipe_id is provided, increments times_made and updates last_made.
+        Always creates RecipeFeedback and MealHistory records.
+
+        Args:
+            recipe_id: Optional existing recipe ID
+            recipe_name: Name of the recipe
+            liked: Whether the user liked it
+            notes: Optional feedback notes
+            session: Database session (caller manages commit/rollback)
+
+        Raises:
+            HTTPException: 404 if recipe_id provided but not found
+        """
+        # Lookup existing recipe if recipe_id provided
+        if recipe_id is not None:
+            stmt = select(Recipe).where(Recipe.id == recipe_id)
+            result = await session.execute(stmt)
+            recipe = result.scalar_one_or_none()
+            if recipe is None:
+                raise HTTPException(status_code=404, detail="Recipe not found")
+            recipe.times_made += 1
+            recipe.last_made = datetime.date.today()
+
+        # Save liked LLM-generated recipe
+        elif liked:
+            new_recipe = Recipe(
+                name=recipe_name,
+                ingredients=[],
+                instructions="",
+                prep_time=1,
+                cuisine="",
+                tags=[],
+                source="liked",
+            )
+            session.add(new_recipe)
+            await session.flush()
+            recipe_id = new_recipe.id
+
+        # Create feedback record
+        feedback = RecipeFeedback(
+            recipe_id=recipe_id,
+            recipe_name=recipe_name,
+            liked=liked,
+            notes=notes,
+        )
+        session.add(feedback)
+
+        # Create history record
+        history = MealHistory(
+            recipe_id=recipe_id,
+            recipe_name=recipe_name,
+            cooked_date=datetime.date.today(),
+        )
+        session.add(history)
