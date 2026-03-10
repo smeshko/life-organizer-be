@@ -128,7 +128,7 @@ class TestSuggestMeals:
             await suggest_meals(_make_mock_request(), MealSuggestRequest())
 
         assert exc_info.value.status_code == 500
-        assert "Processing error" in str(exc_info.value.detail)
+        assert "Internal server error" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     @patch("life_organizer.api.routes.meals.meal_service")

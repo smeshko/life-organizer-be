@@ -125,4 +125,4 @@ async def suggest_meals(
         raise
     except Exception as e:
         logger.error(f"Meal suggestion error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Processing error: {e!s}") from e
+        raise HTTPException(status_code=500, detail="Internal server error") from e

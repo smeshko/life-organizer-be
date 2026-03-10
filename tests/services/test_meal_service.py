@@ -181,3 +181,21 @@ class TestMealServiceGetSuggestions:
             await service.get_suggestions(requirements=None, claude_service=mock_claude)
 
         assert exc_info.value.status_code == 500
+
+    @pytest.mark.asyncio
+    async def test_malformed_suggestion_dict_raises_http_exception(self) -> None:
+        """Malformed suggestion dicts from Claude should raise HTTPException 500."""
+        session_factory = _make_session_factory([], [])
+        service = MealService(session_factory=session_factory)
+
+        mock_claude = MagicMock()
+        # Return dicts missing required fields to trigger ValidationError
+        mock_claude.suggest_meals = AsyncMock(
+            return_value=[{"name": "Test"}]  # missing ingredients, instructions, etc.
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            await service.get_suggestions(requirements=None, claude_service=mock_claude)
+
+        assert exc_info.value.status_code == 500
+        assert "Failed to parse meal suggestions" in str(exc_info.value.detail)

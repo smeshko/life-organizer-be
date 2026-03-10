@@ -6,6 +6,8 @@ import datetime
 import logging
 from typing import TYPE_CHECKING
 
+from fastapi import HTTPException
+from pydantic import ValidationError
 from sqlalchemy import select
 
 from life_organizer.db.models.meals import MealHistory, RecipeFeedback
@@ -89,4 +91,11 @@ class MealService:
         )
 
         # Parse dicts into Pydantic models
-        return [MealSuggestion.model_validate(s) for s in suggestion_dicts]
+        try:
+            return [MealSuggestion.model_validate(s) for s in suggestion_dicts]
+        except ValidationError as e:
+            logger.error(f"Failed to parse meal suggestions: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to parse meal suggestions",
+            ) from e
