@@ -1,4 +1,4 @@
-"""Tests for ClaudeService budget text parsing."""
+"""Tests for ClaudeService budget text and image parsing."""
 
 from unittest.mock import AsyncMock, MagicMock
 
@@ -276,3 +276,112 @@ class TestEstimateTransactionCount:
     def test_mixed_separators(self, service: ClaudeService) -> None:
         """Mixed comma and 'and' separators should count correctly."""
         assert service._estimate_transaction_count("a 1, b 2 and c 3") == 3
+
+
+class TestParseBudgetImages:
+    """Tests for parse_budget_images method."""
+
+    @pytest.mark.asyncio
+    async def test_single_image_returns_classified_inputs(self, service: ClaudeService) -> None:
+        """Single image should return list of ClassifiedInput objects."""
+        response_json = """[{
+            "category": "budget",
+            "confidence": 0.9,
+            "extracted_data": {
+                "amount": 4.50,
+                "currency": "EUR",
+                "transaction_type": "Expenses",
+                "category": "Eat out",
+                "merchant": "Starbucks",
+                "date": "2026-03-09"
+            },
+            "raw_input": "Starbucks - €4.50"
+        }]"""
+
+        service.client.messages.create = _mock_claude_response(response_json)
+
+        results = await service.parse_budget_images([(b"fake-png-bytes", "image/png")])
+
+        assert len(results) == 1
+        assert results[0].category == Category.BUDGET
+        assert results[0].confidence == 0.9
+        assert results[0].extracted_data["amount"] == 4.50
+        assert results[0].extracted_data["merchant"] == "Starbucks"
+        assert results[0].classifier_source == "llm"
+
+    @pytest.mark.asyncio
+    async def test_multiple_images_returns_combined_list(self, service: ClaudeService) -> None:
+        """Multiple images should return combined ClassifiedInput list."""
+        response_json = """[
+            {
+                "category": "budget",
+                "confidence": 0.9,
+                "extracted_data": {
+                    "amount": 12.0,
+                    "currency": "EUR",
+                    "transaction_type": "Expenses",
+                    "category": "Groceries",
+                    "merchant": "Lidl",
+                    "date": "2026-03-08"
+                },
+                "raw_input": "Lidl - €12.00"
+            },
+            {
+                "category": "budget",
+                "confidence": 0.85,
+                "extracted_data": {
+                    "amount": 45.0,
+                    "currency": "EUR",
+                    "transaction_type": "Expenses",
+                    "category": "Transport",
+                    "merchant": "Bolt",
+                    "date": "2026-03-09"
+                },
+                "raw_input": "Bolt - €45.00"
+            }
+        ]"""
+
+        service.client.messages.create = _mock_claude_response(response_json)
+
+        results = await service.parse_budget_images(
+            [(b"image1-bytes", "image/png"), (b"image2-bytes", "image/jpeg")]
+        )
+
+        assert len(results) == 2
+        assert results[0].extracted_data["amount"] == 12.0
+        assert results[1].extracted_data["amount"] == 45.0
+
+    @pytest.mark.asyncio
+    async def test_api_error_triggers_retry_and_raises(self, service: ClaudeService) -> None:
+        """API error should trigger retries and eventually raise."""
+        service.client.messages.create = AsyncMock(
+            side_effect=anthropic.APIError(
+                message="Service unavailable",
+                request=MagicMock(),
+                body=None,
+            )
+        )
+
+        with pytest.raises(anthropic.APIError):
+            await service.parse_budget_images([(b"fake-png-bytes", "image/png")])
+
+        # Should have been called 3 times (initial + 2 retries)
+        assert service.client.messages.create.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_malformed_json_returns_unknown(self, service: ClaudeService) -> None:
+        """Malformed JSON response should return unknown classification."""
+        service.client.messages.create = _mock_claude_response("not valid json at all")
+
+        results = await service.parse_budget_images([(b"fake-png-bytes", "image/png")])
+
+        assert len(results) == 1
+        assert results[0].category == Category.UNKNOWN
+        assert results[0].confidence == 0.0
+
+    @pytest.mark.asyncio
+    async def test_empty_image_list_returns_empty(self, service: ClaudeService) -> None:
+        """Empty image list should return empty list."""
+        results = await service.parse_budget_images([])
+
+        assert results == []

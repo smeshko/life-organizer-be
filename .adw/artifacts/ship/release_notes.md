@@ -1,17 +1,18 @@
-## [Unreleased] - 2026-03-09
+## [Unreleased] - 2026-03-10
 
 ### Added
-- Apply rate limit decorator to POST /api/v1/budget
-- Configure rate limiter in main.py
-- Create rate_limit module with limiter instance
-- Add slowapi dependency for rate limiting
+- Add POST /images route for screenshot upload
+- Add parse_budget_images method to ClaudeService
+- Create vision prompt for revolut screenshot extraction
+- Add python-multipart dependency
 
 ### Fixed
-- Add Retry-After header and test for rate limit responses
-- Add type ignore for slowapi handler type mismatch
+- Cycle 2 - guard non-dict LLM items, add file validation (empty/type allowlist/size limit)
+- Cycle 1 - pass actual media type to Claude Vision, catch ValueError in response parsing
 
 ### Documentation
-- Add rate limiting feature documentation
+- Add feature documentation for budget screenshot import
 
 ### Other
-- Add rate limiting unit tests
+- Add unit tests for ClaudeService vision parsing
+- Add unit tests for image upload route

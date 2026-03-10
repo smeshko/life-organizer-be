@@ -31,3 +31,10 @@ This guide helps you find relevant documentation based on what you're working on
     - When creating new endpoints that call the Claude API (e.g., meals/suggest)
     - When modifying the rate limit configuration or exception handling for slowapi
     - When troubleshooting 429 responses or Retry-After header behavior
+
+- docs/features/budget-screenshot-import.md
+  - Conditions:
+    - When adding Claude Vision API support to new endpoints
+    - When implementing image-based data extraction for the budget domain
+    - When modifying the Revolut screenshot parsing prompt or extraction logic
+    - When extending the budget import pipeline with new input modalities (e.g., PDF, OCR)
