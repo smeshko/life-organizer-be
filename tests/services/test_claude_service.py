@@ -300,7 +300,7 @@ class TestParseBudgetImages:
 
         service.client.messages.create = _mock_claude_response(response_json)
 
-        results = await service.parse_budget_images([b"fake-png-bytes"])
+        results = await service.parse_budget_images([(b"fake-png-bytes", "image/png")])
 
         assert len(results) == 1
         assert results[0].category == Category.BUDGET
@@ -343,7 +343,9 @@ class TestParseBudgetImages:
 
         service.client.messages.create = _mock_claude_response(response_json)
 
-        results = await service.parse_budget_images([b"image1-bytes", b"image2-bytes"])
+        results = await service.parse_budget_images(
+            [(b"image1-bytes", "image/png"), (b"image2-bytes", "image/jpeg")]
+        )
 
         assert len(results) == 2
         assert results[0].extracted_data["amount"] == 12.0
@@ -361,7 +363,7 @@ class TestParseBudgetImages:
         )
 
         with pytest.raises(anthropic.APIError):
-            await service.parse_budget_images([b"fake-png-bytes"])
+            await service.parse_budget_images([(b"fake-png-bytes", "image/png")])
 
         # Should have been called 3 times (initial + 2 retries)
         assert service.client.messages.create.call_count == 3
@@ -371,7 +373,7 @@ class TestParseBudgetImages:
         """Malformed JSON response should return unknown classification."""
         service.client.messages.create = _mock_claude_response("not valid json at all")
 
-        results = await service.parse_budget_images([b"fake-png-bytes"])
+        results = await service.parse_budget_images([(b"fake-png-bytes", "image/png")])
 
         assert len(results) == 1
         assert results[0].category == Category.UNKNOWN

@@ -200,14 +200,14 @@ async def process_budget_images(
                     detail="Invalid file type. Only image files are accepted.",
                 )
 
-        # Read image bytes
-        image_bytes_list: list[bytes] = []
+        # Read image bytes with their media types
+        image_data: list[tuple[bytes, str]] = []
         for file in files:
             content = await file.read()
-            image_bytes_list.append(content)
+            image_data.append((content, file.content_type or "image/png"))
 
         # Parse images using Claude Vision
-        classified_list = await claude_service.parse_budget_images(image_bytes_list)
+        classified_list = await claude_service.parse_budget_images(image_data)
 
         # No transactions found
         if not classified_list:

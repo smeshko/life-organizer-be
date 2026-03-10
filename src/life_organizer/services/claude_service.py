@@ -209,7 +209,7 @@ class ClaudeService:
             logger.error(f"Claude API error: {e}")
             raise
 
-        except (json.JSONDecodeError, ValidationError) as e:
+        except (json.JSONDecodeError, ValidationError, ValueError) as e:
             logger.error(f"Failed to parse Claude response: {e}")
             return [
                 ClassifiedInput(
@@ -226,14 +226,14 @@ class ClaudeService:
         wait=wait_exponential(multiplier=1, min=1, max=5),
         reraise=True,
     )
-    async def parse_budget_images(self, images: list[bytes]) -> list[ClassifiedInput]:
+    async def parse_budget_images(self, images: list[tuple[bytes, str]]) -> list[ClassifiedInput]:
         """Parse Revolut screenshot images into structured ClassifiedInput objects.
 
         Sends all images in a single API call for efficient processing and
         deduplication of overlapping screenshots.
 
         Args:
-            images: List of image bytes (PNG, JPEG, GIF, or WebP)
+            images: List of (image_bytes, media_type) tuples (e.g., (bytes, "image/png"))
 
         Returns:
             List of ClassifiedInput objects with parsed budget data
@@ -250,14 +250,14 @@ class ClaudeService:
 
         # Build content blocks: images + text instruction
         content_blocks: list[Any] = []
-        for idx, image_bytes in enumerate(images):
+        for idx, (image_bytes, media_type) in enumerate(images):
             encoded = base64.standard_b64encode(image_bytes).decode("utf-8")
             content_blocks.append(
                 {
                     "type": "image",
                     "source": {
                         "type": "base64",
-                        "media_type": "image/png",
+                        "media_type": media_type,
                         "data": encoded,
                     },
                 }
@@ -291,7 +291,7 @@ class ClaudeService:
             logger.error(f"Claude Vision API error: {e}")
             raise
 
-        except (json.JSONDecodeError, ValidationError) as e:
+        except (json.JSONDecodeError, ValidationError, ValueError) as e:
             logger.error(f"Failed to parse Claude Vision response: {e}")
             return [
                 ClassifiedInput(
