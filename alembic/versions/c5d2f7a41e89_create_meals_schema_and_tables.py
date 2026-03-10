@@ -75,7 +75,7 @@ def upgrade() -> None:
         sa.Column(
             "recipe_id",
             sa.Integer(),
-            sa.ForeignKey("meals.recipes.id"),
+            sa.ForeignKey("meals.recipes.id", ondelete="SET NULL"),
             nullable=True,
         ),
         sa.Column("recipe_name", sa.String(length=255), nullable=False),
@@ -106,7 +106,7 @@ def upgrade() -> None:
         sa.Column(
             "recipe_id",
             sa.Integer(),
-            sa.ForeignKey("meals.recipes.id"),
+            sa.ForeignKey("meals.recipes.id", ondelete="SET NULL"),
             nullable=True,
         ),
         sa.Column("recipe_name", sa.String(length=255), nullable=False),

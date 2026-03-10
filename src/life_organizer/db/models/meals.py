@@ -138,7 +138,7 @@ class MealHistory(Base):
 
     # Recipe reference (optional)
     recipe_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("meals.recipes.id"), nullable=True
+        Integer, ForeignKey("meals.recipes.id", ondelete="SET NULL"), nullable=True
     )
     recipe_name: Mapped[str] = mapped_column(String(255), nullable=False)
 
@@ -192,7 +192,7 @@ class RecipeFeedback(Base):
 
     # Recipe reference (optional)
     recipe_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("meals.recipes.id"), nullable=True
+        Integer, ForeignKey("meals.recipes.id", ondelete="SET NULL"), nullable=True
     )
     recipe_name: Mapped[str] = mapped_column(String(255), nullable=False)
 
