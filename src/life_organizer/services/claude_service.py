@@ -23,6 +23,7 @@ _PROMPT_DIR = Path(__file__).parent.parent / "prompts"
 _BUDGET_PROMPT_FILE = _PROMPT_DIR / "budget_system_prompt_v2.txt"
 
 _BUDGET_VISION_PROMPT_FILE = _PROMPT_DIR / "budget_vision_prompt_v1.txt"
+_MEALS_SUGGEST_PROMPT_FILE = _PROMPT_DIR / "meals_suggest_prompt_v1.txt"
 
 try:
     with _BUDGET_PROMPT_FILE.open(encoding="utf-8") as f:
@@ -38,6 +39,14 @@ try:
     logger.debug("Loaded budget vision prompt v1")
 except FileNotFoundError:
     logger.error(f"Prompt file not found: {_BUDGET_VISION_PROMPT_FILE}")
+    raise
+
+try:
+    with _MEALS_SUGGEST_PROMPT_FILE.open(encoding="utf-8") as f:
+        _MEALS_SUGGEST_PROMPT = f.read()
+    logger.debug("Loaded meals suggest prompt v1")
+except FileNotFoundError:
+    logger.error(f"Prompt file not found: {_MEALS_SUGGEST_PROMPT_FILE}")
     raise
 
 
@@ -302,6 +311,99 @@ class ClaudeService:
                     classifier_source="llm",
                 )
             ]
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=5),
+        reraise=True,
+    )
+    async def suggest_meals(
+        self,
+        requirements: str | None,
+        history: list[str],
+        liked_recipes: list[str],
+    ) -> list[dict[str, Any]]:
+        """Generate meal suggestions using Claude LLM.
+
+        Args:
+            requirements: Optional user constraints (e.g., "I have chicken thighs")
+            history: List of recently cooked meal names (last 14 days)
+            liked_recipes: List of top-rated recipe names
+
+        Returns:
+            List of dicts matching MealSuggestion schema
+
+        Raises:
+            HTTPException: If response cannot be parsed (500)
+            anthropic.APIError: On API communication errors (after 3 retries)
+        """
+        # Build user message with context
+        parts: list[str] = []
+
+        if history:
+            parts.append(f"Recently cooked meals (avoid these): {', '.join(history)}")
+        else:
+            parts.append("No recent meal history.")
+
+        if liked_recipes:
+            parts.append(f"Liked recipes (use as inspiration): {', '.join(liked_recipes)}")
+
+        if requirements:
+            parts.append(f"User requirements: {requirements}")
+        else:
+            parts.append("No specific requirements. Suggest 3 varied dinner ideas.")
+
+        user_message = "\n".join(parts)
+
+        try:
+            message = await self.client.messages.create(
+                model=self.model,
+                max_tokens=2000,
+                system=[
+                    {
+                        "type": "text",
+                        "text": _MEALS_SUGGEST_PROMPT,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ],
+                messages=[{"role": "user", "content": user_message}],
+            )
+
+            # Extract response text
+            first_block = message.content[0]
+            if not isinstance(first_block, TextBlock):
+                raise ValueError(f"Expected TextBlock, got {type(first_block)}")
+            response_text = first_block.text
+
+            # Strip markdown code fences if present
+            response_text = response_text.strip()
+            if response_text.startswith("```"):
+                lines = response_text.split("\n", 1)
+                if len(lines) > 1:
+                    response_text = lines[1]
+                if response_text.endswith("```"):
+                    response_text = response_text.rsplit("```", 1)[0]
+                response_text = response_text.strip()
+
+            # Parse JSON
+            suggestions = json.loads(response_text)
+
+            if not isinstance(suggestions, list):
+                raise ValueError("LLM did not return a JSON array")
+
+            return suggestions
+
+        except anthropic.APIError:
+            raise
+
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error(f"Failed to parse meal suggestions: {e}")
+            raw = response_text if "response_text" in locals() else "N/A"
+            logger.error(f"Raw response: {raw}")
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to parse meal suggestions",
+            ) from e
 
     def _parse_llm_response(
         self,

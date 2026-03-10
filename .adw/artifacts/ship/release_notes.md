@@ -1,18 +1,16 @@
 ## [Unreleased] - 2026-03-10
 
 ### Added
-- Add POST /images route for screenshot upload
-- Add parse_budget_images method to ClaudeService
-- Create vision prompt for revolut screenshot extraction
-- Add python-multipart dependency
+- Add POST /api/v1/meals/feedback endpoint
+- Add save_feedback method to MealService
+- Add meal feedback request/response schemas
 
 ### Fixed
-- Cycle 2 - guard non-dict LLM items, add file validation (empty/type allowlist/size limit)
-- Cycle 1 - pass actual media type to Claude Vision, catch ValueError in response parsing
+- Cycle 2 - add max_length=255 to recipe_name validation
+- Cycle 1 - resolve data integrity and validation issues
 
 ### Documentation
-- Add feature documentation for budget screenshot import
+- Add feature documentation for meal feedback endpoint
 
 ### Other
-- Add unit tests for ClaudeService vision parsing
-- Add unit tests for image upload route
+- Add feedback-specific model tests
