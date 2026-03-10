@@ -1,5 +1,6 @@
 """Tests for BudgetService budget entry persistence."""
 
+import datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -22,7 +23,7 @@ def _classified_input(
     )
 
 
-def _mock_session_factory() -> MagicMock:
+def _mock_session_factory() -> tuple[MagicMock, AsyncMock]:
     """Create a mock async session factory."""
     mock_session = AsyncMock()
     mock_factory = MagicMock()
@@ -315,3 +316,257 @@ class TestConvertToEUR:
     def test_unknown_currency_defaults_to_eur(self) -> None:
         """Unknown currencies are treated as EUR."""
         assert _convert_to_eur(42.0, "JPY") == pytest.approx(42.0)
+
+
+def _make_mock_transaction(
+    id: int = 1,
+    amount: float = 50.0,
+    currency: str = "EUR",
+    amount_eur: float | None = 50.0,
+    date: datetime.date = datetime.date(2026, 1, 15),
+    transaction_type: str = "Expenses",
+    category: str = "Groceries",
+    details: str | None = "Kaufland",
+) -> MagicMock:
+    """Create a mock BudgetTransaction object."""
+    mock = MagicMock()
+    mock.id = id
+    mock.amount = amount
+    mock.currency = currency
+    mock.amount_eur = amount_eur
+    mock.date = date
+    mock.transaction_type = transaction_type
+    mock.category = category
+    mock.details = details
+    return mock
+
+
+def _mock_execute_results(
+    *results: tuple[str, object],
+) -> AsyncMock:
+    """Create a mock session.execute that returns different result types.
+
+    Each result is a tuple of (type, value) where type is 'scalar' or 'scalars'.
+    - ('scalar', 5) -> result.scalar() returns 5
+    - ('scalars', [item1, item2]) -> result.scalars().all() returns [item1, item2]
+    """
+    mocks = []
+    for result_type, value in results:
+        result_mock = MagicMock()
+        if result_type == "scalar":
+            result_mock.scalar.return_value = value
+        elif result_type == "scalars":
+            scalars_mock = MagicMock()
+            scalars_mock.all.return_value = value
+            result_mock.scalars.return_value = scalars_mock
+        mocks.append(result_mock)
+
+    return AsyncMock(side_effect=mocks)
+
+
+class TestQueryTransactions:
+    """Tests for BudgetService.query_transactions method."""
+
+    @pytest.mark.asyncio
+    async def test_no_filters_returns_first_page(self) -> None:
+        """Default call with no filters returns first page."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        transactions = [_make_mock_transaction(id=i) for i in range(3)]
+        mock_session.execute = _mock_execute_results(
+            ("scalar", 3),
+            ("scalars", transactions),
+        )
+
+        result = await service.query_transactions(
+            start_date=None,
+            end_date=None,
+            transaction_type=None,
+            category=None,
+            page=1,
+            page_size=50,
+        )
+
+        assert result["total"] == 3
+        assert result["page"] == 1
+        assert result["page_size"] == 50
+        assert len(result["items"]) == 3
+
+    @pytest.mark.asyncio
+    async def test_date_range_filter(self) -> None:
+        """Date range filter passes conditions to query."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        mock_session.execute = _mock_execute_results(
+            ("scalar", 1),
+            ("scalars", [_make_mock_transaction()]),
+        )
+
+        result = await service.query_transactions(
+            start_date=datetime.date(2026, 1, 1),
+            end_date=datetime.date(2026, 1, 31),
+            transaction_type=None,
+            category=None,
+            page=1,
+            page_size=50,
+        )
+
+        assert result["total"] == 1
+        assert len(result["items"]) == 1
+        assert mock_session.execute.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_transaction_type_filter(self) -> None:
+        """Transaction type filter works correctly."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        mock_session.execute = _mock_execute_results(
+            ("scalar", 2),
+            ("scalars", [_make_mock_transaction(id=1), _make_mock_transaction(id=2)]),
+        )
+
+        result = await service.query_transactions(
+            start_date=None,
+            end_date=None,
+            transaction_type="Expenses",
+            category=None,
+            page=1,
+            page_size=50,
+        )
+
+        assert result["total"] == 2
+        assert len(result["items"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_category_filter(self) -> None:
+        """Category filter works correctly."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        mock_session.execute = _mock_execute_results(
+            ("scalar", 1),
+            ("scalars", [_make_mock_transaction(category="Groceries")]),
+        )
+
+        result = await service.query_transactions(
+            start_date=None,
+            end_date=None,
+            transaction_type=None,
+            category="Groceries",
+            page=1,
+            page_size=50,
+        )
+
+        assert result["total"] == 1
+        assert len(result["items"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_combined_filters(self) -> None:
+        """All filters combined (AND'd together)."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        mock_session.execute = _mock_execute_results(
+            ("scalar", 1),
+            ("scalars", [_make_mock_transaction()]),
+        )
+
+        result = await service.query_transactions(
+            start_date=datetime.date(2026, 1, 1),
+            end_date=datetime.date(2026, 1, 31),
+            transaction_type="Expenses",
+            category="Groceries",
+            page=1,
+            page_size=50,
+        )
+
+        assert result["total"] == 1
+        assert len(result["items"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_pagination_offset(self) -> None:
+        """Page 2 returns correct offset."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        mock_session.execute = _mock_execute_results(
+            ("scalar", 120),
+            ("scalars", [_make_mock_transaction(id=i) for i in range(50, 100)]),
+        )
+
+        result = await service.query_transactions(
+            start_date=None,
+            end_date=None,
+            transaction_type=None,
+            category=None,
+            page=2,
+            page_size=50,
+        )
+
+        assert result["total"] == 120
+        assert result["page"] == 2
+        assert len(result["items"]) == 50
+
+    @pytest.mark.asyncio
+    async def test_empty_result_page(self) -> None:
+        """Page beyond data returns empty items with correct total."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        mock_session.execute = _mock_execute_results(
+            ("scalar", 5),
+            ("scalars", []),
+        )
+
+        result = await service.query_transactions(
+            start_date=None,
+            end_date=None,
+            transaction_type=None,
+            category=None,
+            page=999,
+            page_size=50,
+        )
+
+        assert result["total"] == 5
+        assert result["items"] == []
+        assert result["page"] == 999
+
+
+class TestGetAvailableYears:
+    """Tests for BudgetService.get_available_years method."""
+
+    @pytest.mark.asyncio
+    async def test_returns_sorted_years(self) -> None:
+        """Returns distinct years sorted ascending."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        scalars_mock = MagicMock()
+        scalars_mock.all.return_value = [2024.0, 2025.0, 2026.0]
+        result_mock = MagicMock()
+        result_mock.scalars.return_value = scalars_mock
+        mock_session.execute = AsyncMock(return_value=result_mock)
+
+        years = await service.get_available_years()
+
+        assert years == [2024, 2025, 2026]
+        assert all(isinstance(y, int) for y in years)
+
+    @pytest.mark.asyncio
+    async def test_no_transactions_returns_empty(self) -> None:
+        """No transactions returns empty list."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        scalars_mock = MagicMock()
+        scalars_mock.all.return_value = []
+        result_mock = MagicMock()
+        result_mock.scalars.return_value = scalars_mock
+        mock_session.execute = AsyncMock(return_value=result_mock)
+
+        years = await service.get_available_years()
+
+        assert years == []

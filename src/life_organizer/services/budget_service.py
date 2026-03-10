@@ -3,8 +3,9 @@
 import datetime
 import logging
 from decimal import Decimal
-from typing import Literal, Union, cast
+from typing import Any, Literal, TypedDict, Union, cast
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from life_organizer.db.models.budget import BudgetTransaction
@@ -17,6 +18,16 @@ logger = logging.getLogger(__name__)
 
 # Type alias for transaction types
 TransactionType = Literal["Expenses", "Income", "Savings"]
+
+
+class PaginatedResult(TypedDict):
+    """Type for paginated transaction query results."""
+
+    items: list[Any]
+    total: int
+    page: int
+    page_size: int
+
 
 # Constants
 USD_TO_EUR_RATE = 0.92
@@ -218,3 +229,76 @@ class BudgetService:
                         )
 
         return results
+
+    async def query_transactions(
+        self,
+        start_date: datetime.date | None,
+        end_date: datetime.date | None,
+        transaction_type: str | None,
+        category: str | None,
+        page: int,
+        page_size: int,
+    ) -> PaginatedResult:
+        """Query transactions with optional filters and pagination.
+
+        Args:
+            start_date: Filter transactions on or after this date
+            end_date: Filter transactions on or before this date
+            transaction_type: Filter by transaction type (Expenses, Income, Savings)
+            category: Filter by category name
+            page: Page number (1-based)
+            page_size: Number of items per page
+
+        Returns:
+            Dict with items, total, page, and page_size
+        """
+        async with self.session_factory() as db:
+            # Build base filter conditions
+            conditions = []
+            if start_date is not None:
+                conditions.append(BudgetTransaction.date >= start_date)
+            if end_date is not None:
+                conditions.append(BudgetTransaction.date <= end_date)
+            if transaction_type is not None:
+                conditions.append(BudgetTransaction.transaction_type == transaction_type)
+            if category is not None:
+                conditions.append(BudgetTransaction.category == category)
+
+            # Count query
+            count_stmt = select(func.count()).select_from(BudgetTransaction)
+            for condition in conditions:
+                count_stmt = count_stmt.where(condition)
+            count_result = await db.execute(count_stmt)
+            total = count_result.scalar() or 0
+
+            # Items query with pagination
+            items_stmt = (
+                select(BudgetTransaction)
+                .order_by(BudgetTransaction.date.desc(), BudgetTransaction.id.desc())
+                .offset((page - 1) * page_size)
+                .limit(page_size)
+            )
+            for condition in conditions:
+                items_stmt = items_stmt.where(condition)
+            items_result = await db.execute(items_stmt)
+            transactions = items_result.scalars().all()
+
+            return {
+                "items": list(transactions),
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+            }
+
+    async def get_available_years(self) -> list[int]:
+        """Get distinct years from all transactions, sorted ascending.
+
+        Returns:
+            List of integer years, or empty list if no transactions exist
+        """
+        async with self.session_factory() as db:
+            stmt = select(func.distinct(func.extract("year", BudgetTransaction.date))).order_by(
+                func.extract("year", BudgetTransaction.date).asc()
+            )
+            result = await db.execute(stmt)
+            return [int(row) for row in result.scalars().all()]

@@ -11,6 +11,11 @@ from life_organizer.config import get_settings
 from life_organizer.db.models.budget import BudgetTransaction
 from life_organizer.db.session import async_session_factory
 from life_organizer.rate_limit import limiter
+from life_organizer.schemas.budget import (
+    AvailableYearsResponse,
+    PaginatedTransactionsResponse,
+    TransactionItem,
+)
 from life_organizer.schemas.requests import ClassifyRequest
 from life_organizer.schemas.responses import ProcessingResponse
 from life_organizer.services.budget_service import BudgetService
@@ -319,3 +324,132 @@ async def export_budget(
             content=tsv_content,
             media_type="text/tab-separated-values",
         )
+
+
+@router.get(
+    "/transactions",
+    response_model=PaginatedTransactionsResponse,
+    response_description="Paginated list of budget transactions",
+    responses={
+        200: {
+            "description": "Successfully retrieved transactions",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "paginated_result": {
+                            "summary": "Paginated Transactions",
+                            "value": {
+                                "items": [
+                                    {
+                                        "id": 1,
+                                        "amount": 50.0,
+                                        "currency": "EUR",
+                                        "amount_eur": 50.0,
+                                        "date": "2026-01-15",
+                                        "transaction_type": "Expenses",
+                                        "category": "Groceries",
+                                        "details": "Kaufland",
+                                    }
+                                ],
+                                "total": 1,
+                                "page": 1,
+                                "page_size": 50,
+                            },
+                        },
+                    }
+                }
+            },
+        },
+        422: {"description": "Validation error (invalid query parameters)"},
+    },
+)
+async def get_transactions(
+    start_date: datetime.date | None = Query(
+        default=None,
+        description="Filter transactions on or after this date (YYYY-MM-DD)",
+    ),
+    end_date: datetime.date | None = Query(
+        default=None,
+        description="Filter transactions on or before this date (YYYY-MM-DD)",
+    ),
+    transaction_type: str | None = Query(
+        default=None,
+        description="Filter by transaction type (Expenses, Income, or Savings)",
+    ),
+    category: str | None = Query(
+        default=None,
+        description="Filter by category name",
+    ),
+    page: int = Query(default=1, ge=1, description="Page number (1-based)"),
+    page_size: int = Query(
+        default=50, ge=1, le=200, description="Number of items per page (max 200)"
+    ),
+) -> PaginatedTransactionsResponse:
+    """Query budget transactions with optional filters and pagination.
+
+    Returns a paginated list of transactions ordered by date descending.
+    All filters are AND'd together when multiple are provided.
+    """
+    result = await budget_service.query_transactions(
+        start_date=start_date,
+        end_date=end_date,
+        transaction_type=transaction_type,
+        category=category,
+        page=page,
+        page_size=page_size,
+    )
+
+    items = [
+        TransactionItem(
+            id=t.id,
+            amount=float(t.amount),
+            currency=t.currency,
+            amount_eur=float(t.amount_eur) if t.amount_eur is not None else None,
+            date=t.date,
+            transaction_type=t.transaction_type,
+            category=t.category,
+            details=t.details,
+        )
+        for t in result["items"]
+    ]
+
+    return PaginatedTransactionsResponse(
+        items=items,
+        total=result["total"],
+        page=result["page"],
+        page_size=result["page_size"],
+    )
+
+
+@router.get(
+    "/years",
+    response_model=AvailableYearsResponse,
+    response_description="List of years with transaction data",
+    responses={
+        200: {
+            "description": "Successfully retrieved available years",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "with_data": {
+                            "summary": "Years With Data",
+                            "value": {"years": [2024, 2025, 2026]},
+                        },
+                        "empty": {
+                            "summary": "No Transactions",
+                            "value": {"years": []},
+                        },
+                    }
+                }
+            },
+        },
+    },
+)
+async def get_available_years() -> AvailableYearsResponse:
+    """Get distinct years from all budget transactions.
+
+    Returns a sorted list of years (ascending) that have at least one transaction.
+    Returns an empty list if no transactions exist.
+    """
+    years = await budget_service.get_available_years()
+    return AvailableYearsResponse(years=years)

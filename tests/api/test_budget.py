@@ -1,5 +1,6 @@
-"""Tests for POST /api/v1/budget and POST /api/v1/budget/images endpoints."""
+"""Tests for budget API endpoints."""
 
+import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import anthropic
@@ -270,3 +271,263 @@ class TestProcessBudgetImages:
         assert len(result) == 1
         assert result[0].success is True
         mock_claude.parse_budget_text.assert_awaited_once_with("coffee 4.50")
+
+
+def _make_mock_transaction(
+    id: int = 1,
+    amount: float = 50.0,
+    currency: str = "EUR",
+    amount_eur: float | None = 50.0,
+    date: datetime.date = datetime.date(2026, 1, 15),
+    transaction_type: str = "Expenses",
+    category: str = "Groceries",
+    details: str | None = "Kaufland",
+) -> MagicMock:
+    """Create a mock BudgetTransaction for route tests."""
+    mock = MagicMock()
+    mock.id = id
+    mock.amount = amount
+    mock.currency = currency
+    mock.amount_eur = amount_eur
+    mock.date = date
+    mock.transaction_type = transaction_type
+    mock.category = category
+    mock.details = details
+    return mock
+
+
+class TestGetTransactions:
+    """Tests for GET /api/v1/budget/transactions endpoint."""
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    async def test_200_no_filters(self, mock_budget: AsyncMock) -> None:
+        """Default call with no filters returns paginated response."""
+        from life_organizer.api.routes.budget import get_transactions
+
+        mock_budget.query_transactions = AsyncMock(
+            return_value={
+                "items": [_make_mock_transaction()],
+                "total": 1,
+                "page": 1,
+                "page_size": 50,
+            }
+        )
+
+        result = await get_transactions()
+
+        assert result.total == 1
+        assert result.page == 1
+        assert result.page_size == 50
+        assert len(result.items) == 1
+        assert result.items[0].category == "Groceries"
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    async def test_200_with_date_range(self, mock_budget: AsyncMock) -> None:
+        """Date filtering works correctly."""
+        from life_organizer.api.routes.budget import get_transactions
+
+        mock_budget.query_transactions = AsyncMock(
+            return_value={
+                "items": [_make_mock_transaction()],
+                "total": 1,
+                "page": 1,
+                "page_size": 50,
+            }
+        )
+
+        result = await get_transactions(
+            start_date=datetime.date(2026, 1, 1),
+            end_date=datetime.date(2026, 1, 31),
+        )
+
+        assert result.total == 1
+        call_kwargs = mock_budget.query_transactions.call_args[1]
+        assert call_kwargs["start_date"] == datetime.date(2026, 1, 1)
+        assert call_kwargs["end_date"] == datetime.date(2026, 1, 31)
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    async def test_200_with_transaction_type(self, mock_budget: AsyncMock) -> None:
+        """Transaction type filtering works correctly."""
+        from life_organizer.api.routes.budget import get_transactions
+
+        mock_budget.query_transactions = AsyncMock(
+            return_value={
+                "items": [_make_mock_transaction()],
+                "total": 1,
+                "page": 1,
+                "page_size": 50,
+            }
+        )
+
+        result = await get_transactions(transaction_type="Expenses")
+
+        assert result.total == 1
+        call_kwargs = mock_budget.query_transactions.call_args[1]
+        assert call_kwargs["transaction_type"] == "Expenses"
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    async def test_200_with_category(self, mock_budget: AsyncMock) -> None:
+        """Category filtering works correctly."""
+        from life_organizer.api.routes.budget import get_transactions
+
+        mock_budget.query_transactions = AsyncMock(
+            return_value={
+                "items": [_make_mock_transaction(category="Groceries")],
+                "total": 1,
+                "page": 1,
+                "page_size": 50,
+            }
+        )
+
+        result = await get_transactions(category="Groceries")
+
+        assert result.total == 1
+        assert result.items[0].category == "Groceries"
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    async def test_200_combined_filters(self, mock_budget: AsyncMock) -> None:
+        """All filters combined work correctly."""
+        from life_organizer.api.routes.budget import get_transactions
+
+        mock_budget.query_transactions = AsyncMock(
+            return_value={
+                "items": [_make_mock_transaction()],
+                "total": 1,
+                "page": 1,
+                "page_size": 50,
+            }
+        )
+
+        result = await get_transactions(
+            start_date=datetime.date(2026, 1, 1),
+            end_date=datetime.date(2026, 1, 31),
+            transaction_type="Expenses",
+            category="Groceries",
+        )
+
+        assert result.total == 1
+        call_kwargs = mock_budget.query_transactions.call_args[1]
+        assert call_kwargs["start_date"] == datetime.date(2026, 1, 1)
+        assert call_kwargs["end_date"] == datetime.date(2026, 1, 31)
+        assert call_kwargs["transaction_type"] == "Expenses"
+        assert call_kwargs["category"] == "Groceries"
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    async def test_200_pagination(self, mock_budget: AsyncMock) -> None:
+        """Page 2 returns correct offset."""
+        from life_organizer.api.routes.budget import get_transactions
+
+        mock_budget.query_transactions = AsyncMock(
+            return_value={
+                "items": [_make_mock_transaction(id=i) for i in range(50, 100)],
+                "total": 120,
+                "page": 2,
+                "page_size": 50,
+            }
+        )
+
+        result = await get_transactions(page=2, page_size=50)
+
+        assert result.total == 120
+        assert result.page == 2
+        assert len(result.items) == 50
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    async def test_200_empty_page(self, mock_budget: AsyncMock) -> None:
+        """Page beyond data returns empty items."""
+        from life_organizer.api.routes.budget import get_transactions
+
+        mock_budget.query_transactions = AsyncMock(
+            return_value={
+                "items": [],
+                "total": 5,
+                "page": 999,
+                "page_size": 50,
+            }
+        )
+
+        result = await get_transactions(page=999)
+
+        assert result.total == 5
+        assert result.items == []
+        assert result.page == 999
+
+    @pytest.mark.asyncio
+    async def test_422_invalid_page(self) -> None:
+        """page param has ge=1 constraint for FastAPI validation."""
+        import inspect
+
+        from life_organizer.api.routes.budget import get_transactions
+
+        sig = inspect.signature(get_transactions)
+        page_param = sig.parameters["page"]
+        query_info = page_param.default
+        assert query_info.metadata[0].ge == 1  # type: ignore[union-attr]
+
+    @pytest.mark.asyncio
+    async def test_422_invalid_page_size(self) -> None:
+        """page_size param has ge=1, le=200 constraints for FastAPI validation."""
+        import inspect
+
+        from life_organizer.api.routes.budget import get_transactions
+
+        sig = inspect.signature(get_transactions)
+        page_size_param = sig.parameters["page_size"]
+        query_info = page_size_param.default
+        metadata_values = {type(m).__name__: m for m in query_info.metadata}  # type: ignore[union-attr]
+        assert metadata_values["Ge"].ge == 1  # type: ignore[union-attr]
+        assert metadata_values["Le"].le == 200  # type: ignore[union-attr]
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    async def test_amount_eur_none_handled(self, mock_budget: AsyncMock) -> None:
+        """Transactions with amount_eur=None (legacy) are handled correctly."""
+        from life_organizer.api.routes.budget import get_transactions
+
+        mock_budget.query_transactions = AsyncMock(
+            return_value={
+                "items": [_make_mock_transaction(amount_eur=None)],
+                "total": 1,
+                "page": 1,
+                "page_size": 50,
+            }
+        )
+
+        result = await get_transactions()
+
+        assert result.items[0].amount_eur is None
+
+
+class TestGetAvailableYears:
+    """Tests for GET /api/v1/budget/years endpoint."""
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    async def test_200_returns_years(self, mock_budget: AsyncMock) -> None:
+        """Returns sorted year list."""
+        from life_organizer.api.routes.budget import get_available_years
+
+        mock_budget.get_available_years = AsyncMock(return_value=[2024, 2025, 2026])
+
+        result = await get_available_years()
+
+        assert result.years == [2024, 2025, 2026]
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    async def test_200_empty(self, mock_budget: AsyncMock) -> None:
+        """No transactions returns empty list."""
+        from life_organizer.api.routes.budget import get_available_years
+
+        mock_budget.get_available_years = AsyncMock(return_value=[])
+
+        result = await get_available_years()
+
+        assert result.years == []

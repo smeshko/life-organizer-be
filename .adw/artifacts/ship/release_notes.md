@@ -1,16 +1,14 @@
 ## [Unreleased] - 2026-03-10
 
 ### Added
-- Add POST /api/v1/meals/feedback endpoint
-- Add save_feedback method to MealService
-- Add meal feedback request/response schemas
+- Add GET /transactions and GET /years endpoints
+- Add query_transactions and get_available_years service methods
+- Add transaction and years response schemas
+- Add category index to budget transactions
+- Add route tests for transactions and years endpoints
 
 ### Fixed
-- Cycle 2 - add max_length=255 to recipe_name validation
-- Cycle 1 - resolve data integrity and validation issues
+- Add secondary sort key to prevent non-deterministic pagination
 
 ### Documentation
-- Add feature documentation for meal feedback endpoint
-
-### Other
-- Add feedback-specific model tests
+- Add transaction query pagination feature doc

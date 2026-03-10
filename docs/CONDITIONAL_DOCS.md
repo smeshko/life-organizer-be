@@ -59,3 +59,10 @@ This guide helps you find relevant documentation based on what you're working on
     - When implementing recipe auto-save logic for LLM-generated content
     - When creating non-LLM meal endpoints that use `Depends(get_db)` session injection
     - When working with the meal feedback loop (FR20, FR21, FR22)
+
+- docs/features/transaction-query-pagination.md
+  - Conditions:
+    - When adding paginated list endpoints to the budget domain
+    - When implementing query filtering with optional AND'd conditions
+    - When creating non-LLM read-only endpoints for the budget module
+    - When adding database indexes for query performance optimization
