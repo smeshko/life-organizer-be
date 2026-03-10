@@ -220,6 +220,11 @@ class TestMealServiceSaveFeedback:
         session = _make_mock_session()
         service = MealService(session_factory=MagicMock())
 
+        # Mock execute to return no existing recipe for the lookup query
+        lookup_result = MagicMock()
+        lookup_result.scalar_one_or_none.return_value = None
+        session.execute = AsyncMock(return_value=lookup_result)
+
         # Mock flush to set id on the new recipe
         async def mock_flush() -> None:
             for call in session.add.call_args_list:
@@ -255,6 +260,53 @@ class TestMealServiceSaveFeedback:
         assert feedbacks[0].notes == "great"
         assert len(histories) == 1
         assert histories[0].recipe_id == 42
+        assert histories[0].recipe_name == "Greek Lemon Chicken"
+
+    @pytest.mark.asyncio
+    async def test_positive_feedback_no_recipe_id_reuses_existing_liked_recipe(self) -> None:
+        """Repeated liked feedback for same name should reuse existing recipe, not create duplicate."""
+        session = _make_mock_session()
+        service = MealService(session_factory=MagicMock())
+
+        # Mock an existing liked recipe returned by the lookup query
+        existing_recipe = MagicMock()
+        existing_recipe.id = 10
+        existing_recipe.name = "Greek Lemon Chicken"
+        existing_recipe.source = "liked"
+        existing_recipe.times_made = 2
+        existing_recipe.last_made = datetime.date(2026, 1, 1)
+
+        lookup_result = MagicMock()
+        lookup_result.scalar_one_or_none.return_value = existing_recipe
+        session.execute = AsyncMock(return_value=lookup_result)
+
+        await service.save_feedback(
+            recipe_id=None,
+            recipe_name="Greek Lemon Chicken",
+            liked=True,
+            notes="still great",
+            session=session,
+        )
+
+        # Verify no new Recipe was added
+        added_objects = [call[0][0] for call in session.add.call_args_list]
+        recipes = [o for o in added_objects if isinstance(o, Recipe)]
+        assert len(recipes) == 0
+
+        # Verify existing recipe was updated
+        assert existing_recipe.times_made == 3
+        assert existing_recipe.last_made == datetime.date.today()
+
+        # Verify feedback and history reference the existing recipe's id
+        feedbacks = [o for o in added_objects if isinstance(o, RecipeFeedback)]
+        histories = [o for o in added_objects if isinstance(o, MealHistory)]
+        assert len(feedbacks) == 1
+        assert feedbacks[0].recipe_id == 10
+        assert feedbacks[0].liked is True
+        assert feedbacks[0].notes == "still great"
+        assert feedbacks[0].recipe_name == "Greek Lemon Chicken"
+        assert len(histories) == 1
+        assert histories[0].recipe_id == 10
         assert histories[0].recipe_name == "Greek Lemon Chicken"
 
     @pytest.mark.asyncio
@@ -381,6 +433,11 @@ class TestMealServiceSaveFeedback:
         """Database failure should propagate without partial writes."""
         session = _make_mock_session()
         service = MealService(session_factory=MagicMock())
+
+        # Mock execute to return no existing recipe for the lookup query
+        lookup_result = MagicMock()
+        lookup_result.scalar_one_or_none.return_value = None
+        session.execute = AsyncMock(return_value=lookup_result)
 
         session.flush = AsyncMock(side_effect=Exception("DB connection lost"))
 
