@@ -505,6 +505,125 @@ class TestGetTransactions:
         assert result.items[0].amount_eur is None
 
 
+class TestGetTransactionAggregations:
+    """Tests for GET /api/v1/budget/transactions/aggregate endpoint."""
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    async def test_200_year_only(self, mock_budget: AsyncMock) -> None:
+        """Year-only returns full year aggregations."""
+        from life_organizer.api.routes.budget import get_transaction_aggregations
+
+        mock_budget.aggregate_transactions = AsyncMock(
+            return_value={
+                "period": {"year": 2025, "month": None},
+                "aggregations": [
+                    {"category": "Groceries", "total_eur": 450.0, "count": 23},
+                ],
+            }
+        )
+
+        result = await get_transaction_aggregations(year=2025, month=None, transaction_type=None)
+
+        assert result.period.year == 2025
+        assert result.period.month is None
+        assert len(result.aggregations) == 1
+        assert result.aggregations[0].category == "Groceries"
+        assert result.aggregations[0].total_eur == 450.0
+        assert result.aggregations[0].count == 23
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    async def test_200_year_and_month(self, mock_budget: AsyncMock) -> None:
+        """Year + month returns monthly aggregations."""
+        from life_organizer.api.routes.budget import get_transaction_aggregations
+
+        mock_budget.aggregate_transactions = AsyncMock(
+            return_value={
+                "period": {"year": 2026, "month": 1},
+                "aggregations": [
+                    {"category": "Groceries", "total_eur": 150.0, "count": 8},
+                ],
+            }
+        )
+
+        result = await get_transaction_aggregations(year=2026, month=1)
+
+        assert result.period.year == 2026
+        assert result.period.month == 1
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    async def test_200_with_transaction_type(self, mock_budget: AsyncMock) -> None:
+        """Transaction type filter works."""
+        from life_organizer.api.routes.budget import get_transaction_aggregations
+
+        mock_budget.aggregate_transactions = AsyncMock(
+            return_value={
+                "period": {"year": 2026, "month": None},
+                "aggregations": [
+                    {"category": "Salary Ivo", "total_eur": 3000.0, "count": 1},
+                ],
+            }
+        )
+
+        result = await get_transaction_aggregations(
+            year=2026, month=None, transaction_type="Income"
+        )
+
+        assert len(result.aggregations) == 1
+        call_kwargs = mock_budget.aggregate_transactions.call_args[1]
+        assert call_kwargs["year"] == 2026
+        assert call_kwargs["transaction_type"] == "Income"
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    async def test_200_empty_aggregations(self, mock_budget: AsyncMock) -> None:
+        """No matching transactions returns empty aggregations array."""
+        from life_organizer.api.routes.budget import get_transaction_aggregations
+
+        mock_budget.aggregate_transactions = AsyncMock(
+            return_value={
+                "period": {"year": 2020, "month": None},
+                "aggregations": [],
+            }
+        )
+
+        result = await get_transaction_aggregations(year=2020, month=None, transaction_type=None)
+
+        assert result.aggregations == []
+
+    @pytest.mark.asyncio
+    async def test_422_year_required(self) -> None:
+        """year param is required (no default value)."""
+        import inspect
+
+        from life_organizer.api.routes.budget import get_transaction_aggregations
+
+        sig = inspect.signature(get_transaction_aggregations)
+        year_param = sig.parameters["year"]
+        # Required params have Query(...) with no default — the default is the Query itself
+        query_info = year_param.default
+        # Verify ge and le constraints exist
+        metadata_values = {type(m).__name__: m for m in query_info.metadata}
+        assert metadata_values["Ge"].ge == 2000
+        assert metadata_values["Le"].le == 2100
+
+    @pytest.mark.asyncio
+    async def test_422_month_constraints(self) -> None:
+        """month param has ge=1, le=12 constraints."""
+        import inspect
+
+        from life_organizer.api.routes.budget import get_transaction_aggregations
+
+        sig = inspect.signature(get_transaction_aggregations)
+        month_param = sig.parameters["month"]
+        query_info = month_param.default
+        metadata_values = {type(m).__name__: m for m in query_info.metadata}
+        assert metadata_values["Ge"].ge == 1
+        assert metadata_values["Le"].le == 12
+
+
 class TestGetAvailableYears:
     """Tests for GET /api/v1/budget/years endpoint."""
 
