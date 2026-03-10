@@ -7,12 +7,13 @@ This module contains all database models organized by domain:
 """
 
 from life_organizer.db.base import Base
-from life_organizer.db.models.budget import BudgetTransaction
+from life_organizer.db.models.budget import BudgetPlan, BudgetTransaction
 from life_organizer.db.models.feedback import MisclassificationFeedback
 from life_organizer.db.models.meals import MealHistory, Recipe, RecipeFeedback
 
 __all__ = [
     "Base",
+    "BudgetPlan",
     "BudgetTransaction",
     "MealHistory",
     "MisclassificationFeedback",
