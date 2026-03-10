@@ -1,11 +1,18 @@
 ## [Unreleased] - 2026-03-10
 
 ### Added
-- Add pydantic response schemas for transaction aggregation
-- Add aggregate_transactions service method
-- Add GET /transactions/aggregate endpoint
+- Add GET and PUT /plan/{year} budget endpoints
+- Add get_plan and upsert_plan service methods
+- Add pydantic schemas for budget plan endpoints
+- Add BudgetPlan ORM model
+- Add alembic migration for budget.plans table
+
+### Fixed
+- Deduplicate budget plan entries before upsert
+
+### Documentation
+- Add feature documentation for budget plan CRUD endpoints
 
 ### Other
-- Verify service-level tests for aggregate_transactions
-- Verify route-level tests for transaction aggregation
-- Verify quality gates pass
+- Add unit tests for budget plan API endpoints
+- Add unit tests for get_plan and upsert_plan service methods
