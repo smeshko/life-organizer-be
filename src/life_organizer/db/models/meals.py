@@ -84,7 +84,7 @@ class Recipe(Base):
     source: Mapped[str] = mapped_column(String(20), nullable=False)
 
     # Tracking
-    times_made: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    times_made: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
     last_made: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
 
     # Timestamps

@@ -244,10 +244,12 @@ def test_meal_history_cooked_date_is_date_type():
 
 
 def test_meal_history_recipe_id_has_foreign_key():
-    """Test recipe_id has a foreign key to meals.recipes.id."""
+    """Test recipe_id has a foreign key to meals.recipes.id with SET NULL."""
     col = MealHistory.__table__.columns["recipe_id"]
     fk_targets = {fk.target_fullname for fk in col.foreign_keys}
     assert "meals.recipes.id" in fk_targets
+    fk = next(iter(col.foreign_keys))
+    assert fk.ondelete == "SET NULL"
 
 
 def test_meal_history_created_at_has_server_default():
@@ -337,10 +339,12 @@ def test_recipe_feedback_notes_nullable():
 
 
 def test_recipe_feedback_recipe_id_has_foreign_key():
-    """Test recipe_id has a foreign key to meals.recipes.id."""
+    """Test recipe_id has a foreign key to meals.recipes.id with SET NULL."""
     col = RecipeFeedback.__table__.columns["recipe_id"]
     fk_targets = {fk.target_fullname for fk in col.foreign_keys}
     assert "meals.recipes.id" in fk_targets
+    fk = next(iter(col.foreign_keys))
+    assert fk.ondelete == "SET NULL"
 
 
 def test_recipe_feedback_created_at_has_server_default():
