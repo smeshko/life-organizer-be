@@ -1,18 +1,16 @@
 ## [Unreleased] - 2026-03-10
 
 ### Added
-- Add POST /images route for screenshot upload
-- Add parse_budget_images method to ClaudeService
-- Create vision prompt for revolut screenshot extraction
-- Add python-multipart dependency
+- Create meals ORM models (Recipe, MealHistory, RecipeFeedback)
+- Export meals models from db.models package
+- Create alembic migration for meals schema and tables
 
 ### Fixed
-- Cycle 2 - guard non-dict LLM items, add file validation (empty/type allowlist/size limit)
-- Cycle 1 - pass actual media type to Claude Vision, catch ValueError in response parsing
+- Align times_made server_default and add ondelete FK tests
+- Add ondelete SET NULL to nullable foreign keys
 
 ### Documentation
-- Add feature documentation for budget screenshot import
+- Add meals schema feature documentation
 
 ### Other
-- Add unit tests for ClaudeService vision parsing
-- Add unit tests for image upload route
+- Add unit tests for meals models
