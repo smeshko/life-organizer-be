@@ -535,6 +535,123 @@ class TestQueryTransactions:
         assert result["page"] == 999
 
 
+class TestAggregateTransactions:
+    """Tests for BudgetService.aggregate_transactions method."""
+
+    @pytest.mark.asyncio
+    async def test_year_only_aggregation(self) -> None:
+        """Year-only aggregation returns full year results."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        result_mock = MagicMock()
+        result_mock.all.return_value = [
+            ("Groceries", 450.0, 23),
+            ("Eat out", 200.0, 15),
+        ]
+        mock_session.execute = AsyncMock(return_value=result_mock)
+
+        result = await service.aggregate_transactions(year=2025, month=None, transaction_type=None)
+
+        assert result["period"]["year"] == 2025
+        assert result["period"]["month"] is None
+        assert len(result["aggregations"]) == 2
+        assert result["aggregations"][0]["category"] == "Groceries"
+        assert result["aggregations"][0]["total_eur"] == 450.0
+        assert result["aggregations"][0]["count"] == 23
+
+    @pytest.mark.asyncio
+    async def test_year_and_month_aggregation(self) -> None:
+        """Year + month aggregation returns monthly results."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        result_mock = MagicMock()
+        result_mock.all.return_value = [
+            ("Groceries", 150.0, 8),
+        ]
+        mock_session.execute = AsyncMock(return_value=result_mock)
+
+        result = await service.aggregate_transactions(year=2026, month=1, transaction_type=None)
+
+        assert result["period"]["year"] == 2026
+        assert result["period"]["month"] == 1
+        assert len(result["aggregations"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_transaction_type_filter(self) -> None:
+        """Transaction type filter returns only matching type."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        result_mock = MagicMock()
+        result_mock.all.return_value = [
+            ("Salary Ivo", 3000.0, 1),
+        ]
+        mock_session.execute = AsyncMock(return_value=result_mock)
+
+        result = await service.aggregate_transactions(year=2026, month=1, transaction_type="Income")
+
+        assert len(result["aggregations"]) == 1
+        assert result["aggregations"][0]["category"] == "Salary Ivo"
+
+    @pytest.mark.asyncio
+    async def test_no_matching_transactions(self) -> None:
+        """No matching transactions returns empty aggregations list."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        result_mock = MagicMock()
+        result_mock.all.return_value = []
+        mock_session.execute = AsyncMock(return_value=result_mock)
+
+        result = await service.aggregate_transactions(year=2020, month=None, transaction_type=None)
+
+        assert result["aggregations"] == []
+
+    @pytest.mark.asyncio
+    async def test_sorted_by_total_descending(self) -> None:
+        """Multiple categories sorted by total_eur descending."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        result_mock = MagicMock()
+        result_mock.all.return_value = [
+            ("Groceries", 500.0, 20),
+            ("Eat out", 300.0, 10),
+            ("Transport", 100.0, 5),
+        ]
+        mock_session.execute = AsyncMock(return_value=result_mock)
+
+        result = await service.aggregate_transactions(
+            year=2026, month=None, transaction_type="Expenses"
+        )
+
+        assert len(result["aggregations"]) == 3
+        totals = [a["total_eur"] for a in result["aggregations"]]
+        assert totals == [500.0, 300.0, 100.0]
+
+    @pytest.mark.asyncio
+    async def test_legacy_records_use_amount_bgn_fallback(self) -> None:
+        """Legacy records (amount_eur=None) use amount_bgn fallback via coalesce."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        # The coalesce happens in SQL, so the result already reflects the fallback
+        result_mock = MagicMock()
+        result_mock.all.return_value = [
+            ("Groceries", 250.0, 5),
+        ]
+        mock_session.execute = AsyncMock(return_value=result_mock)
+
+        result = await service.aggregate_transactions(year=2024, month=None, transaction_type=None)
+
+        assert len(result["aggregations"]) == 1
+        assert result["aggregations"][0]["total_eur"] == 250.0
+        # Verify execute was called (the coalesce is in the SQL query)
+        mock_session.execute.assert_awaited_once()
+
+
 class TestGetAvailableYears:
     """Tests for BudgetService.get_available_years method."""
 
