@@ -139,20 +139,36 @@ class MealService:
         # Save liked LLM-generated recipe
         elif liked:
             today = datetime.date.today()
-            new_recipe = Recipe(
-                name=recipe_name,
-                ingredients=[],
-                instructions="",
-                prep_time=1,
-                cuisine="",
-                tags=[],
-                source="liked",
-                times_made=1,
-                last_made=today,
+            # Check for existing liked recipe with same name
+            existing_stmt = select(Recipe).where(
+                Recipe.name == recipe_name,
+                Recipe.source == "liked",
             )
-            session.add(new_recipe)
-            await session.flush()
-            recipe_id = new_recipe.id
+            existing_result = await session.execute(existing_stmt)
+            existing_recipe = existing_result.scalar_one_or_none()
+
+            if existing_recipe is not None:
+                # Reuse existing recipe
+                existing_recipe.times_made += 1
+                existing_recipe.last_made = today
+                recipe_id = existing_recipe.id
+                resolved_name = existing_recipe.name
+            else:
+                # Create new liked recipe
+                new_recipe = Recipe(
+                    name=recipe_name,
+                    ingredients=[],
+                    instructions="",
+                    prep_time=1,
+                    cuisine="",
+                    tags=[],
+                    source="liked",
+                    times_made=1,
+                    last_made=today,
+                )
+                session.add(new_recipe)
+                await session.flush()
+                recipe_id = new_recipe.id
 
         # Create feedback record
         feedback = RecipeFeedback(
