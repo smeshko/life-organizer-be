@@ -199,6 +199,18 @@ class TestMealFeedbackRequest:
         with pytest.raises(ValidationError):
             MealFeedbackRequest(recipe_name="Test")
 
+    def test_empty_recipe_name_raises(self) -> None:
+        """Empty recipe_name should raise ValidationError."""
+        with pytest.raises(ValidationError):
+            MealFeedbackRequest(recipe_name="", liked=True)
+
+    def test_non_positive_recipe_id_raises(self) -> None:
+        """Non-positive recipe_id should raise ValidationError."""
+        with pytest.raises(ValidationError):
+            MealFeedbackRequest(recipe_id=0, recipe_name="Test", liked=True)
+        with pytest.raises(ValidationError):
+            MealFeedbackRequest(recipe_id=-1, recipe_name="Test", liked=True)
+
 
 @pytest.mark.unit
 class TestMealFeedbackResponse:

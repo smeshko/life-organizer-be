@@ -237,12 +237,14 @@ class TestMealServiceSaveFeedback:
             session=session,
         )
 
-        # Verify Recipe created with source='liked'
+        # Verify Recipe created with source='liked' and stats initialized
         added_objects = [call[0][0] for call in session.add.call_args_list]
         recipes = [o for o in added_objects if isinstance(o, Recipe)]
         assert len(recipes) == 1
         assert recipes[0].source == "liked"
         assert recipes[0].name == "Greek Lemon Chicken"
+        assert recipes[0].times_made == 1
+        assert recipes[0].last_made == datetime.date.today()
 
         # Verify feedback and history reference the new recipe id
         feedbacks = [o for o in added_objects if isinstance(o, RecipeFeedback)]
@@ -270,6 +272,8 @@ class TestMealServiceSaveFeedback:
         result_mock.scalar_one_or_none.return_value = mock_recipe
         session.execute = AsyncMock(return_value=result_mock)
 
+        mock_recipe.name = "Spaghetti Bolognese"  # DB name differs from request
+
         await service.save_feedback(
             recipe_id=5,
             recipe_name="Spaghetti",
@@ -286,8 +290,11 @@ class TestMealServiceSaveFeedback:
         histories = [o for o in added_objects if isinstance(o, MealHistory)]
         assert len(feedbacks) == 1
         assert feedbacks[0].recipe_id == 5
+        # Verify resolved name from DB is used, not the request name
+        assert feedbacks[0].recipe_name == "Spaghetti Bolognese"
         assert len(histories) == 1
         assert histories[0].recipe_id == 5
+        assert histories[0].recipe_name == "Spaghetti Bolognese"
 
     @pytest.mark.asyncio
     async def test_negative_feedback_no_recipe_id_does_not_create_recipe(self) -> None:
@@ -324,6 +331,7 @@ class TestMealServiceSaveFeedback:
 
         mock_recipe = MagicMock()
         mock_recipe.id = 7
+        mock_recipe.name = "Ok Pasta"
         mock_recipe.times_made = 1
         mock_recipe.last_made = None
 

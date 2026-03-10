@@ -125,6 +125,7 @@ class MealService:
             HTTPException: 404 if recipe_id provided but not found
         """
         # Lookup existing recipe if recipe_id provided
+        resolved_name = recipe_name
         if recipe_id is not None:
             stmt = select(Recipe).where(Recipe.id == recipe_id)
             result = await session.execute(stmt)
@@ -133,9 +134,11 @@ class MealService:
                 raise HTTPException(status_code=404, detail="Recipe not found")
             recipe.times_made += 1
             recipe.last_made = datetime.date.today()
+            resolved_name = recipe.name
 
         # Save liked LLM-generated recipe
         elif liked:
+            today = datetime.date.today()
             new_recipe = Recipe(
                 name=recipe_name,
                 ingredients=[],
@@ -144,6 +147,8 @@ class MealService:
                 cuisine="",
                 tags=[],
                 source="liked",
+                times_made=1,
+                last_made=today,
             )
             session.add(new_recipe)
             await session.flush()
@@ -152,7 +157,7 @@ class MealService:
         # Create feedback record
         feedback = RecipeFeedback(
             recipe_id=recipe_id,
-            recipe_name=recipe_name,
+            recipe_name=resolved_name,
             liked=liked,
             notes=notes,
         )
@@ -161,7 +166,7 @@ class MealService:
         # Create history record
         history = MealHistory(
             recipe_id=recipe_id,
-            recipe_name=recipe_name,
+            recipe_name=resolved_name,
             cooked_date=datetime.date.today(),
         )
         session.add(history)

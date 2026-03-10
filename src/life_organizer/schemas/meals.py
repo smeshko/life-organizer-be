@@ -53,8 +53,8 @@ class MealFeedbackRequest(BaseModel):
         notes: Optional feedback notes
     """
 
-    recipe_id: int | None = Field(default=None)
-    recipe_name: str
+    recipe_id: int | None = Field(default=None, gt=0)
+    recipe_name: str = Field(min_length=1)
     liked: bool
     notes: str | None = Field(default=None)
 
