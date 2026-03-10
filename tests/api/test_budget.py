@@ -650,3 +650,259 @@ class TestGetAvailableYears:
         result = await get_available_years()
 
         assert result.years == []
+
+
+def _make_mock_plan(
+    id: int = 1,
+    year: int = 2026,
+    month: int = 1,
+    transaction_type: str = "Expenses",
+    category: str = "Groceries",
+    planned_amount: float = 400.0,
+) -> MagicMock:
+    """Create a mock BudgetPlan for route tests."""
+    mock = MagicMock()
+    mock.id = id
+    mock.year = year
+    mock.month = month
+    mock.transaction_type = transaction_type
+    mock.category = category
+    mock.planned_amount = planned_amount
+    return mock
+
+
+class TestGetBudgetPlan:
+    """Tests for GET /api/v1/budget/plan/{year} endpoint."""
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    async def test_200_empty_plan(self, mock_budget: AsyncMock) -> None:
+        """No entries returns empty plan."""
+        from life_organizer.api.routes.budget import get_budget_plan
+
+        mock_budget.get_plan = AsyncMock(return_value=[])
+
+        result = await get_budget_plan(year=2026)
+
+        assert result.year == 2026
+        assert result.entries == []
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    async def test_200_with_entries(self, mock_budget: AsyncMock) -> None:
+        """Entries correctly grouped by type/category with amounts dict."""
+        from life_organizer.api.routes.budget import get_budget_plan
+
+        plans = [
+            _make_mock_plan(id=1, month=1, category="Groceries", planned_amount=400.0),
+            _make_mock_plan(id=2, month=2, category="Groceries", planned_amount=450.0),
+            _make_mock_plan(
+                id=3,
+                month=1,
+                transaction_type="Income",
+                category="Salary Ivo",
+                planned_amount=3000.0,
+            ),
+        ]
+        mock_budget.get_plan = AsyncMock(return_value=plans)
+
+        result = await get_budget_plan(year=2026)
+
+        assert result.year == 2026
+        assert len(result.entries) == 2
+
+        # Find the Groceries entry
+        groceries = next(e for e in result.entries if e.category == "Groceries")
+        assert groceries.transaction_type == "Expenses"
+        assert groceries.amounts == {"1": 400.0, "2": 450.0}
+
+        # Find the Income entry
+        income = next(e for e in result.entries if e.category == "Salary Ivo")
+        assert income.transaction_type == "Income"
+        assert income.amounts == {"1": 3000.0}
+
+    @pytest.mark.asyncio
+    async def test_422_invalid_year(self) -> None:
+        """Year outside 2000-2100 has Path constraints."""
+        import inspect
+
+        from life_organizer.api.routes.budget import get_budget_plan
+
+        sig = inspect.signature(get_budget_plan)
+        year_param = sig.parameters["year"]
+        path_info = year_param.default
+        metadata_values = {type(m).__name__: m for m in path_info.metadata}
+        assert metadata_values["Ge"].ge == 2000
+        assert metadata_values["Le"].le == 2100
+
+
+class TestPutBudgetPlan:
+    """Tests for PUT /api/v1/budget/plan/{year} endpoint."""
+
+    @classmethod
+    def setup_class(cls) -> None:
+        """Disable rate limiter for PUT endpoint tests."""
+        from life_organizer.rate_limit import limiter
+
+        cls._limiter_enabled = limiter.enabled  # type: ignore[attr-defined]
+        limiter.enabled = False
+
+    @classmethod
+    def teardown_class(cls) -> None:
+        """Restore rate limiter state."""
+        from life_organizer.rate_limit import limiter
+
+        limiter.enabled = cls._limiter_enabled  # type: ignore[attr-defined]
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    async def test_200_upsert_entries(self, mock_budget: AsyncMock) -> None:
+        """Valid entries return success with updated count."""
+        from life_organizer.api.routes.budget import upsert_budget_plan
+        from life_organizer.schemas.budget import BudgetPlanEntry, BudgetPlanRequest
+
+        mock_budget.upsert_plan = AsyncMock(return_value=2)
+
+        body = BudgetPlanRequest(
+            entries=[
+                BudgetPlanEntry(
+                    transaction_type="Expenses",
+                    category="Groceries",
+                    month=1,
+                    planned_amount=400.0,
+                ),
+                BudgetPlanEntry(
+                    transaction_type="Expenses",
+                    category="Groceries",
+                    month=2,
+                    planned_amount=450.0,
+                ),
+            ]
+        )
+
+        result = await upsert_budget_plan(_make_mock_request(), body, year=2026)
+
+        assert result.success is True
+        assert result.updated == 2
+        mock_budget.upsert_plan.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_422_invalid_month(self) -> None:
+        """Month=13 rejected by Pydantic validation."""
+        from pydantic import ValidationError
+
+        from life_organizer.schemas.budget import BudgetPlanEntry
+
+        with pytest.raises(ValidationError):
+            BudgetPlanEntry(
+                transaction_type="Expenses",
+                category="Groceries",
+                month=13,
+                planned_amount=400.0,
+            )
+
+    @pytest.mark.asyncio
+    async def test_422_negative_amount(self) -> None:
+        """Negative planned_amount rejected by Pydantic validation."""
+        from pydantic import ValidationError
+
+        from life_organizer.schemas.budget import BudgetPlanEntry
+
+        with pytest.raises(ValidationError):
+            BudgetPlanEntry(
+                transaction_type="Expenses",
+                category="Groceries",
+                month=1,
+                planned_amount=-100.0,
+            )
+
+    @pytest.mark.asyncio
+    async def test_422_invalid_transaction_type(self) -> None:
+        """Invalid transaction_type returns 422."""
+        from life_organizer.api.routes.budget import upsert_budget_plan
+        from life_organizer.schemas.budget import BudgetPlanEntry, BudgetPlanRequest
+
+        body = BudgetPlanRequest(
+            entries=[
+                BudgetPlanEntry(
+                    transaction_type="Gift",
+                    category="Other",
+                    month=1,
+                    planned_amount=100.0,
+                ),
+            ]
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            await upsert_budget_plan(_make_mock_request(), body, year=2026)
+
+        assert exc_info.value.status_code == 422
+        assert "Invalid transaction_type" in str(exc_info.value.detail)
+
+    @pytest.mark.asyncio
+    async def test_422_invalid_category(self) -> None:
+        """Invalid category for transaction type returns 422."""
+        from life_organizer.api.routes.budget import upsert_budget_plan
+        from life_organizer.schemas.budget import BudgetPlanEntry, BudgetPlanRequest
+
+        body = BudgetPlanRequest(
+            entries=[
+                BudgetPlanEntry(
+                    transaction_type="Expenses",
+                    category="NonexistentCategory",
+                    month=1,
+                    planned_amount=100.0,
+                ),
+            ]
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            await upsert_budget_plan(_make_mock_request(), body, year=2026)
+
+        assert exc_info.value.status_code == 422
+        assert "Invalid category" in str(exc_info.value.detail)
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    async def test_200_duplicate_entries_deduplicated(self, mock_budget: AsyncMock) -> None:
+        """Duplicate entries are deduplicated (last-write-wins) before upsert."""
+        from life_organizer.api.routes.budget import upsert_budget_plan
+        from life_organizer.schemas.budget import BudgetPlanEntry, BudgetPlanRequest
+
+        mock_budget.upsert_plan = AsyncMock(return_value=1)
+
+        body = BudgetPlanRequest(
+            entries=[
+                BudgetPlanEntry(
+                    transaction_type="Expenses",
+                    category="Groceries",
+                    month=1,
+                    planned_amount=400.0,
+                ),
+                BudgetPlanEntry(
+                    transaction_type="Expenses",
+                    category="Groceries",
+                    month=1,
+                    planned_amount=500.0,
+                ),
+            ]
+        )
+
+        result = await upsert_budget_plan(_make_mock_request(), body, year=2026)
+
+        assert result.success is True
+        assert result.updated == 1
+        # Verify only 1 deduplicated entry was passed to service
+        call_args = mock_budget.upsert_plan.call_args
+        assert len(call_args[0][1]) == 1
+        assert call_args[0][1][0]["planned_amount"] == 500.0
+
+    @pytest.mark.asyncio
+    async def test_422_empty_entries(self) -> None:
+        """Empty entries list rejected by Pydantic validation."""
+        from pydantic import ValidationError
+
+        from life_organizer.schemas.budget import BudgetPlanRequest
+
+        with pytest.raises(ValidationError):
+            BudgetPlanRequest(entries=[])

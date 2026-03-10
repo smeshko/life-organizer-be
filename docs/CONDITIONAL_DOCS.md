@@ -66,3 +66,11 @@ This guide helps you find relevant documentation based on what you're working on
     - When implementing query filtering with optional AND'd conditions
     - When creating non-LLM read-only endpoints for the budget module
     - When adding database indexes for query performance optimization
+
+- docs/features/budget-plan-crud.md
+  - Conditions:
+    - When implementing budget planning or planned-vs-actual features
+    - When using PostgreSQL upsert (ON CONFLICT DO UPDATE) via SQLAlchemy pg_insert
+    - When adding new CRUD endpoints to the budget plan module
+    - When modifying the budget.plans table schema or constraints
+    - When building grouped/pivoted API responses from flat database rows

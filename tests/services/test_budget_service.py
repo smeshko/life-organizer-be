@@ -687,3 +687,189 @@ class TestGetAvailableYears:
         years = await service.get_available_years()
 
         assert years == []
+
+
+def _make_mock_plan(
+    id: int = 1,
+    year: int = 2026,
+    month: int = 1,
+    transaction_type: str = "Expenses",
+    category: str = "Groceries",
+    planned_amount: float = 400.0,
+) -> MagicMock:
+    """Create a mock BudgetPlan object."""
+    mock = MagicMock()
+    mock.id = id
+    mock.year = year
+    mock.month = month
+    mock.transaction_type = transaction_type
+    mock.category = category
+    mock.planned_amount = planned_amount
+    return mock
+
+
+class TestGetPlan:
+    """Tests for BudgetService.get_plan method."""
+
+    @pytest.mark.asyncio
+    async def test_no_entries_returns_empty_list(self) -> None:
+        """Year with no plans returns empty list."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        scalars_mock = MagicMock()
+        scalars_mock.all.return_value = []
+        result_mock = MagicMock()
+        result_mock.scalars.return_value = scalars_mock
+        mock_session.execute = AsyncMock(return_value=result_mock)
+
+        result = await service.get_plan(2026)
+
+        assert result == []
+        mock_session.execute.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_returns_all_entries_for_year(self) -> None:
+        """Returns all BudgetPlan rows for the year."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        plans = [
+            _make_mock_plan(id=1, month=1, category="Groceries"),
+            _make_mock_plan(id=2, month=2, category="Groceries"),
+            _make_mock_plan(id=3, month=1, category="Eat out"),
+        ]
+        scalars_mock = MagicMock()
+        scalars_mock.all.return_value = plans
+        result_mock = MagicMock()
+        result_mock.scalars.return_value = scalars_mock
+        mock_session.execute = AsyncMock(return_value=result_mock)
+
+        result = await service.get_plan(2026)
+
+        assert len(result) == 3
+        assert result[0].category == "Groceries"
+
+    @pytest.mark.asyncio
+    async def test_ordered_by_type_category_month(self) -> None:
+        """Verify query is executed (ordering is in SQL)."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        plans = [
+            _make_mock_plan(id=1, transaction_type="Expenses", category="Eat out", month=1),
+            _make_mock_plan(id=2, transaction_type="Expenses", category="Groceries", month=1),
+            _make_mock_plan(id=3, transaction_type="Income", category="Salary Ivo", month=1),
+        ]
+        scalars_mock = MagicMock()
+        scalars_mock.all.return_value = plans
+        result_mock = MagicMock()
+        result_mock.scalars.return_value = scalars_mock
+        mock_session.execute = AsyncMock(return_value=result_mock)
+
+        result = await service.get_plan(2026)
+
+        assert len(result) == 3
+        mock_session.execute.assert_awaited_once()
+
+
+class TestUpsertPlan:
+    """Tests for BudgetService.upsert_plan method."""
+
+    @pytest.mark.asyncio
+    async def test_insert_new_entries(self) -> None:
+        """New entries are inserted, returns correct count."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        mock_session.execute = AsyncMock()
+
+        entries: list[dict[str, object]] = [
+            {
+                "transaction_type": "Expenses",
+                "category": "Groceries",
+                "month": 1,
+                "planned_amount": 400.0,
+            },
+            {
+                "transaction_type": "Expenses",
+                "category": "Groceries",
+                "month": 2,
+                "planned_amount": 450.0,
+            },
+        ]
+
+        count = await service.upsert_plan(2026, entries)
+
+        assert count == 2
+        mock_session.execute.assert_awaited_once()
+        mock_session.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_update_existing_entries(self) -> None:
+        """Upsert returns correct count when updating existing entries."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        mock_session.execute = AsyncMock()
+
+        entries: list[dict[str, object]] = [
+            {
+                "transaction_type": "Expenses",
+                "category": "Groceries",
+                "month": 1,
+                "planned_amount": 500.0,
+            },
+        ]
+
+        count = await service.upsert_plan(2026, entries)
+
+        assert count == 1
+        mock_session.execute.assert_awaited_once()
+        mock_session.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_atomic_commit(self) -> None:
+        """All entries committed together in single execute."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        mock_session.execute = AsyncMock()
+
+        entries: list[dict[str, object]] = [
+            {
+                "transaction_type": "Expenses",
+                "category": "Groceries",
+                "month": m,
+                "planned_amount": 400.0,
+            }
+            for m in range(1, 13)
+        ]
+
+        count = await service.upsert_plan(2026, entries)
+
+        assert count == 12
+        # Single execute call for all 12 entries (bulk upsert)
+        mock_session.execute.assert_awaited_once()
+        mock_session.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_db_error_rolls_back(self) -> None:
+        """Database error triggers rollback."""
+        mock_factory, mock_session = _mock_session_factory()
+        mock_session.execute = AsyncMock(side_effect=Exception("DB connection lost"))
+        service = BudgetService(session_factory=mock_factory)
+
+        entries: list[dict[str, object]] = [
+            {
+                "transaction_type": "Expenses",
+                "category": "Groceries",
+                "month": 1,
+                "planned_amount": 400.0,
+            },
+        ]
+
+        with pytest.raises(Exception, match="DB connection lost"):
+            await service.upsert_plan(2026, entries)
+
+        mock_session.rollback.assert_awaited_once()

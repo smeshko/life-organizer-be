@@ -108,3 +108,49 @@ class AggregationResponse(BaseModel):
     aggregations: list[CategoryAggregation] = Field(
         description="Category-level totals sorted by total_eur descending"
     )
+
+
+# Budget Plan schemas
+
+
+class BudgetPlanEntry(BaseModel):
+    """Single entry in a budget plan upsert request."""
+
+    transaction_type: str = Field(description="Transaction type (Expenses, Income, or Savings)")
+    category: str = Field(description="Category name within the transaction type")
+    month: int = Field(ge=1, le=12, description="Month number (1-12)")
+    planned_amount: float = Field(ge=0, description="Planned amount for this category/month")
+
+
+class BudgetPlanRequest(BaseModel):
+    """Request body for PUT /plan/{year} endpoint."""
+
+    entries: list[BudgetPlanEntry] = Field(
+        min_length=1, description="List of budget plan entries to upsert"
+    )
+
+
+class BudgetPlanUpsertResponse(BaseModel):
+    """Response for PUT /plan/{year} endpoint."""
+
+    success: bool = Field(description="Whether the upsert operation succeeded")
+    updated: int = Field(description="Number of entries upserted")
+
+
+class BudgetPlanAmounts(BaseModel):
+    """Single category's planned amounts across months in a GET response."""
+
+    transaction_type: str = Field(description="Transaction type (Expenses, Income, or Savings)")
+    category: str = Field(description="Category name within the transaction type")
+    amounts: dict[str, float] = Field(
+        description="Planned amounts by month number (keys '1'-'12', months without plans omitted)"
+    )
+
+
+class BudgetPlanResponse(BaseModel):
+    """Response for GET /plan/{year} endpoint."""
+
+    year: int = Field(description="Budget plan year")
+    entries: list[BudgetPlanAmounts] = Field(
+        description="Plan entries grouped by transaction type and category"
+    )
