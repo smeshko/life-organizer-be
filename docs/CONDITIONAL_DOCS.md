@@ -38,3 +38,10 @@ This guide helps you find relevant documentation based on what you're working on
     - When implementing image-based data extraction for the budget domain
     - When modifying the Revolut screenshot parsing prompt or extraction logic
     - When extending the budget import pipeline with new input modalities (e.g., PDF, OCR)
+
+- docs/features/meals-schema-and-models.md
+  - Conditions:
+    - When creating ORM models or migrations for the meals domain
+    - When building API endpoints for recipes, meal history, or recipe feedback
+    - When adding new tables to the meals schema namespace
+    - When implementing meal planning features (Epic 3: FR13-FR22)
