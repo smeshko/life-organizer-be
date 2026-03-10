@@ -249,6 +249,11 @@ So that my expense entries are processed faster and the system is easier to main
 **Then** the system returns a 500 with a clear error message (not raw API error) (NFR6, NFR8)
 **And** the full error is logged internally
 
+**Given** the API routes have been restructured
+**When** the FastAPI app is running
+**Then** Swagger UI is accessible at `/api/v1/docs` (NFR11)
+**And** all new budget endpoints appear in the interactive documentation with correct request/response schemas
+
 **Given** all changes are complete
 **When** `make lint && make type-check && make test` are run
 **Then** all quality gates pass with no errors
@@ -572,6 +577,11 @@ So that I get personalized meal ideas that match my preferences and available in
 **Given** the meals router is registered in `main.py`
 **When** `GET /api/v1/meals/suggest` is attempted (wrong method)
 **Then** a 405 Method Not Allowed is returned
+
+**Given** the meals router is registered in `main.py`
+**When** the FastAPI app is running
+**Then** all meal endpoints appear in Swagger UI at `/api/v1/docs` (NFR11)
+**And** request/response schemas are correctly documented via Pydantic models
 
 **Given** all changes are complete
 **When** `make lint && make type-check && make test` are run

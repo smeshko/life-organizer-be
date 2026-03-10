@@ -53,6 +53,7 @@ projectType: 'brownfield'
 3. **Error Handling** — consistent error response format across all endpoints
 4. **Image Handling** — multipart form-data support (new)
 5. **Database Schema Evolution** — new tables alongside existing ones
+6. **API Documentation** — FastAPI's auto-generated Swagger UI at `/api/v1/docs` must remain enabled for all endpoints (NFR11)
 
 ## Starter Template Evaluation
 
@@ -445,6 +446,10 @@ Uses FastAPI's default `HTTPException` format. Status codes: 400 (bad input), 40
 
 **Pattern:** All error handlers log the full error internally. Client receives clean, descriptive messages without implementation details.
 
+### API Documentation
+
+FastAPI's auto-generated Swagger UI must remain enabled at `/api/v1/docs` (NFR11). This is the existing behavior — do not disable it during the refactor. All new endpoints (budget, meals) must appear in the interactive docs with proper request/response schemas. FastAPI generates this automatically from Pydantic models and route type hints — no additional configuration needed as long as routes use typed parameters and response models.
+
 ### Testing Patterns
 
 **Unit tests:** Mock external dependencies (Claude API, database). Test service methods and route handlers independently.
@@ -612,6 +617,7 @@ Meal Feedback: iOS → POST /meals/feedback → MealService.save_feedback() → 
 | NFR1-NFR4 (Performance) | ✅ Full | Tiered response times achievable with current stack |
 | NFR5-NFR8 (Reliability) | ✅ Full | Atomic transactions, error handling patterns defined |
 | NFR9-NFR10 (Security) | ✅ Full | Rate limiting + env-based secrets |
+| NFR11 (Developer Experience) | ✅ Full | FastAPI auto-generated Swagger UI retained at `/api/v1/docs` |
 
 ### Implementation Readiness
 

@@ -409,3 +409,9 @@ This is low-cost iteration — prompt changes, not code changes.
 |-------------|--------|---------|
 | **NFR9:** Rate limiting on LLM endpoints | 5-10 req/min | Cost protection since API is exposed |
 | **NFR10:** No secrets in codebase | API keys via environment variables only | Standard practice |
+
+### Developer Experience
+
+| Requirement | Target | Context |
+|-------------|--------|---------|
+| **NFR11:** Swagger UI available | Interactive API docs served at `/api/v1/docs` | FastAPI's auto-generated Swagger UI must remain enabled for all endpoints. Essential for API exploration and testing during development. |
