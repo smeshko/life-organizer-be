@@ -863,6 +863,41 @@ class TestPutBudgetPlan:
         assert "Invalid category" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    async def test_200_duplicate_entries_deduplicated(self, mock_budget: AsyncMock) -> None:
+        """Duplicate entries are deduplicated (last-write-wins) before upsert."""
+        from life_organizer.api.routes.budget import upsert_budget_plan
+        from life_organizer.schemas.budget import BudgetPlanEntry, BudgetPlanRequest
+
+        mock_budget.upsert_plan = AsyncMock(return_value=1)
+
+        body = BudgetPlanRequest(
+            entries=[
+                BudgetPlanEntry(
+                    transaction_type="Expenses",
+                    category="Groceries",
+                    month=1,
+                    planned_amount=400.0,
+                ),
+                BudgetPlanEntry(
+                    transaction_type="Expenses",
+                    category="Groceries",
+                    month=1,
+                    planned_amount=500.0,
+                ),
+            ]
+        )
+
+        result = await upsert_budget_plan(_make_mock_request(), body, year=2026)
+
+        assert result.success is True
+        assert result.updated == 1
+        # Verify only 1 deduplicated entry was passed to service
+        call_args = mock_budget.upsert_plan.call_args
+        assert len(call_args[0][1]) == 1
+        assert call_args[0][1][0]["planned_amount"] == 500.0
+
+    @pytest.mark.asyncio
     async def test_422_empty_entries(self) -> None:
         """Empty entries list rejected by Pydantic validation."""
         from pydantic import ValidationError

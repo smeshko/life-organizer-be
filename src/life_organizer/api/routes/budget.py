@@ -674,15 +674,17 @@ async def upsert_budget_plan(
             )
 
     try:
-        entries_dicts: list[dict[str, object]] = [
-            {
+        # Deduplicate entries: last-write-wins for same (month, transaction_type, category)
+        seen: dict[tuple[int, str, str], dict[str, object]] = {}
+        for e in body.entries:
+            key = (e.month, e.transaction_type, e.category)
+            seen[key] = {
                 "transaction_type": e.transaction_type,
                 "category": e.category,
                 "month": e.month,
                 "planned_amount": e.planned_amount,
             }
-            for e in body.entries
-        ]
+        entries_dicts: list[dict[str, object]] = list(seen.values())
 
         count = await budget_service.upsert_plan(year, entries_dicts)
         return BudgetPlanUpsertResponse(success=True, updated=count)
