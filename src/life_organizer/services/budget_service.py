@@ -274,7 +274,7 @@ class BudgetService:
             # Items query with pagination
             items_stmt = (
                 select(BudgetTransaction)
-                .order_by(BudgetTransaction.date.desc())
+                .order_by(BudgetTransaction.date.desc(), BudgetTransaction.id.desc())
                 .offset((page - 1) * page_size)
                 .limit(page_size)
             )
