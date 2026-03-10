@@ -1,18 +1,16 @@
 ## [Unreleased] - 2026-03-10
 
 ### Added
-- Meal suggestion pydantic schemas (MealSuggestRequest, MealSuggestion, MealSuggestResponse)
-- Meal suggestion system prompt with family preferences, store inventory, and JSON output format
-- `suggest_meals` method to ClaudeService with retry logic and markdown code fence stripping
-- MealService for meal suggestion orchestration (queries meal_history and recipe_feedback)
-- Meals API route with POST /suggest endpoint and 10/minute rate limiting
-- Meals router registered in main.py under /api/v1/meals
+- Add POST /api/v1/meals/feedback endpoint
+- Add save_feedback method to MealService
+- Add meal feedback request/response schemas
 
 ### Fixed
-- Improve error handling for meal suggestion parsing
+- Cycle 2 - add max_length=255 to recipe_name validation
+- Cycle 1 - resolve data integrity and validation issues
 
 ### Documentation
-- Add meal suggestion endpoint feature documentation
+- Add feature documentation for meal feedback endpoint
 
 ### Other
-- Add rate limiting tests for meals suggest endpoint
+- Add feedback-specific model tests
