@@ -174,6 +174,52 @@ def test_recipe_has_cuisine_index():
     assert "ix_meals_recipes_cuisine" in index_names
 
 
+def test_recipe_source_accepts_liked():
+    """Test Recipe can be instantiated with source='liked'."""
+    recipe = Recipe(
+        name="Greek Lemon Chicken",
+        ingredients=[],
+        instructions="",
+        prep_time=1,
+        cuisine="",
+        tags=[],
+        source="liked",
+    )
+    assert recipe.source == "liked"
+
+
+def test_recipe_source_constraint_includes_liked():
+    """Test check constraint includes 'liked' as valid source value."""
+    constraints = [c for c in Recipe.__table__.constraints if hasattr(c, "sqltext")]
+    source_constraint = next(c for c in constraints if c.name == "check_source_valid")
+    assert "liked" in str(source_constraint.sqltext)
+
+
+def test_recipe_feedback_with_all_fields():
+    """Test RecipeFeedback can be instantiated with all fields including notes."""
+    feedback = RecipeFeedback(
+        recipe_id=1,
+        recipe_name="Greek Lemon Chicken",
+        liked=True,
+        notes="great, would add more garlic",
+    )
+    assert feedback.recipe_id == 1
+    assert feedback.recipe_name == "Greek Lemon Chicken"
+    assert feedback.liked is True
+    assert feedback.notes == "great, would add more garlic"
+
+
+def test_meal_history_with_recipe_id():
+    """Test MealHistory can be instantiated with a recipe_id."""
+    history = MealHistory(
+        recipe_id=1,
+        recipe_name="Greek Lemon Chicken",
+        cooked_date=datetime.date(2026, 3, 10),
+    )
+    assert history.recipe_id == 1
+    assert history.recipe_name == "Greek Lemon Chicken"
+
+
 # ──────────────────────────────────────────────
 # MealHistory model tests
 # ──────────────────────────────────────────────

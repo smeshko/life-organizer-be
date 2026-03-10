@@ -4,6 +4,8 @@ import pytest
 from pydantic import ValidationError
 
 from life_organizer.schemas.meals import (
+    MealFeedbackRequest,
+    MealFeedbackResponse,
     MealSuggestion,
     MealSuggestRequest,
     MealSuggestResponse,
@@ -158,3 +160,69 @@ class TestMealSuggestResponse:
         """Missing suggestions field should raise ValidationError."""
         with pytest.raises(ValidationError):
             MealSuggestResponse()
+
+
+@pytest.mark.unit
+class TestMealFeedbackRequest:
+    """Tests for MealFeedbackRequest schema."""
+
+    def test_valid_request_all_fields(self) -> None:
+        """Valid request with all fields should be created."""
+        req = MealFeedbackRequest(
+            recipe_id=1,
+            recipe_name="Greek Lemon Chicken",
+            liked=True,
+            notes="great, would add more garlic",
+        )
+        assert req.recipe_id == 1
+        assert req.recipe_name == "Greek Lemon Chicken"
+        assert req.liked is True
+        assert req.notes == "great, would add more garlic"
+
+    def test_recipe_id_defaults_to_none(self) -> None:
+        """recipe_id should default to None."""
+        req = MealFeedbackRequest(recipe_name="Test", liked=True)
+        assert req.recipe_id is None
+
+    def test_notes_defaults_to_none(self) -> None:
+        """notes should default to None."""
+        req = MealFeedbackRequest(recipe_name="Test", liked=False)
+        assert req.notes is None
+
+    def test_missing_recipe_name_raises(self) -> None:
+        """Missing recipe_name should raise ValidationError."""
+        with pytest.raises(ValidationError):
+            MealFeedbackRequest(liked=True)
+
+    def test_missing_liked_raises(self) -> None:
+        """Missing liked should raise ValidationError."""
+        with pytest.raises(ValidationError):
+            MealFeedbackRequest(recipe_name="Test")
+
+    def test_empty_recipe_name_raises(self) -> None:
+        """Empty recipe_name should raise ValidationError."""
+        with pytest.raises(ValidationError):
+            MealFeedbackRequest(recipe_name="", liked=True)
+
+    def test_non_positive_recipe_id_raises(self) -> None:
+        """Non-positive recipe_id should raise ValidationError."""
+        with pytest.raises(ValidationError):
+            MealFeedbackRequest(recipe_id=0, recipe_name="Test", liked=True)
+        with pytest.raises(ValidationError):
+            MealFeedbackRequest(recipe_id=-1, recipe_name="Test", liked=True)
+
+    def test_recipe_name_exceeding_max_length_raises(self) -> None:
+        """recipe_name exceeding 255 characters should raise ValidationError."""
+        with pytest.raises(ValidationError):
+            MealFeedbackRequest(recipe_name="A" * 256, liked=True)
+
+
+@pytest.mark.unit
+class TestMealFeedbackResponse:
+    """Tests for MealFeedbackResponse schema."""
+
+    def test_valid_response(self) -> None:
+        """Valid response with success and message."""
+        resp = MealFeedbackResponse(success=True, message="Feedback recorded")
+        assert resp.success is True
+        assert resp.message == "Feedback recorded"

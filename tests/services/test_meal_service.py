@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi import HTTPException
 
+from life_organizer.db.models.meals import MealHistory, Recipe, RecipeFeedback
 from life_organizer.schemas.meals import MealSuggestion
 from life_organizer.services.meal_service import MealService
 
@@ -199,3 +200,195 @@ class TestMealServiceGetSuggestions:
 
         assert exc_info.value.status_code == 500
         assert "Failed to parse meal suggestions" in str(exc_info.value.detail)
+
+
+def _make_mock_session() -> AsyncMock:
+    """Create a mock async session for save_feedback tests."""
+    session = AsyncMock()
+    session.add = MagicMock()
+    session.flush = AsyncMock()
+    return session
+
+
+@pytest.mark.unit
+class TestMealServiceSaveFeedback:
+    """Tests for MealService.save_feedback method."""
+
+    @pytest.mark.asyncio
+    async def test_positive_feedback_no_recipe_id_creates_liked_recipe(self) -> None:
+        """Liked LLM-generated recipe (no recipe_id) should create Recipe with source='liked'."""
+        session = _make_mock_session()
+        service = MealService(session_factory=MagicMock())
+
+        # Mock flush to set id on the new recipe
+        async def mock_flush() -> None:
+            for call in session.add.call_args_list:
+                obj = call[0][0]
+                if isinstance(obj, Recipe):
+                    obj.id = 42
+
+        session.flush = AsyncMock(side_effect=mock_flush)
+
+        await service.save_feedback(
+            recipe_id=None,
+            recipe_name="Greek Lemon Chicken",
+            liked=True,
+            notes="great",
+            session=session,
+        )
+
+        # Verify Recipe created with source='liked' and stats initialized
+        added_objects = [call[0][0] for call in session.add.call_args_list]
+        recipes = [o for o in added_objects if isinstance(o, Recipe)]
+        assert len(recipes) == 1
+        assert recipes[0].source == "liked"
+        assert recipes[0].name == "Greek Lemon Chicken"
+        assert recipes[0].times_made == 1
+        assert recipes[0].last_made == datetime.date.today()
+
+        # Verify feedback and history reference the new recipe id
+        feedbacks = [o for o in added_objects if isinstance(o, RecipeFeedback)]
+        histories = [o for o in added_objects if isinstance(o, MealHistory)]
+        assert len(feedbacks) == 1
+        assert feedbacks[0].recipe_id == 42
+        assert feedbacks[0].liked is True
+        assert feedbacks[0].notes == "great"
+        assert len(histories) == 1
+        assert histories[0].recipe_id == 42
+        assert histories[0].recipe_name == "Greek Lemon Chicken"
+
+    @pytest.mark.asyncio
+    async def test_positive_feedback_with_existing_recipe_id(self) -> None:
+        """Feedback for known recipe should increment times_made and update last_made."""
+        session = _make_mock_session()
+        service = MealService(session_factory=MagicMock())
+
+        mock_recipe = MagicMock()
+        mock_recipe.id = 5
+        mock_recipe.times_made = 3
+        mock_recipe.last_made = None
+
+        result_mock = MagicMock()
+        result_mock.scalar_one_or_none.return_value = mock_recipe
+        session.execute = AsyncMock(return_value=result_mock)
+
+        mock_recipe.name = "Spaghetti Bolognese"  # DB name differs from request
+
+        await service.save_feedback(
+            recipe_id=5,
+            recipe_name="Spaghetti",
+            liked=True,
+            notes=None,
+            session=session,
+        )
+
+        assert mock_recipe.times_made == 4
+        assert mock_recipe.last_made == datetime.date.today()
+
+        added_objects = [call[0][0] for call in session.add.call_args_list]
+        feedbacks = [o for o in added_objects if isinstance(o, RecipeFeedback)]
+        histories = [o for o in added_objects if isinstance(o, MealHistory)]
+        assert len(feedbacks) == 1
+        assert feedbacks[0].recipe_id == 5
+        # Verify resolved name from DB is used, not the request name
+        assert feedbacks[0].recipe_name == "Spaghetti Bolognese"
+        assert len(histories) == 1
+        assert histories[0].recipe_id == 5
+        assert histories[0].recipe_name == "Spaghetti Bolognese"
+
+    @pytest.mark.asyncio
+    async def test_negative_feedback_no_recipe_id_does_not_create_recipe(self) -> None:
+        """Negative feedback without recipe_id should NOT create a Recipe."""
+        session = _make_mock_session()
+        service = MealService(session_factory=MagicMock())
+
+        await service.save_feedback(
+            recipe_id=None,
+            recipe_name="Bad Soup",
+            liked=False,
+            notes="too salty",
+            session=session,
+        )
+
+        added_objects = [call[0][0] for call in session.add.call_args_list]
+        recipes = [o for o in added_objects if isinstance(o, Recipe)]
+        assert len(recipes) == 0
+
+        feedbacks = [o for o in added_objects if isinstance(o, RecipeFeedback)]
+        assert len(feedbacks) == 1
+        assert feedbacks[0].liked is False
+        assert feedbacks[0].recipe_id is None
+
+        histories = [o for o in added_objects if isinstance(o, MealHistory)]
+        assert len(histories) == 1
+        assert histories[0].recipe_name == "Bad Soup"
+
+    @pytest.mark.asyncio
+    async def test_negative_feedback_with_existing_recipe_id(self) -> None:
+        """Negative feedback with recipe_id should still increment times_made."""
+        session = _make_mock_session()
+        service = MealService(session_factory=MagicMock())
+
+        mock_recipe = MagicMock()
+        mock_recipe.id = 7
+        mock_recipe.name = "Ok Pasta"
+        mock_recipe.times_made = 1
+        mock_recipe.last_made = None
+
+        result_mock = MagicMock()
+        result_mock.scalar_one_or_none.return_value = mock_recipe
+        session.execute = AsyncMock(return_value=result_mock)
+
+        await service.save_feedback(
+            recipe_id=7,
+            recipe_name="Ok Pasta",
+            liked=False,
+            notes=None,
+            session=session,
+        )
+
+        assert mock_recipe.times_made == 2
+        assert mock_recipe.last_made == datetime.date.today()
+
+        added_objects = [call[0][0] for call in session.add.call_args_list]
+        feedbacks = [o for o in added_objects if isinstance(o, RecipeFeedback)]
+        assert feedbacks[0].liked is False
+
+    @pytest.mark.asyncio
+    async def test_nonexistent_recipe_id_raises_404(self) -> None:
+        """Non-existent recipe_id should raise HTTPException 404."""
+        session = _make_mock_session()
+        service = MealService(session_factory=MagicMock())
+
+        result_mock = MagicMock()
+        result_mock.scalar_one_or_none.return_value = None
+        session.execute = AsyncMock(return_value=result_mock)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await service.save_feedback(
+                recipe_id=999,
+                recipe_name="Missing",
+                liked=True,
+                notes=None,
+                session=session,
+            )
+
+        assert exc_info.value.status_code == 404
+        assert "Recipe not found" in str(exc_info.value.detail)
+
+    @pytest.mark.asyncio
+    async def test_database_failure_no_partial_writes(self) -> None:
+        """Database failure should propagate without partial writes."""
+        session = _make_mock_session()
+        service = MealService(session_factory=MagicMock())
+
+        session.flush = AsyncMock(side_effect=Exception("DB connection lost"))
+
+        with pytest.raises(Exception, match="DB connection lost"):
+            await service.save_feedback(
+                recipe_id=None,
+                recipe_name="Test",
+                liked=True,
+                notes=None,
+                session=session,
+            )
