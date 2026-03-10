@@ -50,6 +50,7 @@ class BudgetTransaction(Base):
     __table_args__ = (
         Index("ix_budget_transactions_date", "date"),
         Index("ix_budget_transactions_type", "transaction_type"),
+        Index("ix_budget_transactions_category", "category"),
         CheckConstraint("amount > 0", name="check_amount_positive"),
         CheckConstraint("amount_bgn >= 0", name="check_amount_bgn_non_negative"),
         {"schema": "budget"},
