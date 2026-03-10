@@ -4,7 +4,7 @@ import datetime
 import logging
 import math
 
-from fastapi import APIRouter, HTTPException, Query, Request, Response
+from fastapi import APIRouter, HTTPException, Query, Request, Response, UploadFile
 from sqlalchemy import select
 
 from life_organizer.config import get_settings
@@ -131,6 +131,98 @@ async def process_budget(
         raise
     except Exception as e:
         logger.error(f"Budget processing error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Processing error: {e!s}") from e
+
+
+@router.post(
+    "/images",
+    response_model=list[ProcessingResponse],
+    response_description="List of transaction processing results from screenshot extraction",
+    responses={
+        200: {
+            "description": "Successfully extracted and processed transaction(s) from screenshots",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "single_image": {
+                            "summary": "Single Screenshot",
+                            "value": [
+                                {
+                                    "success": True,
+                                    "action_type": "backend_handled",
+                                    "message": "Logged expenses: 4.5 EUR in Eat out",
+                                },
+                                {
+                                    "success": True,
+                                    "action_type": "backend_handled",
+                                    "message": "Logged expenses: 12.0 EUR in Groceries",
+                                },
+                            ],
+                        },
+                    }
+                }
+            },
+        },
+        400: {"description": "Invalid file type (non-image file uploaded)"},
+        422: {"description": "No transactions found in the provided image(s)"},
+        500: {"description": "Server error during processing"},
+    },
+)
+@limiter.limit("10/minute")
+async def process_budget_images(
+    request: Request,  # noqa: ARG001 - required by slowapi rate limiter
+    files: list[UploadFile],
+) -> list[ProcessingResponse]:
+    """Process Revolut screenshot images and persist extracted transactions.
+
+    Accepts one or more image files, extracts transactions using Claude Vision,
+    then validates and persists them to the database.
+
+    Args:
+        request: Starlette Request object (required by slowapi rate limiter)
+        files: List of uploaded image files (PNG, JPEG, GIF, WebP)
+
+    Returns:
+        List of ProcessingResponse objects (one per extracted transaction)
+
+    Raises:
+        HTTPException 400: Non-image file uploaded
+        HTTPException 422: No transactions found in images
+        HTTPException 429: Rate limit exceeded
+        HTTPException 500: Server error during processing
+    """
+    try:
+        # Validate file types
+        for file in files:
+            if not file.content_type or not file.content_type.startswith("image/"):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid file type. Only image files are accepted.",
+                )
+
+        # Read image bytes
+        image_bytes_list: list[bytes] = []
+        for file in files:
+            content = await file.read()
+            image_bytes_list.append(content)
+
+        # Parse images using Claude Vision
+        classified_list = await claude_service.parse_budget_images(image_bytes_list)
+
+        # No transactions found
+        if not classified_list:
+            raise HTTPException(
+                status_code=422,
+                detail="No transactions found in the provided image(s).",
+            )
+
+        # Persist entries
+        return await budget_service.create_entries(classified_list)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Budget image processing error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Processing error: {e!s}") from e
 
 
