@@ -3,7 +3,7 @@
 import datetime
 import logging
 from decimal import Decimal
-from typing import Literal, Union, cast
+from typing import Any, Literal, TypedDict, Union, cast
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -18,6 +18,16 @@ logger = logging.getLogger(__name__)
 
 # Type alias for transaction types
 TransactionType = Literal["Expenses", "Income", "Savings"]
+
+
+class PaginatedResult(TypedDict):
+    """Type for paginated transaction query results."""
+
+    items: list[Any]
+    total: int
+    page: int
+    page_size: int
+
 
 # Constants
 USD_TO_EUR_RATE = 0.92
@@ -228,7 +238,7 @@ class BudgetService:
         category: str | None,
         page: int,
         page_size: int,
-    ) -> dict[str, object]:
+    ) -> PaginatedResult:
         """Query transactions with optional filters and pagination.
 
         Args:
