@@ -94,6 +94,122 @@ class TestBudgetRateLimiting:
 
 
 @pytest.mark.unit
+class TestMealsSuggestRateLimiting:
+    """Tests for rate limiting on POST /api/v1/meals/suggest."""
+
+    @patch("life_organizer.api.routes.meals.meal_service")
+    @patch("life_organizer.api.routes.meals.claude_service")
+    def test_10_requests_within_limit_succeed(self, mock_claude: AsyncMock, mock_meal: AsyncMock):
+        """10 requests to POST /api/v1/meals/suggest within 1 minute all succeed."""
+        from life_organizer.schemas.meals import MealSuggestion
+
+        mock_meal.get_suggestions = AsyncMock(
+            return_value=[
+                MealSuggestion(
+                    name="Test",
+                    ingredients=["a"],
+                    instructions="Do.",
+                    prep_time=10,
+                    cuisine="Italian",
+                    tags=[],
+                )
+            ]
+        )
+
+        client = _make_client()
+        for i in range(10):
+            response = client.post("/api/v1/meals/suggest", json={})
+            assert response.status_code == 200, (
+                f"Request {i + 1} failed with {response.status_code}"
+            )
+
+    @patch("life_organizer.api.routes.meals.meal_service")
+    @patch("life_organizer.api.routes.meals.claude_service")
+    def test_11th_request_returns_429(self, mock_claude: AsyncMock, mock_meal: AsyncMock):
+        """11th request to POST /api/v1/meals/suggest within 1 minute returns 429."""
+        from life_organizer.schemas.meals import MealSuggestion
+
+        mock_meal.get_suggestions = AsyncMock(
+            return_value=[
+                MealSuggestion(
+                    name="Test",
+                    ingredients=["a"],
+                    instructions="Do.",
+                    prep_time=10,
+                    cuisine="Italian",
+                    tags=[],
+                )
+            ]
+        )
+
+        client = _make_client()
+        for _i in range(10):
+            response = client.post("/api/v1/meals/suggest", json={})
+            assert response.status_code == 200
+
+        response = client.post("/api/v1/meals/suggest", json={})
+        assert response.status_code == 429
+
+    @patch("life_organizer.api.routes.meals.meal_service")
+    @patch("life_organizer.api.routes.meals.claude_service")
+    def test_429_response_has_retry_after_header(
+        self, mock_claude: AsyncMock, mock_meal: AsyncMock
+    ):
+        """429 response includes a Retry-After header."""
+        from life_organizer.schemas.meals import MealSuggestion
+
+        mock_meal.get_suggestions = AsyncMock(
+            return_value=[
+                MealSuggestion(
+                    name="Test",
+                    ingredients=["a"],
+                    instructions="Do.",
+                    prep_time=10,
+                    cuisine="Italian",
+                    tags=[],
+                )
+            ]
+        )
+
+        client = _make_client()
+        for _i in range(10):
+            client.post("/api/v1/meals/suggest", json={})
+
+        response = client.post("/api/v1/meals/suggest", json={})
+        assert response.status_code == 429
+        assert "retry-after" in response.headers
+
+    @patch("life_organizer.api.routes.meals.meal_service")
+    @patch("life_organizer.api.routes.meals.claude_service")
+    def test_429_response_has_error_message(self, mock_claude: AsyncMock, mock_meal: AsyncMock):
+        """429 response body contains a clear error message."""
+        from life_organizer.schemas.meals import MealSuggestion
+
+        mock_meal.get_suggestions = AsyncMock(
+            return_value=[
+                MealSuggestion(
+                    name="Test",
+                    ingredients=["a"],
+                    instructions="Do.",
+                    prep_time=10,
+                    cuisine="Italian",
+                    tags=[],
+                )
+            ]
+        )
+
+        client = _make_client()
+        for _i in range(10):
+            client.post("/api/v1/meals/suggest", json={})
+
+        response = client.post("/api/v1/meals/suggest", json={})
+        assert response.status_code == 429
+        body = response.json()
+        assert "error" in body
+        assert "rate limit" in body["error"].lower()
+
+
+@pytest.mark.unit
 class TestNonLLMEndpointsNotRateLimited:
     """Tests that non-LLM endpoints are NOT rate limited."""
 

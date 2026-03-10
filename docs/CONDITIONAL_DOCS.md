@@ -45,3 +45,10 @@ This guide helps you find relevant documentation based on what you're working on
     - When building API endpoints for recipes, meal history, or recipe feedback
     - When adding new tables to the meals schema namespace
     - When implementing meal planning features (Epic 3: FR13-FR22)
+
+- docs/features/meal-suggestion-endpoint.md
+  - Conditions:
+    - When adding new LLM-powered suggestion endpoints to the meals domain
+    - When modifying the meal suggestion prompt, context gathering, or response parsing
+    - When building new service orchestrators that combine DB queries with Claude API calls
+    - When extending meal suggestions with new context sources (e.g., dietary restrictions, seasonal ingredients)

@@ -385,3 +385,123 @@ class TestParseBudgetImages:
         results = await service.parse_budget_images([])
 
         assert results == []
+
+
+class TestSuggestMeals:
+    """Tests for suggest_meals method."""
+
+    @pytest.mark.asyncio
+    async def test_successful_suggestion(self, service: ClaudeService) -> None:
+        """Successful LLM response should return list of 3 suggestion dicts."""
+        response_json = """[
+            {
+                "name": "Chicken Stir Fry",
+                "ingredients": ["chicken breast", "bell peppers", "soy sauce", "rice"],
+                "instructions": "Cut chicken. Stir fry with veggies. Serve over rice.",
+                "prep_time": 25,
+                "cuisine": "Asian",
+                "tags": ["quick", "healthy"]
+            },
+            {
+                "name": "Spaghetti Bolognese",
+                "ingredients": ["spaghetti", "ground beef", "tomato paste", "onions"],
+                "instructions": "Cook pasta. Make sauce. Combine.",
+                "prep_time": 35,
+                "cuisine": "Italian",
+                "tags": ["comfort", "pasta"]
+            },
+            {
+                "name": "Greek Salad with Feta",
+                "ingredients": ["lettuce", "cucumber", "tomatoes", "feta cheese", "olives"],
+                "instructions": "Chop veggies. Add feta. Drizzle olive oil.",
+                "prep_time": 15,
+                "cuisine": "Mediterranean",
+                "tags": ["quick", "healthy", "salad"]
+            }
+        ]"""
+
+        service.client.messages.create = _mock_claude_response(response_json)
+
+        results = await service.suggest_meals(
+            requirements=None,
+            history=["Pasta Carbonara"],
+            liked_recipes=["Chicken Curry"],
+        )
+
+        assert len(results) == 3
+        assert results[0]["name"] == "Chicken Stir Fry"
+        assert results[1]["name"] == "Spaghetti Bolognese"
+        assert results[2]["name"] == "Greek Salad with Feta"
+
+    @pytest.mark.asyncio
+    async def test_api_error_retries_and_raises(self, service: ClaudeService) -> None:
+        """API errors should trigger retries and eventually raise."""
+        service.client.messages.create = AsyncMock(
+            side_effect=anthropic.APIError(
+                message="Service unavailable",
+                request=MagicMock(),
+                body=None,
+            )
+        )
+
+        with pytest.raises(anthropic.APIError):
+            await service.suggest_meals(
+                requirements=None,
+                history=[],
+                liked_recipes=[],
+            )
+
+        assert service.client.messages.create.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_malformed_json_raises_http_exception(self, service: ClaudeService) -> None:
+        """Malformed JSON response should raise HTTPException 500."""
+        service.client.messages.create = _mock_claude_response("not valid json at all")
+
+        with pytest.raises(HTTPException) as exc_info:
+            await service.suggest_meals(
+                requirements="I have chicken",
+                history=[],
+                liked_recipes=[],
+            )
+
+        assert exc_info.value.status_code == 500
+        assert "Failed to parse meal suggestions" in str(exc_info.value.detail)
+
+    @pytest.mark.asyncio
+    async def test_with_requirements_passed_in_user_message(self, service: ClaudeService) -> None:
+        """Requirements should be included in the user message to Claude."""
+        response_json = """[
+            {"name": "A", "ingredients": ["chicken thighs"], "instructions": "Cook.", "prep_time": 20, "cuisine": "Italian", "tags": ["quick"]},
+            {"name": "B", "ingredients": ["chicken thighs"], "instructions": "Cook.", "prep_time": 25, "cuisine": "Asian", "tags": ["quick"]},
+            {"name": "C", "ingredients": ["chicken thighs"], "instructions": "Cook.", "prep_time": 30, "cuisine": "Mexican", "tags": ["quick"]}
+        ]"""
+
+        service.client.messages.create = _mock_claude_response(response_json)
+
+        results = await service.suggest_meals(
+            requirements="I have chicken thighs",
+            history=["Pasta"],
+            liked_recipes=["Curry"],
+        )
+
+        assert len(results) == 3
+        # Verify the API was called with user message containing requirements
+        call_args = service.client.messages.create.call_args
+        user_message = call_args.kwargs["messages"][0]["content"]
+        assert "chicken thighs" in user_message
+
+    @pytest.mark.asyncio
+    async def test_markdown_fences_stripped(self, service: ClaudeService) -> None:
+        """Markdown code fences should be stripped from response."""
+        response_json = (
+            '```json\n[{"name": "A", "ingredients": ["a"], "instructions": "Do.", "prep_time": 10, "cuisine": "Italian", "tags": []},'
+            '{"name": "B", "ingredients": ["b"], "instructions": "Do.", "prep_time": 10, "cuisine": "Asian", "tags": []},'
+            '{"name": "C", "ingredients": ["c"], "instructions": "Do.", "prep_time": 10, "cuisine": "Mexican", "tags": []}]\n```'
+        )
+
+        service.client.messages.create = _mock_claude_response(response_json)
+
+        results = await service.suggest_meals(requirements=None, history=[], liked_recipes=[])
+
+        assert len(results) == 3
