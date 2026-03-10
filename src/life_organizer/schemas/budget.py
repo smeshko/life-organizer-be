@@ -1,6 +1,9 @@
-"""Budget categories and transaction types for budget entry handler."""
+"""Budget categories, transaction types, and response schemas for budget endpoints."""
 
+import datetime
 from enum import StrEnum
+
+from pydantic import BaseModel, Field
 
 
 class ExpenseCategory(StrEnum):
@@ -51,3 +54,33 @@ class SavingsCategory(StrEnum):
     AVI_SAVINGS = "Avi Savings"
     METLIFE = "Metlife"
     SAVINGS = "Savings"
+
+
+class TransactionItem(BaseModel):
+    """Single transaction in a paginated response."""
+
+    id: int = Field(description="Transaction primary key")
+    amount: float = Field(description="Original transaction amount")
+    currency: str = Field(description="Currency code (e.g. EUR, USD)")
+    amount_eur: float | None = Field(
+        description="Amount converted to EUR (null for legacy records)"
+    )
+    date: datetime.date = Field(description="Transaction date")
+    transaction_type: str = Field(description="Transaction type (Expenses, Income, or Savings)")
+    category: str = Field(description="Transaction category")
+    details: str | None = Field(description="Merchant name or description")
+
+
+class PaginatedTransactionsResponse(BaseModel):
+    """Paginated list of budget transactions."""
+
+    items: list[TransactionItem] = Field(description="List of transactions for the current page")
+    total: int = Field(description="Total number of matching transactions")
+    page: int = Field(description="Current page number")
+    page_size: int = Field(description="Number of items per page")
+
+
+class AvailableYearsResponse(BaseModel):
+    """List of years that have transaction data."""
+
+    years: list[int] = Field(description="Sorted list of years with transactions")
