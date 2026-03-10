@@ -211,6 +211,11 @@ class TestMealFeedbackRequest:
         with pytest.raises(ValidationError):
             MealFeedbackRequest(recipe_id=-1, recipe_name="Test", liked=True)
 
+    def test_recipe_name_exceeding_max_length_raises(self) -> None:
+        """recipe_name exceeding 255 characters should raise ValidationError."""
+        with pytest.raises(ValidationError):
+            MealFeedbackRequest(recipe_name="A" * 256, liked=True)
+
 
 @pytest.mark.unit
 class TestMealFeedbackResponse:

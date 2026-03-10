@@ -54,7 +54,7 @@ class MealFeedbackRequest(BaseModel):
     """
 
     recipe_id: int | None = Field(default=None, gt=0)
-    recipe_name: str = Field(min_length=1)
+    recipe_name: str = Field(min_length=1, max_length=255)
     liked: bool
     notes: str | None = Field(default=None)
 
