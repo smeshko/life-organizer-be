@@ -359,6 +359,11 @@ class ClaudeService:
         # Parse each transaction
         results: list[ClassifiedInput] = []
         for item_data in data_array:
+            # Skip non-dict items (e.g., null, string from malformed LLM output)
+            if not isinstance(item_data, dict):
+                logger.warning(f"Skipping non-dict item in LLM response: {type(item_data)}")
+                continue
+
             # Normalize category to BUDGET (always budget now)
             item_data["category"] = Category.BUDGET
 

@@ -191,10 +191,20 @@ async def process_budget_images(
         HTTPException 429: Rate limit exceeded
         HTTPException 500: Server error during processing
     """
+    _ALLOWED_IMAGE_TYPES = {"image/png", "image/jpeg", "image/gif", "image/webp"}
+    _MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB per image (Anthropic limit)
+
     try:
+        # Validate files were provided
+        if not files:
+            raise HTTPException(
+                status_code=400,
+                detail="No files provided. Upload at least one image.",
+            )
+
         # Validate file types
         for file in files:
-            if not file.content_type or not file.content_type.startswith("image/"):
+            if not file.content_type or file.content_type not in _ALLOWED_IMAGE_TYPES:
                 raise HTTPException(
                     status_code=400,
                     detail="Invalid file type. Only image files are accepted.",
@@ -204,6 +214,11 @@ async def process_budget_images(
         image_data: list[tuple[bytes, str]] = []
         for file in files:
             content = await file.read()
+            if len(content) > _MAX_FILE_SIZE:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"File too large. Maximum size is {_MAX_FILE_SIZE // (1024 * 1024)} MB.",
+                )
             image_data.append((content, file.content_type or "image/png"))
 
         # Parse images using Claude Vision
