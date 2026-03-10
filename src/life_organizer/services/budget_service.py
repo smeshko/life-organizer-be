@@ -6,9 +6,10 @@ from decimal import Decimal
 from typing import Any, Literal, TypedDict, Union, cast
 
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from life_organizer.db.models.budget import BudgetTransaction
+from life_organizer.db.models.budget import BudgetPlan, BudgetTransaction
 from life_organizer.schemas.budget import ExpenseCategory, IncomeCategory, SavingsCategory
 from life_organizer.schemas.classification import ClassifiedInput
 from life_organizer.schemas.enums import ActionType
@@ -381,3 +382,69 @@ class BudgetService:
             )
             result = await db.execute(stmt)
             return [int(row) for row in result.scalars().all()]
+
+    async def get_plan(self, year: int) -> list[BudgetPlan]:
+        """Get all budget plan entries for a given year.
+
+        Args:
+            year: Budget year to retrieve
+
+        Returns:
+            List of BudgetPlan model instances ordered by type, category, month
+        """
+        async with self.session_factory() as db:
+            stmt = (
+                select(BudgetPlan)
+                .where(BudgetPlan.year == year)
+                .order_by(
+                    BudgetPlan.transaction_type,
+                    BudgetPlan.category,
+                    BudgetPlan.month,
+                )
+            )
+            result = await db.execute(stmt)
+            return list(result.scalars().all())
+
+    async def upsert_plan(self, year: int, entries: list[dict[str, object]]) -> int:
+        """Upsert budget plan entries for a given year.
+
+        Uses PostgreSQL INSERT ... ON CONFLICT DO UPDATE for atomic upsert.
+
+        Args:
+            year: Budget year
+            entries: List of dicts with transaction_type, category, month, planned_amount
+
+        Returns:
+            Number of entries upserted
+        """
+        async with self.session_factory() as db:
+            try:
+                rows = [
+                    {
+                        "year": year,
+                        "month": entry["month"],
+                        "transaction_type": entry["transaction_type"],
+                        "category": entry["category"],
+                        "planned_amount": entry["planned_amount"],
+                    }
+                    for entry in entries
+                ]
+
+                stmt = pg_insert(BudgetPlan).values(rows)
+                stmt = stmt.on_conflict_do_update(
+                    constraint="uq_budget_plans_year_month_type_category",
+                    set_={
+                        "planned_amount": stmt.excluded.planned_amount,
+                        "updated_at": func.now(),
+                    },
+                )
+
+                await db.execute(stmt)
+                await db.commit()
+                logger.info(f"Upserted {len(rows)} budget plan entries for year {year}")
+                return len(rows)
+
+            except Exception as e:
+                logger.error(f"Failed to upsert budget plan entries: {e}")
+                await db.rollback()
+                raise
