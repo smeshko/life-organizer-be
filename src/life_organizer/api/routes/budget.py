@@ -12,7 +12,10 @@ from life_organizer.db.models.budget import BudgetTransaction
 from life_organizer.db.session import async_session_factory
 from life_organizer.rate_limit import limiter
 from life_organizer.schemas.budget import (
+    AggregationPeriod,
+    AggregationResponse,
     AvailableYearsResponse,
+    CategoryAggregation,
     PaginatedTransactionsResponse,
     TransactionItem,
 )
@@ -418,6 +421,86 @@ async def get_transactions(
         total=result["total"],
         page=result["page"],
         page_size=result["page_size"],
+    )
+
+
+@router.get(
+    "/transactions/aggregate",
+    response_model=AggregationResponse,
+    response_description="Category-level spending aggregations for the specified period",
+    responses={
+        200: {
+            "description": "Successfully retrieved aggregations",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "monthly": {
+                            "summary": "Monthly Aggregation",
+                            "value": {
+                                "period": {"year": 2026, "month": 1},
+                                "aggregations": [
+                                    {
+                                        "category": "Groceries",
+                                        "total_eur": 450.00,
+                                        "count": 23,
+                                    }
+                                ],
+                            },
+                        },
+                        "yearly": {
+                            "summary": "Yearly Aggregation",
+                            "value": {
+                                "period": {"year": 2025, "month": None},
+                                "aggregations": [],
+                            },
+                        },
+                    }
+                }
+            },
+        },
+        422: {"description": "Validation error (invalid query parameters)"},
+    },
+)
+async def get_transaction_aggregations(
+    year: int = Query(
+        ...,
+        ge=2000,
+        le=2100,
+        description="Year to aggregate (required)",
+    ),
+    month: int | None = Query(
+        default=None,
+        ge=1,
+        le=12,
+        description="Month (1-12) to aggregate, or omit for full year",
+    ),
+    transaction_type: str | None = Query(
+        default=None,
+        description="Filter by transaction type (Expenses, Income, or Savings)",
+    ),
+) -> AggregationResponse:
+    """Get spending totals grouped by category for a given period.
+
+    Returns category-level aggregations sorted by total_eur descending.
+    If month is omitted, aggregates the full year.
+    If transaction_type is omitted, aggregates all types.
+    """
+    result = await budget_service.aggregate_transactions(
+        year=year, month=month, transaction_type=transaction_type
+    )
+
+    aggregations = [
+        CategoryAggregation(
+            category=a["category"],
+            total_eur=a["total_eur"],
+            count=a["count"],
+        )
+        for a in result["aggregations"]
+    ]
+
+    return AggregationResponse(
+        period=AggregationPeriod(year=year, month=month),
+        aggregations=aggregations,
     )
 
 

@@ -84,3 +84,27 @@ class AvailableYearsResponse(BaseModel):
     """List of years that have transaction data."""
 
     years: list[int] = Field(description="Sorted list of years with transactions")
+
+
+class CategoryAggregation(BaseModel):
+    """Spending total for a single category."""
+
+    category: str = Field(description="Transaction category name")
+    total_eur: float = Field(description="Total amount in EUR for this category")
+    count: int = Field(description="Number of transactions in this category")
+
+
+class AggregationPeriod(BaseModel):
+    """Time period for the aggregation."""
+
+    year: int = Field(description="Year of the aggregation period")
+    month: int | None = Field(default=None, description="Month (1-12) or null for full year")
+
+
+class AggregationResponse(BaseModel):
+    """Aggregated spending totals by category."""
+
+    period: AggregationPeriod = Field(description="Time period covered by the aggregation")
+    aggregations: list[CategoryAggregation] = Field(
+        description="Category-level totals sorted by total_eur descending"
+    )

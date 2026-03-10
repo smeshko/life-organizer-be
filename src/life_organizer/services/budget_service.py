@@ -29,6 +29,21 @@ class PaginatedResult(TypedDict):
     page_size: int
 
 
+class AggregationItem(TypedDict):
+    """Type for a single category aggregation result."""
+
+    category: str
+    total_eur: float
+    count: int
+
+
+class AggregationResult(TypedDict):
+    """Type for aggregation query results."""
+
+    period: dict[str, int | None]
+    aggregations: list[AggregationItem]
+
+
 # Constants
 USD_TO_EUR_RATE = 0.92
 
@@ -288,6 +303,70 @@ class BudgetService:
                 "total": total,
                 "page": page,
                 "page_size": page_size,
+            }
+
+    async def aggregate_transactions(
+        self,
+        year: int,
+        month: int | None,
+        transaction_type: str | None,
+    ) -> AggregationResult:
+        """Aggregate transactions by category for a given period.
+
+        Args:
+            year: Year to aggregate
+            month: Month (1-12) to aggregate, or None for full year
+            transaction_type: Filter by transaction type, or None for all types
+
+        Returns:
+            Dict with period and aggregations keys
+        """
+        async with self.session_factory() as db:
+            amount_col = func.coalesce(BudgetTransaction.amount_eur, BudgetTransaction.amount_bgn)
+            total_expr = func.sum(amount_col)
+
+            stmt = (
+                select(
+                    BudgetTransaction.category,
+                    total_expr.label("total_eur"),
+                    func.count().label("count"),
+                )
+                .group_by(BudgetTransaction.category)
+                .order_by(total_expr.desc())
+            )
+
+            # Date range filter
+            start_date = datetime.date(year, 1, 1)
+            if month is not None:
+                start_date = datetime.date(year, month, 1)
+                if month == 12:
+                    end_date = datetime.date(year, 12, 31)
+                else:
+                    end_date = datetime.date(year, month + 1, 1) - datetime.timedelta(days=1)
+            else:
+                end_date = datetime.date(year, 12, 31)
+
+            stmt = stmt.where(BudgetTransaction.date >= start_date)
+            stmt = stmt.where(BudgetTransaction.date <= end_date)
+
+            if transaction_type is not None:
+                stmt = stmt.where(BudgetTransaction.transaction_type == transaction_type)
+
+            result = await db.execute(stmt)
+            rows = result.all()
+
+            aggregations: list[AggregationItem] = [
+                {
+                    "category": row[0],
+                    "total_eur": float(row[1]),
+                    "count": int(row[2]),
+                }
+                for row in rows
+            ]
+
+            return {
+                "period": {"year": year, "month": month},
+                "aggregations": aggregations,
             }
 
     async def get_available_years(self) -> list[int]:
