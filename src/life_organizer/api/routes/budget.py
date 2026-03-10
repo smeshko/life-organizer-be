@@ -4,7 +4,7 @@ import datetime
 import logging
 import math
 
-from fastapi import APIRouter, HTTPException, Query, Request, Response, UploadFile
+from fastapi import APIRouter, HTTPException, Path, Query, Request, Response, UploadFile
 from sqlalchemy import select
 
 from life_organizer.config import get_settings
@@ -15,8 +15,15 @@ from life_organizer.schemas.budget import (
     AggregationPeriod,
     AggregationResponse,
     AvailableYearsResponse,
+    BudgetPlanAmounts,
+    BudgetPlanRequest,
+    BudgetPlanResponse,
+    BudgetPlanUpsertResponse,
     CategoryAggregation,
+    ExpenseCategory,
+    IncomeCategory,
     PaginatedTransactionsResponse,
+    SavingsCategory,
     TransactionItem,
 )
 from life_organizer.schemas.requests import ClassifyRequest
@@ -536,3 +543,152 @@ async def get_available_years() -> AvailableYearsResponse:
     """
     years = await budget_service.get_available_years()
     return AvailableYearsResponse(years=years)
+
+
+@router.get(
+    "/plan/{year}",
+    response_model=BudgetPlanResponse,
+    response_description="Budget plan entries grouped by transaction type and category",
+    responses={
+        200: {
+            "description": "Successfully retrieved budget plan",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "with_entries": {
+                            "summary": "Plan With Entries",
+                            "value": {
+                                "year": 2026,
+                                "entries": [
+                                    {
+                                        "transaction_type": "Expenses",
+                                        "category": "Groceries",
+                                        "amounts": {"1": 400.0, "2": 400.0},
+                                    }
+                                ],
+                            },
+                        },
+                        "empty": {
+                            "summary": "No Plan",
+                            "value": {"year": 2026, "entries": []},
+                        },
+                    }
+                }
+            },
+        },
+        422: {"description": "Validation error (invalid year)"},
+    },
+)
+async def get_budget_plan(
+    year: int = Path(ge=2000, le=2100, description="Budget plan year"),
+) -> BudgetPlanResponse:
+    """Get budget plan entries for a given year.
+
+    Returns plan entries grouped by transaction type and category,
+    with amounts keyed by month number. Months without planned amounts are omitted.
+    """
+    plans = await budget_service.get_plan(year)
+
+    # Group by (transaction_type, category) and build amounts dict
+    grouped: dict[tuple[str, str], dict[str, float]] = {}
+    for plan in plans:
+        key = (plan.transaction_type, plan.category)
+        if key not in grouped:
+            grouped[key] = {}
+        grouped[key][str(plan.month)] = float(plan.planned_amount)
+
+    entries = [
+        BudgetPlanAmounts(
+            transaction_type=tx_type,
+            category=cat,
+            amounts=amounts,
+        )
+        for (tx_type, cat), amounts in grouped.items()
+    ]
+
+    return BudgetPlanResponse(year=year, entries=entries)
+
+
+# Category enums by transaction type for validation
+_CATEGORY_ENUMS: dict[str, type[ExpenseCategory] | type[IncomeCategory] | type[SavingsCategory]] = {
+    "Expenses": ExpenseCategory,
+    "Income": IncomeCategory,
+    "Savings": SavingsCategory,
+}
+
+
+@router.put(
+    "/plan/{year}",
+    response_model=BudgetPlanUpsertResponse,
+    response_description="Result of budget plan upsert operation",
+    responses={
+        200: {
+            "description": "Successfully upserted budget plan entries",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "success": {
+                            "summary": "Upsert Success",
+                            "value": {"success": True, "updated": 3},
+                        },
+                    }
+                }
+            },
+        },
+        422: {"description": "Validation error (invalid data)"},
+        500: {"description": "Server error during upsert"},
+    },
+)
+@limiter.limit("10/minute")
+async def upsert_budget_plan(
+    request: Request,  # noqa: ARG001 - required by slowapi rate limiter
+    body: BudgetPlanRequest,
+    year: int = Path(ge=2000, le=2100, description="Budget plan year"),
+) -> BudgetPlanUpsertResponse:
+    """Upsert budget plan entries for a given year.
+
+    Creates or updates plan entries. If an entry with the same
+    (year, month, transaction_type, category) already exists, the planned_amount
+    is updated; otherwise a new entry is created.
+    """
+    # Validate transaction_type and category for each entry
+    for entry in body.entries:
+        if entry.transaction_type not in _CATEGORY_ENUMS:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Invalid transaction_type: {entry.transaction_type}. "
+                    f"Must be one of: Expenses, Income, Savings"
+                ),
+            )
+
+        category_enum = _CATEGORY_ENUMS[entry.transaction_type]
+        valid_categories = [c.value for c in category_enum]
+        if entry.category not in valid_categories:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Invalid category '{entry.category}' for {entry.transaction_type}. "
+                    f"Must be one of: {', '.join(valid_categories)}"
+                ),
+            )
+
+    try:
+        entries_dicts: list[dict[str, object]] = [
+            {
+                "transaction_type": e.transaction_type,
+                "category": e.category,
+                "month": e.month,
+                "planned_amount": e.planned_amount,
+            }
+            for e in body.entries
+        ]
+
+        count = await budget_service.upsert_plan(year, entries_dicts)
+        return BudgetPlanUpsertResponse(success=True, updated=count)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Budget plan upsert error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Processing error: {e!s}") from e
