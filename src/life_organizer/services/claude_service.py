@@ -1,5 +1,6 @@
-"""Claude LLM service for parsing budget text into structured transactions."""
+"""Claude LLM service for parsing budget text and images into structured transactions."""
 
+import base64
 import datetime
 import json
 import logging
@@ -54,11 +55,18 @@ class ClaudeService:
         self.model = model
         logger.info(f"Initialized ClaudeService with model: {model}")
 
-    def _get_system_prompt_with_current_date(self) -> str:
-        """Get budget system prompt with today's date injected.
+    @staticmethod
+    def _inject_dates_into_prompt(prompt: str) -> str:
+        """Inject today's and yesterday's date into a prompt template.
+
+        Replaces placeholder dates (November 4, 2025 / 2025-11-04 / 2025-11-03)
+        with the actual current dates.
+
+        Args:
+            prompt: Prompt text with date placeholders
 
         Returns:
-            System prompt with current date replacing placeholders
+            Prompt with current dates injected
         """
         today = datetime.date.today()
         today_iso = today.isoformat()
@@ -67,12 +75,19 @@ class ClaudeService:
         yesterday = today - datetime.timedelta(days=1)
         yesterday_iso = yesterday.isoformat()
 
-        prompt = _BUDGET_PROMPT
         prompt = prompt.replace("November 4, 2025", today_long)
         prompt = prompt.replace("2025-11-04", today_iso)
         prompt = prompt.replace("2025-11-03", yesterday_iso)
 
         return prompt
+
+    def _get_system_prompt_with_current_date(self) -> str:
+        """Get budget text system prompt with today's date injected."""
+        return self._inject_dates_into_prompt(_BUDGET_PROMPT)
+
+    def _get_vision_prompt_with_current_date(self) -> str:
+        """Get budget vision system prompt with today's date injected."""
+        return self._inject_dates_into_prompt(_BUDGET_VISION_PROMPT)
 
     def _estimate_transaction_count(self, text: str) -> int:
         """Estimate number of transactions in input using simple heuristics.
@@ -188,79 +203,7 @@ class ClaudeService:
                 messages=[{"role": "user", "content": text}],
             )
 
-            # Extract response text
-            first_block = message.content[0]
-            if not isinstance(first_block, TextBlock):
-                logger.error(f"Unexpected response block type: {type(first_block)}")
-                raise ValueError(f"Expected TextBlock, got {type(first_block)}")
-            response_text = first_block.text
-            logger.debug(
-                f"Raw LLM response: {response_text[:200]}..."
-                if len(response_text) > 200
-                else f"Raw LLM response: {response_text}"
-            )
-
-            # Strip markdown code fences if present
-            response_text = response_text.strip()
-            if response_text.startswith("```"):
-                lines = response_text.split("\n", 1)
-                if len(lines) > 1:
-                    response_text = lines[1]
-                if response_text.endswith("```"):
-                    response_text = response_text.rsplit("```", 1)[0]
-                response_text = response_text.strip()
-
-            # Parse JSON array
-            data_array = json.loads(response_text)
-            logger.debug(
-                f"Parsed {len(data_array) if isinstance(data_array, list) else 0} "
-                f"transaction(s) from LLM response"
-            )
-
-            if not isinstance(data_array, list):
-                logger.error(f"Expected JSON array, got {type(data_array)}")
-                raise ValueError("LLM did not return a JSON array")
-
-            # Parse each transaction
-            results: list[ClassifiedInput] = []
-            for item_data in data_array:
-                # Normalize category to BUDGET (always budget now)
-                item_data["category"] = Category.BUDGET
-
-                # Check if extracted_data is incorrectly a list (LLM mistake)
-                extracted_data_raw = item_data.get("extracted_data", {})
-                if isinstance(extracted_data_raw, list) and len(extracted_data_raw) > 1:
-                    logger.warning(
-                        f"LLM returned extracted_data as array with "
-                        f"{len(extracted_data_raw)} items. "
-                        f"Unrolling into {len(extracted_data_raw)} separate transactions."
-                    )
-                    for tx_idx, transaction_data in enumerate(extracted_data_raw):
-                        if not isinstance(transaction_data, dict):
-                            logger.warning(f"Skipping non-dict item at index {tx_idx}")
-                            continue
-
-                        unrolled_item = {
-                            "category": Category.BUDGET,
-                            "confidence": item_data.get("confidence", 0.8),
-                            "extracted_data": self._ensure_extracted_data_fields(transaction_data),
-                            "raw_input": item_data.get("raw_input", ""),
-                            "classifier_source": "llm",
-                        }
-
-                        result = ClassifiedInput.model_validate(unrolled_item)
-                        results.append(result)
-                    continue
-
-                # Normal case: extracted_data is a dict or single-item list
-                item_data["extracted_data"] = self._ensure_extracted_data_fields(extracted_data_raw)
-                item_data["classifier_source"] = "llm"
-
-                result = ClassifiedInput.model_validate(item_data)
-                results.append(result)
-
-            logger.info(f"Parsed {len(results)} transaction(s) from input")
-            return results
+            return self._parse_llm_response(message, raw_input_fallback=text)
 
         except anthropic.APIError as e:
             logger.error(f"Claude API error: {e}")
@@ -277,3 +220,179 @@ class ClaudeService:
                     classifier_source="llm",
                 )
             ]
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=5),
+        reraise=True,
+    )
+    async def parse_budget_images(self, images: list[bytes]) -> list[ClassifiedInput]:
+        """Parse Revolut screenshot images into structured ClassifiedInput objects.
+
+        Sends all images in a single API call for efficient processing and
+        deduplication of overlapping screenshots.
+
+        Args:
+            images: List of image bytes (PNG, JPEG, GIF, or WebP)
+
+        Returns:
+            List of ClassifiedInput objects with parsed budget data
+
+        Raises:
+            anthropic.APIError: On API communication errors (after 3 retries)
+        """
+        if not images:
+            logger.warning("Empty image list provided to parse_budget_images")
+            return []
+
+        # Get vision prompt with current date
+        system_prompt = self._get_vision_prompt_with_current_date()
+
+        # Build content blocks: images + text instruction
+        content_blocks: list[Any] = []
+        for idx, image_bytes in enumerate(images):
+            encoded = base64.standard_b64encode(image_bytes).decode("utf-8")
+            content_blocks.append(
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "image/png",
+                        "data": encoded,
+                    },
+                }
+            )
+            logger.debug(f"Added image {idx + 1}/{len(images)} ({len(image_bytes)} bytes)")
+
+        content_blocks.append(
+            {
+                "type": "text",
+                "text": "Extract all transactions from the Revolut screenshot(s) above.",
+            }
+        )
+
+        try:
+            message = await self.client.messages.create(
+                model=self.model,
+                max_tokens=4000,
+                system=[
+                    {
+                        "type": "text",
+                        "text": system_prompt,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ],
+                messages=[{"role": "user", "content": content_blocks}],
+            )
+
+            return self._parse_llm_response(message, raw_input_fallback="[screenshot]")
+
+        except anthropic.APIError as e:
+            logger.error(f"Claude Vision API error: {e}")
+            raise
+
+        except (json.JSONDecodeError, ValidationError) as e:
+            logger.error(f"Failed to parse Claude Vision response: {e}")
+            return [
+                ClassifiedInput(
+                    category=Category.UNKNOWN,
+                    confidence=0.0,
+                    extracted_data={},
+                    raw_input="[screenshot]",
+                    classifier_source="llm",
+                )
+            ]
+
+    def _parse_llm_response(
+        self,
+        message: Any,
+        raw_input_fallback: str,
+    ) -> list[ClassifiedInput]:
+        """Parse an Anthropic API message response into ClassifiedInput objects.
+
+        Shared parsing logic for both text and vision responses.
+
+        Args:
+            message: Anthropic API message response
+            raw_input_fallback: Fallback raw_input for error cases
+
+        Returns:
+            List of ClassifiedInput objects
+
+        Raises:
+            json.JSONDecodeError: If response is not valid JSON
+            ValidationError: If response doesn't match ClassifiedInput schema
+        """
+        # Extract response text
+        first_block = message.content[0]
+        if not isinstance(first_block, TextBlock):
+            logger.error(f"Unexpected response block type: {type(first_block)}")
+            raise ValueError(f"Expected TextBlock, got {type(first_block)}")
+        response_text = first_block.text
+        logger.debug(
+            f"Raw LLM response: {response_text[:200]}..."
+            if len(response_text) > 200
+            else f"Raw LLM response: {response_text}"
+        )
+
+        # Strip markdown code fences if present
+        response_text = response_text.strip()
+        if response_text.startswith("```"):
+            lines = response_text.split("\n", 1)
+            if len(lines) > 1:
+                response_text = lines[1]
+            if response_text.endswith("```"):
+                response_text = response_text.rsplit("```", 1)[0]
+            response_text = response_text.strip()
+
+        # Parse JSON array
+        data_array = json.loads(response_text)
+        logger.debug(
+            f"Parsed {len(data_array) if isinstance(data_array, list) else 0} "
+            f"transaction(s) from LLM response"
+        )
+
+        if not isinstance(data_array, list):
+            logger.error(f"Expected JSON array, got {type(data_array)}")
+            raise ValueError("LLM did not return a JSON array")
+
+        # Parse each transaction
+        results: list[ClassifiedInput] = []
+        for item_data in data_array:
+            # Normalize category to BUDGET (always budget now)
+            item_data["category"] = Category.BUDGET
+
+            # Check if extracted_data is incorrectly a list (LLM mistake)
+            extracted_data_raw = item_data.get("extracted_data", {})
+            if isinstance(extracted_data_raw, list) and len(extracted_data_raw) > 1:
+                logger.warning(
+                    f"LLM returned extracted_data as array with "
+                    f"{len(extracted_data_raw)} items. "
+                    f"Unrolling into {len(extracted_data_raw)} separate transactions."
+                )
+                for tx_idx, transaction_data in enumerate(extracted_data_raw):
+                    if not isinstance(transaction_data, dict):
+                        logger.warning(f"Skipping non-dict item at index {tx_idx}")
+                        continue
+
+                    unrolled_item = {
+                        "category": Category.BUDGET,
+                        "confidence": item_data.get("confidence", 0.8),
+                        "extracted_data": self._ensure_extracted_data_fields(transaction_data),
+                        "raw_input": item_data.get("raw_input", raw_input_fallback),
+                        "classifier_source": "llm",
+                    }
+
+                    result = ClassifiedInput.model_validate(unrolled_item)
+                    results.append(result)
+                continue
+
+            # Normal case: extracted_data is a dict or single-item list
+            item_data["extracted_data"] = self._ensure_extracted_data_fields(extracted_data_raw)
+            item_data["classifier_source"] = "llm"
+
+            result = ClassifiedInput.model_validate(item_data)
+            results.append(result)
+
+        logger.info(f"Parsed {len(results)} transaction(s) from input")
+        return results
