@@ -41,3 +41,31 @@ class MealSuggestResponse(BaseModel):
     """
 
     suggestions: list[MealSuggestion]
+
+
+class MealFeedbackRequest(BaseModel):
+    """Request schema for meal feedback endpoint.
+
+    Attributes:
+        recipe_id: Optional ID of an existing recipe
+        recipe_name: Name of the recipe (always required)
+        liked: Whether the user liked the recipe
+        notes: Optional feedback notes
+    """
+
+    recipe_id: int | None = Field(default=None)
+    recipe_name: str
+    liked: bool
+    notes: str | None = Field(default=None)
+
+
+class MealFeedbackResponse(BaseModel):
+    """Response schema for meal feedback endpoint.
+
+    Attributes:
+        success: Whether the feedback was recorded
+        message: Status message
+    """
+
+    success: bool
+    message: str
