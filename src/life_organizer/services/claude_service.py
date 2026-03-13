@@ -23,11 +23,20 @@ _PROMPT_DIR = Path(__file__).parent.parent / "prompts"
 _BUDGET_PROMPT_FILE = _PROMPT_DIR / "budget_system_prompt_v2.txt"
 
 _BUDGET_VISION_PROMPT_FILE = _PROMPT_DIR / "budget_vision_prompt_v1.txt"
+_BUDGET_SHARED_REFERENCE_FILE = _PROMPT_DIR / "budget_shared_reference.txt"
 _MEALS_SUGGEST_PROMPT_FILE = _PROMPT_DIR / "meals_suggest_prompt_v1.txt"
 
 try:
+    with _BUDGET_SHARED_REFERENCE_FILE.open(encoding="utf-8") as f:
+        _BUDGET_SHARED_REFERENCE = f.read()
+    logger.debug("Loaded budget shared reference")
+except FileNotFoundError:
+    logger.error(f"Prompt file not found: {_BUDGET_SHARED_REFERENCE_FILE}")
+    raise
+
+try:
     with _BUDGET_PROMPT_FILE.open(encoding="utf-8") as f:
-        _BUDGET_PROMPT = f.read()
+        _BUDGET_PROMPT = f.read() + "\n\n" + _BUDGET_SHARED_REFERENCE
     logger.debug("Loaded budget system prompt v2")
 except FileNotFoundError:
     logger.error(f"Prompt file not found: {_BUDGET_PROMPT_FILE}")
@@ -35,7 +44,7 @@ except FileNotFoundError:
 
 try:
     with _BUDGET_VISION_PROMPT_FILE.open(encoding="utf-8") as f:
-        _BUDGET_VISION_PROMPT = f.read()
+        _BUDGET_VISION_PROMPT = f.read() + "\n\n" + _BUDGET_SHARED_REFERENCE
     logger.debug("Loaded budget vision prompt v1")
 except FileNotFoundError:
     logger.error(f"Prompt file not found: {_BUDGET_VISION_PROMPT_FILE}")
