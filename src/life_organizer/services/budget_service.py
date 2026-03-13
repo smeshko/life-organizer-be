@@ -448,3 +448,79 @@ class BudgetService:
                 logger.error(f"Failed to upsert budget plan entries: {e}")
                 await db.rollback()
                 raise
+
+    async def get_transaction(self, transaction_id: int) -> BudgetTransaction | None:
+        """Get a single transaction by ID.
+
+        Args:
+            transaction_id: Primary key of the transaction
+
+        Returns:
+            BudgetTransaction instance or None if not found
+        """
+        async with self.session_factory() as db:
+            stmt = select(BudgetTransaction).where(BudgetTransaction.id == transaction_id)
+            result = await db.execute(stmt)
+            txn: BudgetTransaction | None = result.scalar_one_or_none()
+            return txn
+
+    async def update_transaction(
+        self, transaction_id: int, updates: dict[str, object]
+    ) -> BudgetTransaction | None:
+        """Update a transaction's fields.
+
+        Args:
+            transaction_id: Primary key of the transaction
+            updates: Dict of field names to new values (only non-None fields)
+
+        Returns:
+            Updated BudgetTransaction instance, or None if not found
+        """
+        async with self.session_factory() as db:
+            stmt = select(BudgetTransaction).where(BudgetTransaction.id == transaction_id)
+            result = await db.execute(stmt)
+            txn = result.scalar_one_or_none()
+            if txn is None:
+                return None
+
+            for field, value in updates.items():
+                if field == "amount":
+                    txn.amount = Decimal(str(value))
+                    txn.amount_eur = Decimal(str(value))
+                elif field == "currency":
+                    txn.currency = str(value)
+                elif field == "date":
+                    txn.date = cast("datetime.date", value)
+                elif field == "transaction_type":
+                    txn.transaction_type = str(value)
+                elif field == "category":
+                    txn.category = str(value)
+                elif field == "details":
+                    txn.details = str(value) if value else None
+
+            await db.commit()
+            await db.refresh(txn)
+            logger.info(f"Updated transaction {transaction_id}: {updates}")
+            updated: BudgetTransaction = txn
+            return updated
+
+    async def delete_transaction(self, transaction_id: int) -> bool:
+        """Delete a transaction by ID.
+
+        Args:
+            transaction_id: Primary key of the transaction
+
+        Returns:
+            True if deleted, False if not found
+        """
+        async with self.session_factory() as db:
+            stmt = select(BudgetTransaction).where(BudgetTransaction.id == transaction_id)
+            result = await db.execute(stmt)
+            txn = result.scalar_one_or_none()
+            if txn is None:
+                return False
+
+            await db.delete(txn)
+            await db.commit()
+            logger.info(f"Deleted transaction {transaction_id}")
+            return True

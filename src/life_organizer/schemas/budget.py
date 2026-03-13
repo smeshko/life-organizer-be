@@ -154,3 +154,17 @@ class BudgetPlanResponse(BaseModel):
     entries: list[BudgetPlanAmounts] = Field(
         description="Plan entries grouped by transaction type and category"
     )
+
+
+# Transaction update/delete schemas
+
+
+class TransactionUpdateRequest(BaseModel):
+    """Request body for PATCH /transactions/{id} endpoint. All fields optional."""
+
+    amount: float | None = Field(default=None, gt=0, description="New transaction amount")
+    currency: str | None = Field(default=None, max_length=3, description="New currency code")
+    date: datetime.date | None = Field(default=None, description="New transaction date")
+    transaction_type: str | None = Field(default=None, description="New transaction type")
+    category: str | None = Field(default=None, description="New category")
+    details: str | None = Field(default=None, description="New merchant/description")

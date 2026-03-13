@@ -25,6 +25,7 @@ from life_organizer.schemas.budget import (
     PaginatedTransactionsResponse,
     SavingsCategory,
     TransactionItem,
+    TransactionUpdateRequest,
 )
 from life_organizer.schemas.requests import ClassifyRequest
 from life_organizer.schemas.responses import ProcessingResponse
@@ -694,3 +695,81 @@ async def upsert_budget_plan(
     except Exception as e:
         logger.error(f"Budget plan upsert error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Processing error: {e!s}") from e
+
+
+@router.patch(
+    "/transactions/{transaction_id}",
+    response_model=TransactionItem,
+    responses={
+        200: {"description": "Successfully updated transaction"},
+        404: {"description": "Transaction not found"},
+        422: {"description": "Validation error (invalid fields)"},
+    },
+)
+async def update_transaction(
+    body: TransactionUpdateRequest,
+    transaction_id: int = Path(ge=1, description="Transaction ID"),
+) -> TransactionItem:
+    """Update one or more fields of an existing transaction."""
+    updates = body.model_dump(exclude_none=True)
+    if not updates:
+        raise HTTPException(status_code=422, detail="No fields to update")
+
+    # Validate category against transaction type if either is being changed
+    txn_type = updates.get("transaction_type")
+    category = updates.get("category")
+
+    if txn_type or category:
+        # If only one is provided, fetch the existing transaction for the other
+        if not txn_type or not category:
+            existing = await budget_service.get_transaction(transaction_id)
+            if existing is None:
+                raise HTTPException(status_code=404, detail="Transaction not found")
+            txn_type = txn_type or existing.transaction_type
+            category = category or existing.category
+
+        if txn_type not in _CATEGORY_ENUMS:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid transaction_type: {txn_type}. Must be one of: Expenses, Income, Savings",
+            )
+
+        category_enum = _CATEGORY_ENUMS[txn_type]
+        valid_categories = [c.value for c in category_enum]
+        if category not in valid_categories:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid category '{category}' for {txn_type}. Must be one of: {', '.join(valid_categories)}",
+            )
+
+    txn = await budget_service.update_transaction(transaction_id, updates)
+    if txn is None:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    return TransactionItem(
+        id=txn.id,
+        amount=float(txn.amount),
+        currency=txn.currency,
+        amount_eur=float(txn.amount_eur) if txn.amount_eur else None,
+        date=txn.date,
+        transaction_type=txn.transaction_type,
+        category=txn.category,
+        details=txn.details,
+    )
+
+
+@router.delete(
+    "/transactions/{transaction_id}",
+    status_code=204,
+    responses={
+        204: {"description": "Transaction deleted"},
+        404: {"description": "Transaction not found"},
+    },
+)
+async def delete_transaction(
+    transaction_id: int = Path(ge=1, description="Transaction ID"),
+) -> None:
+    """Delete a transaction by ID."""
+    deleted = await budget_service.delete_transaction(transaction_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Transaction not found")
