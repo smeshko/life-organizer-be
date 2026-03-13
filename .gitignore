@@ -95,3 +95,4 @@ docs/planning/work/*
 
 # ADW worktree directory
 trees/
+budget_export.json
