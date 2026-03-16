@@ -1,4 +1,4 @@
-.PHONY: help install dev run stop restart test test-unit test-integration test-fast lint format type-check clean pre-commit docker-build docker-up docker-down docker-logs docker-shell docker-db
+.PHONY: help install dev run stop restart test test-unit test-integration test-fast lint format type-check clean pre-commit db-setup db-migrate docker-build docker-up docker-down docker-logs docker-shell docker-db
 
 # Default target
 help:
@@ -29,6 +29,10 @@ help:
 	@echo "  make docker-shell - Open shell in app container"
 	@echo "  make docker-db    - Connect to PostgreSQL database"
 	@echo ""
+	@echo "Database:"
+	@echo "  make db-setup     - Start DB container and run migrations"
+	@echo "  make db-migrate   - Run pending migrations"
+	@echo ""
 	@echo "Utilities:"
 	@echo "  make clean        - Remove generated files and caches"
 	@echo ""
@@ -42,15 +46,18 @@ dev:
 	uv sync --all-extras
 	uv run pre-commit install
 
+# Configuration
+PORT ?= 8000
+
 # Stop the development server
 stop:
-	@echo "Stopping development server on port 8000..."
-	@lsof -ti:8000 | xargs kill -9 2>/dev/null || echo "No server running on port 8000"
+	@echo "Stopping development server on port $(PORT)..."
+	@lsof -ti:$(PORT) | xargs kill -9 2>/dev/null || echo "No server running on port $(PORT)"
 
 # Run the development server (auto-stops existing server)
 run: stop
-	@echo "Starting development server..."
-	PYTHONPATH=src uv run python -m uvicorn life_organizer.main:app --reload --host 0.0.0.0 --port 8000
+	@echo "Starting development server on port $(PORT)..."
+	PYTHONPATH=src uv run python -m uvicorn life_organizer.main:app --reload --host 0.0.0.0 --port $(PORT)
 
 # Restart the development server
 restart: stop run
@@ -111,6 +118,20 @@ clean:
 	rm -rf *.egg-info
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
+
+# Database commands
+db-migrate:
+	@echo "Running database migrations..."
+	PYTHONPATH=src uv run alembic upgrade head
+
+db-setup:
+	@echo "Starting database container..."
+	docker compose up -d db
+	@echo "Waiting for database to be ready..."
+	@until docker compose exec db pg_isready -U life_organizer > /dev/null 2>&1; do sleep 1; done
+	@echo "Database is ready. Running migrations..."
+	PYTHONPATH=src uv run alembic upgrade head
+	@echo "Database setup complete."
 
 # Docker commands
 docker-build:
