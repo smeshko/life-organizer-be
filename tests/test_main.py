@@ -15,7 +15,7 @@ def test_root_endpoint():
     assert data["message"] == "Life Organizer Backend API"
     assert "version" in data
     assert "api_version" in data
-    assert "docs" in data
+    assert "api_version" in data
 
 
 def test_health_check():
@@ -43,7 +43,7 @@ def test_api_status():
     data = response.json()
     assert data["api_version"] == "v1"
     assert "debug" in data
-    assert "endpoints" in data
+    assert "debug" in data
 
 
 def test_process_endpoint_removed():

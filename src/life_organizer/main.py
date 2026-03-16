@@ -65,14 +65,15 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
 
 # Create FastAPI application
+# Disable docs/openapi in production to avoid leaking API schema
 app = FastAPI(
     title="Life Organizer Backend",
     description="Voice-first intelligent agent for life organization",
     version="0.1.0",
     lifespan=lifespan,
-    docs_url=f"/api/{settings.api_version}/docs",
-    redoc_url=f"/api/{settings.api_version}/redoc",
-    openapi_url=f"/api/{settings.api_version}/openapi.json",
+    docs_url=f"/api/{settings.api_version}/docs" if settings.debug else None,
+    redoc_url=f"/api/{settings.api_version}/redoc" if settings.debug else None,
+    openapi_url=f"/api/{settings.api_version}/openapi.json" if settings.debug else None,
 )
 
 # Add CORS middleware
@@ -119,33 +120,23 @@ app.include_router(
 )
 
 
-# Root endpoint
-@app.get("/")
+# All remaining endpoints require API key
+@app.get("/", dependencies=[Depends(verify_api_key)])
 async def root() -> JSONResponse:
-    """Root endpoint with basic API information.
-
-    Returns:
-        JSONResponse with API information
-    """
+    """Root endpoint with basic API information."""
     return JSONResponse(
         content={
             "message": "Life Organizer Backend API",
             "version": "0.1.0",
             "api_version": settings.api_version,
-            "docs": f"/api/{settings.api_version}/docs",
         }
     )
 
 
-# Health check endpoint
-@app.get("/health")
-@app.get(f"/api/{settings.api_version}/health")
+@app.get("/health", dependencies=[Depends(verify_api_key)])
+@app.get(f"/api/{settings.api_version}/health", dependencies=[Depends(verify_api_key)])
 async def health_check() -> JSONResponse:
-    """Health check endpoint to verify service is running.
-
-    Returns:
-        JSONResponse with health status
-    """
+    """Health check endpoint to verify service is running."""
     return JSONResponse(
         content={
             "status": "healthy",
@@ -155,21 +146,12 @@ async def health_check() -> JSONResponse:
     )
 
 
-# Example API endpoint (will be replaced with real endpoints later)
-@app.get(f"/api/{settings.api_version}/status")
+@app.get(f"/api/{settings.api_version}/status", dependencies=[Depends(verify_api_key)])
 async def api_status() -> JSONResponse:
-    """API status endpoint with configuration info.
-
-    Returns:
-        JSONResponse with API status
-    """
+    """API status endpoint with configuration info."""
     return JSONResponse(
         content={
             "api_version": settings.api_version,
             "debug": settings.debug,
-            "endpoints": {
-                "health": f"/api/{settings.api_version}/health",
-                "docs": f"/api/{settings.api_version}/docs",
-            },
         }
     )
