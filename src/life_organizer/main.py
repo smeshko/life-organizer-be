@@ -3,12 +3,13 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
 from life_organizer.api.routes import budget, feedback, meals
+from life_organizer.auth import verify_api_key
 from life_organizer.config import get_settings
 from life_organizer.db.session import engine
 from life_organizer.logging_config import get_logger, setup_logging
@@ -97,21 +98,24 @@ async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) 
     )
 
 
-# Include routers
+# Include routers (all protected by API key)
 app.include_router(
     budget.router,
     prefix=f"/api/{settings.api_version}/budget",
     tags=["budget"],
+    dependencies=[Depends(verify_api_key)],
 )
 app.include_router(
     feedback.router,
     prefix=f"/api/{settings.api_version}/feedback",
     tags=["feedback"],
+    dependencies=[Depends(verify_api_key)],
 )
 app.include_router(
     meals.router,
     prefix=f"/api/{settings.api_version}/meals",
     tags=["meals"],
+    dependencies=[Depends(verify_api_key)],
 )
 
 

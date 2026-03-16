@@ -31,6 +31,9 @@ class Settings(BaseSettings):
         description="Allowed CORS origins",
     )
 
+    # Authentication
+    api_key: str = Field(..., description="API key for authenticating client requests")
+
     # External Services (to be configured later)
     openai_api_key: str | None = Field(default=None, description="OpenAI API key")
     claude_api_key: str = Field(..., description="Anthropic Claude API key")
