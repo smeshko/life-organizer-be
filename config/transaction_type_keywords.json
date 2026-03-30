@@ -1,4 +1,4 @@
 {
-  "income": ["received", "got", "earned", "salary", "rent", "income"],
+  "income": ["received", "got", "earned", "salary", "rent", "income", "refund", "refunded", "reimbursement", "reimbursed"],
   "savings": ["saved", "invested", "saving", "deposit"]
 }

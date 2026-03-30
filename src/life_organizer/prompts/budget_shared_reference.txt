@@ -28,8 +28,8 @@
 ### Expense Categories (16)
 Baby, Body care, Clothes, Eat out, Fun, Groceries, Hobbies, Home improvements, Maya, Medical, Mortgage, Other, Subscriptions, Transport, Utilities, Vacation
 
-### Income Categories (4)
-Salary Ivo, Salary Kalina, Rent, Other
+### Income Categories (5)
+Salary Ivo, Salary Kalina, Rent, Refunds, Other
 
 ### Savings Categories (3)
 Avi Savings, Metlife, Savings
@@ -60,6 +60,7 @@ Avi Savings, Metlife, Savings
 - **Body care:** cosmetics, beauty, personal care, toiletries → "Body care"
 - **Subscriptions:** subscription, monthly fee → "Subscriptions"
 - **Utilities:** water, electricity, gas, internet, phone bill → "Utilities"
+- **Refunds:** refund, refunded, reimbursement, reimbursed, money back, cashback → "Refunds"
 - **Savings:** saved, saving, investment → "Savings"
 
 ---

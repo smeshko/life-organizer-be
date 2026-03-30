@@ -66,8 +66,9 @@ components:
         - Salary Ivo
         - Salary Kalina
         - Rent
+        - Refunds
         - Other
-      description: Income categories for budget tracking (4 total)
+      description: Income categories for budget tracking (5 total)
 
     SavingsCategory:
       type: string

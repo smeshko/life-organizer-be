@@ -32,7 +32,7 @@ class ExpenseCategory(StrEnum):
 
 
 class IncomeCategory(StrEnum):
-    """Income categories for budget tracking (4 total).
+    """Income categories for budget tracking (5 total).
 
     These categories map directly to the income categories in the
     Ultimate Personal Budget Extended.xlsx spreadsheet.
@@ -41,6 +41,7 @@ class IncomeCategory(StrEnum):
     SALARY_IVO = "Salary Ivo"
     SALARY_KALINA = "Salary Kalina"
     RENT = "Rent"
+    REFUNDS = "Refunds"
     OTHER = "Other"
 
 
