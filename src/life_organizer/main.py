@@ -13,6 +13,7 @@ from life_organizer.auth import verify_api_key
 from life_organizer.config import get_settings
 from life_organizer.db.session import engine
 from life_organizer.logging_config import get_logger, setup_logging
+from life_organizer.middleware import RequestLoggingMiddleware
 from life_organizer.rate_limit import limiter
 
 # Initialize settings and logging
@@ -85,6 +86,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Log every request (method, path, status, duration) and capture unhandled
+# exceptions with a full traceback. Added last so it runs outermost.
+app.add_middleware(RequestLoggingMiddleware)
+
 # Configure rate limiting
 app.state.limiter = limiter
 
@@ -133,8 +138,11 @@ async def root() -> JSONResponse:
     )
 
 
-@app.get("/health", dependencies=[Depends(verify_api_key)])
-@app.get(f"/api/{settings.api_version}/health", dependencies=[Depends(verify_api_key)])
+# Unauthenticated: the Docker HEALTHCHECK probes this without an API key, and it
+# only exposes liveness info (status/service/version). Keeping it behind
+# verify_api_key made the probe 401 and the container perpetually "unhealthy".
+@app.get("/health")
+@app.get(f"/api/{settings.api_version}/health")
 async def health_check() -> JSONResponse:
     """Health check endpoint to verify service is running."""
     return JSONResponse(

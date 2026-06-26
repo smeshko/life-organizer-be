@@ -81,7 +81,9 @@ def setup_logging(settings: Settings) -> None:
     root_logger.handlers.clear()
     root_logger.addHandler(handler)
 
-    # Reduce verbosity of some third-party loggers
+    # Reduce verbosity of some third-party loggers.
+    # uvicorn.access is left at WARNING because RequestLoggingMiddleware emits a
+    # richer per-request line (status + duration); enabling both would duplicate.
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("uvicorn.error").setLevel(logging.INFO)
 

@@ -136,26 +136,26 @@ db-setup:
 # Docker commands
 docker-build:
 	@echo "Building Docker images..."
-	docker-compose build
+	docker compose build
 
 docker-up:
 	@echo "Starting all services (app + database)..."
 	@echo "App will be available at http://localhost:8000"
 	@echo "API docs at http://localhost:8000/api/v1/docs"
-	docker-compose up
+	docker compose up
 
 docker-down:
 	@echo "Stopping all services..."
-	docker-compose down
+	docker compose down
 
 docker-logs:
 	@echo "Viewing service logs (Ctrl+C to exit)..."
-	docker-compose logs -f
+	docker compose logs -f
 
 docker-shell:
 	@echo "Opening shell in app container..."
-	docker-compose exec app bash
+	docker compose exec app bash
 
 docker-db:
 	@echo "Connecting to PostgreSQL database..."
-	docker-compose exec db psql -U life_organizer -d life_organizer
+	docker compose exec db psql -U life_organizer -d life_organizer
