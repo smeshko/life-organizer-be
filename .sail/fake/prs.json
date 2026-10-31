@@ -1,0 +1,8 @@
+{
+  "remote": "fake://codehost/life-organizer-be",
+  "defaultBranch": "staging",
+  "branches": {
+    "staging": "a8e55017fcb5c907d4efc7a82769b288cdb035a0"
+  },
+  "pullRequests": []
+}

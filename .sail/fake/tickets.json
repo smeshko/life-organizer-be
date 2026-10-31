@@ -1,0 +1,37 @@
+{
+  "tickets": [
+    {
+      "ticketKey": "FAKE-1",
+      "title": "List the budget categories from the API",
+      "description": "The iOS and web clients hard-code the expense, income and savings categories, so a category added in `schemas/budget.py` (as Refunds was) never reaches them until each client ships. Add an endpoint that lists them.\n\n## Acceptance criteria\n\n- `GET /api/v1/budget/categories` returns `{\"expenses\": [...], \"income\": [...], \"savings\": [...]}`, each the values of its enum in declaration order\n- The endpoint requires the API key, like every other budget route\n- `openapi.yaml` documents it",
+      "state": {
+        "type": "unstarted",
+        "name": "Todo"
+      },
+      "labels": [
+        "factory-be",
+        "Backend",
+        "feature"
+      ],
+      "comments": [],
+      "links": [],
+      "attachments": []
+    },
+    {
+      "ticketKey": "FAKE-2",
+      "title": "Filter transactions by merchant",
+      "description": "`GET /api/v1/budget/transactions` filters by date and category but not by merchant.",
+      "state": {
+        "type": "unstarted",
+        "name": "Backlog"
+      },
+      "labels": [
+        "Backend",
+        "feature"
+      ],
+      "comments": [],
+      "links": [],
+      "attachments": []
+    }
+  ]
+}
