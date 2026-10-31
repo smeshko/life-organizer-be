@@ -1,0 +1,31 @@
+# life-organizer-be's sail config. Every port is on its fake until a workflow is proven at $0 on the seeds under
+# .sail/fake/; then switch them one at a time (Linear team LIFE, GitHub smeshko/life-organizer-be, Claude Code, git
+# worktrees). LIFE is shared with the iOS and web repositories, so this repository's labels carry `be`.
+
+# The repository's name, unique among this machine's watchers.
+name: life-organizer-be
+# The sail versions this .sail/ runs on.
+sail: ">=0.0.0 <1"
+# The label that designates a ticket for sail: the factory's tickets, and the pull requests review picks up.
+label: factory-be
+# The workflow `sail <ticket>` runs when --workflow is left out.
+defaultWorkflow: factory
+
+# Which adapter fills each port. Every port starts on its fake, which reads a seed file under .sail/fake/.
+adapters:
+  ticketSource: { use: fake } # then: { use: linear, team: LIFE, inReview: In Review }
+  codeHost: { use: fake } # then: { use: github }
+  harness: { use: fake } # then: { use: claude-code }
+  workspace: { use: fake } # then: { use: git-worktree, setup: uv sync --all-extras }
+  # Jev answers check-tasks before its agent runs, and file-follow-ups' duplicate check. Without it both fall back: the
+  # agent checks every task, and follow-ups are filed unchecked.
+  jev: { use: fake } # then: { use: typesafe }, with TYPESAFE_API_KEY
+
+models:
+  default: claude-sonnet-5-5
+  deep: claude-opus-5-5
+  fast: claude-haiku-5-5
+# No dollar cap on the run: each agent stage carries its own. Minutes are wall time.
+budgets: { run: { maxMinutes: 240 } }
+# The conventions appended to every prompt: .sail/conventions.md until the root AGENTS.md exists.
+conventions: [.sail/conventions.md]

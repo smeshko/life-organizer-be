@@ -96,3 +96,8 @@ docs/planning/work/*
 # ADW worktree directory
 trees/
 budget_export.json
+.sail-runs/
+.sail/sail.d.ts
+.sail/sail-intakes.d.ts
+# The `lib/` rule above is for Python build output; sail's shared stage code lives in .sail/lib/.
+!.sail/lib/
