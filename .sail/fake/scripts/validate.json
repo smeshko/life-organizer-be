@@ -10,10 +10,10 @@
         "failedSteps": [
           "pytest"
         ],
-        "tail": "1 failing test:\ntests/api/test_budget.py::TestListCategories::test_lists_income_in_declaration_order - AssertionError: assert ['Refunds', 'Salary'] == ['Salary', 'Refunds']",
+        "tail": "1 failing test:\ntests/api/test_budget.py::TestListCategories::test_lists_savings_in_declaration_order - AssertionError: assert ['Rent', 'Refunds', 'Other'] == ['Savings', 'Metlife']",
         "failures": [
           {
-            "test": "tests/api/test_budget.py::TestListCategories::test_lists_income_in_declaration_order",
+            "test": "tests/api/test_budget.py::TestListCategories::test_lists_savings_in_declaration_order",
             "verdict": "change"
           }
         ]

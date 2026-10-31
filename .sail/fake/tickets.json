@@ -32,6 +32,37 @@
       "comments": [],
       "links": [],
       "attachments": []
+    },
+    {
+      "ticketKey": "FAKE-3",
+      "title": "Merchant filter for transactions",
+      "description": "Add a `merchant` query parameter to `GET /api/v1/budget/transactions`, matching the merchant name case-insensitively.",
+      "state": {
+        "type": "unstarted",
+        "name": "Backlog"
+      },
+      "labels": [
+        "groom-be"
+      ],
+      "comments": [],
+      "links": [],
+      "attachments": []
+    },
+    {
+      "ticketKey": "FAKE-4",
+      "title": "Merchant filter chip on the transactions list",
+      "description": "A chip above the iOS transactions list filters it by merchant, through the backend's merchant filter.",
+      "state": {
+        "type": "unstarted",
+        "name": "Todo"
+      },
+      "labels": [
+        "iOS",
+        "feature"
+      ],
+      "comments": [],
+      "links": [],
+      "attachments": []
     }
   ]
 }

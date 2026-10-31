@@ -1,5 +1,6 @@
 # life-organizer-be's sail config: the factory runs on tickets from Linear team LIFE labelled factory-be and opens its
-# pull requests on GitHub, into staging. Set every port back to `fake` to run on the seeds under .sail/fake/ at no cost.
+# pull requests on GitHub, into staging; review reviews and merges those pull requests, and groom judges the tickets
+# labelled groom-be. Set every port back to `fake` to run on the seeds under .sail/fake/ at no cost.
 # LIFE is shared with the iOS and web repositories, so this repository's labels carry `be`.
 
 # The repository's name, unique among this machine's watchers.
@@ -20,8 +21,9 @@ adapters:
   # Each run's workspace is a fresh worktree off staging (GitHub's default branch here is main), and its setup builds
   # the .venv the gate runs in, before any stage runs.
   workspace: { use: git-worktree, defaultBranch: staging, setup: uv sync --all-extras }
-  # Jev answers check-tasks before its agent runs, and file-follow-ups' duplicate check. Without TYPESAFE_API_KEY both
-  # fall back: the agent checks every task, and follow-ups are filed unchecked.
+  # Jev answers check-tasks and check-fix before their agents run, triages review's clear findings before the judge,
+  # and runs file-follow-ups' duplicate check. Without TYPESAFE_API_KEY each falls back: the agents check everything,
+  # the judge decides every finding, and follow-ups are filed unchecked.
   jev: { use: typesafe }
 
 models:
