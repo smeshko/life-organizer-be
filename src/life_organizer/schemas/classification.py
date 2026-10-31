@@ -32,3 +32,11 @@ class ClassifiedInput(BaseModel):
     classifier_source: Literal["keyword", "llm"] = Field(
         ..., description="Source classifier that produced this result"
     )
+    image_index: int | None = Field(
+        default=None,
+        description="Zero-based index of the source image (vision parsing only)",
+    )
+    error: str | None = Field(
+        default=None,
+        description="Why the source could not be read; set when the model reports a failed image",
+    )
