@@ -276,7 +276,10 @@ class ClaudeService:
         content_blocks.append(
             {
                 "type": "text",
-                "text": "Extract all transactions from the Revolut screenshot(s) above.",
+                "text": (
+                    "Extract all transactions from the Revolut screenshot(s) above, "
+                    "tagging each with its image_index."
+                ),
             }
         )
 
@@ -294,7 +297,15 @@ class ClaudeService:
                 messages=[{"role": "user", "content": content_blocks}],
             )
 
-            return self._parse_llm_response(message, raw_input_fallback="[screenshot]")
+            parsed = self._parse_llm_response(message, raw_input_fallback="[screenshot]")
+            for i, item in enumerate(parsed):
+                tagged = item.image_index
+                if tagged is not None and not 0 <= tagged < len(images):
+                    logger.warning(
+                        f"Dropping out-of-range image_index {tagged} (uploaded {len(images)} image(s))"
+                    )
+                    parsed[i] = item.model_copy(update={"image_index": None})
+            return parsed
 
         except anthropic.APIError as e:
             logger.error(f"Claude Vision API error: {e}")
@@ -395,6 +406,8 @@ class ClaudeService:
                         "extracted_data": self._ensure_extracted_data_fields(transaction_data),
                         "raw_input": item_data.get("raw_input", raw_input_fallback),
                         "classifier_source": "llm",
+                        "image_index": item_data.get("image_index"),
+                        "error": item_data.get("error"),
                     }
 
                     result = ClassifiedInput.model_validate(unrolled_item)

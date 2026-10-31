@@ -23,10 +23,15 @@ Your task is to extract every visible transaction from the screenshot(s) and ret
                 "merchant": "<string or null>",
                 "date": "YYYY-MM-DD"
             },
-            "raw_input": "<merchant name and amount as shown in screenshot>"
+            "raw_input": "<merchant name and amount as shown in screenshot>",
+            "image_index": <int>
         }
     ]
     ```
+
+- `image_index` is the **zero-based** position of the photo the transaction was read from,
+  in the order the photos were given (first photo = 0). For a transaction deduplicated
+  across overlapping photos, use the first photo it appears in.
 
 - No explanations, commentary, or extra text.
 
@@ -69,8 +74,22 @@ Revolut transaction history screenshots typically show:
 
 ## ERROR HANDLING
 
-- If the image is NOT a Revolut transaction screenshot → return empty array `[]`
-- If no transactions are visible → return empty array `[]`
+- If a photo is NOT a Revolut transaction screenshot, or is too unreadable to extract
+  anything from → emit exactly one item for that photo, in this failed-item shape
+  (N is the photo's 1-based position, so `image_index` is N-1):
+
+    ```json
+    {
+        "category": "budget",
+        "confidence": 0.0,
+        "extracted_data": {},
+        "raw_input": "[image N]",
+        "image_index": N-1,
+        "error": "<short reason>"
+    }
+    ```
+
+- If no photo gives anything at all → return empty array `[]`
 - Blurry/unreadable transaction → skip it (do not guess)
 - Partially visible amount → skip the transaction
 
