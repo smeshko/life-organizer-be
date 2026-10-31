@@ -53,3 +53,21 @@ def test_process_endpoint_removed():
         json={"input": "Call the dentist", "category": "reminder"},
     )
     assert response.status_code == 404
+
+
+def test_no_meals_routes_registered():
+    """No route is registered under /api/v1/meals."""
+    paths = [getattr(route, "path", "") for route in app.routes]
+    assert [p for p in paths if p.startswith("/api/v1/meals")] == []
+
+
+def test_openapi_has_no_meals_paths():
+    """The generated OpenAPI schema lists no meals path."""
+    assert [p for p in app.openapi()["paths"] if "/meals" in p] == []
+
+
+def test_meals_endpoints_removed():
+    """The former meals endpoints return 404."""
+    assert client.post("/api/v1/meals/suggest", json={}).status_code == 404
+    response = client.post("/api/v1/meals/feedback", json={"recipe_name": "x", "liked": True})
+    assert response.status_code == 404
