@@ -28,7 +28,7 @@ This guide helps you find relevant documentation based on what you're working on
 - docs/features/rate-limiting-llm-endpoints.md
   - Conditions:
     - When adding rate limiting to a new LLM-hitting endpoint
-    - When creating new endpoints that call the Claude API (e.g., meals/suggest)
+    - When creating new endpoints that call the Claude API
     - When modifying the rate limit configuration or exception handling for slowapi
     - When troubleshooting 429 responses or Retry-After header behavior
 
@@ -45,20 +45,6 @@ This guide helps you find relevant documentation based on what you're working on
     - When building API endpoints for recipes, meal history, or recipe feedback
     - When adding new tables to the meals schema namespace
     - When implementing meal planning features (Epic 3: FR13-FR22)
-
-- docs/features/meal-suggestion-endpoint.md
-  - Conditions:
-    - When adding new LLM-powered suggestion endpoints to the meals domain
-    - When modifying the meal suggestion prompt, context gathering, or response parsing
-    - When building new service orchestrators that combine DB queries with Claude API calls
-    - When extending meal suggestions with new context sources (e.g., dietary restrictions, seasonal ingredients)
-
-- docs/features/meal-feedback-endpoint.md
-  - Conditions:
-    - When adding feedback or rating endpoints to the meals domain
-    - When implementing recipe auto-save logic for LLM-generated content
-    - When creating non-LLM meal endpoints that use `Depends(get_db)` session injection
-    - When working with the meal feedback loop (FR20, FR21, FR22)
 
 - docs/features/transaction-query-pagination.md
   - Conditions:

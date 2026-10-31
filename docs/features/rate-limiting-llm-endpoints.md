@@ -79,4 +79,3 @@ def _reset_limiter():
 - In-memory storage means rate limit counters reset on app restart
 - If the app scales to multi-process or multi-user, switch to Redis-backed storage
 - The `Retry-After` header is hardcoded to 60 seconds (matching the 1-minute window)
-- `POST /api/v1/meals/suggest` (Epic 3) should also get this decorator when created

@@ -83,3 +83,4 @@ feedback = RecipeFeedback(
 - `times_made` has both `default=0` (Python) and `server_default="0"` (DB) for consistency across creation paths
 - Migration downgrade drops tables in reverse FK order, then drops the `meals` schema with `CASCADE`
 - 49 unit tests achieve full coverage of column types, nullability, constraints, indexes, defaults, and `__repr__` methods
+- The meals endpoints were removed (LIFE-29). The `meals.recipes`, `meals.meal_history` and `meals.recipe_feedback` tables and their models (`Recipe`, `MealHistory`, `RecipeFeedback`) are kept, with no endpoint, until a drop is decided in its own ticket
