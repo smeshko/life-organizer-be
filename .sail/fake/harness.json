@@ -131,5 +131,543 @@
         "costUsd": 0.1
       }
     }
+  ],
+  "review-requirements": [
+    {
+      "outcome": "done",
+      "output": {
+        "summary": "All three criteria are met in the code; the API-key requirement has no test of its own.",
+        "coverage": [
+          {
+            "what": "GET /api/v1/budget/categories returns the three lists in declaration order",
+            "how": "src/life_organizer/api/routes/budget.py:412 builds each list from its enum; tests/api/test_budget.py::TestListCategories asserts expenses and income",
+            "status": "holds"
+          },
+          {
+            "what": "The endpoint requires the API key",
+            "how": "main.py:58 includes the budget router with Depends(verify_api_key); tests/conftest.py bypasses it and no test restores it",
+            "status": "finding"
+          },
+          {
+            "what": "openapi.yaml documents it",
+            "how": "openapi.yaml:214 has /api/v1/budget/categories with its response schema",
+            "status": "holds"
+          },
+          {
+            "what": "Nothing beyond the requirements",
+            "how": "git diff --stat: schemas/budget.py, routes/budget.py, openapi.yaml, the test",
+            "status": "holds"
+          }
+        ],
+        "findings": [
+          {
+            "severity": "medium",
+            "file": "tests/api/test_budget.py:640",
+            "title": "The API-key requirement has no test",
+            "detail": "tests/conftest.py overrides verify_api_key for every test, and no test of /categories puts it back, so the route becoming public would ship unnoticed."
+          }
+        ]
+      },
+      "turns": 10,
+      "usage": {
+        "inputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 0,
+        "costUsd": 0.5
+      }
+    }
+  ],
+  "review-architecture": [
+    {
+      "outcome": "done",
+      "output": {
+        "summary": "The route stays thin on the budget router and builds its lists from the existing enums.",
+        "coverage": [
+          {
+            "what": "api/routes/budget.py: a thin route on the existing router",
+            "how": "read src/life_organizer/api/routes/budget.py:405-420",
+            "status": "holds"
+          },
+          {
+            "what": "Contract: the new response schema and openapi.yaml agree",
+            "how": "BudgetCategoriesResponse vs openapi.yaml:214-236",
+            "status": "holds"
+          },
+          {
+            "what": "No model change, so no migration",
+            "how": "git diff --stat -- src/life_organizer/db alembic: empty",
+            "status": "holds"
+          }
+        ],
+        "findings": []
+      },
+      "turns": 10,
+      "usage": {
+        "inputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 0,
+        "costUsd": 0.5
+      }
+    }
+  ],
+  "review-bugs": [
+    {
+      "outcome": "done",
+      "output": {
+        "summary": "The savings list is built from the income enum; an older PATCH path accepts a category of another type.",
+        "coverage": [
+          {
+            "what": "list_categories()",
+            "how": "traced each list against its enum",
+            "status": "finding"
+          },
+          {
+            "what": "PATCH /transactions/{id} with a category",
+            "how": "traced TransactionUpdateRequest.category into the row",
+            "status": "finding"
+          }
+        ],
+        "findings": [
+          {
+            "severity": "high",
+            "file": "src/life_organizer/api/routes/budget.py:415",
+            "title": "savings is built from IncomeCategory",
+            "detail": "list_categories() sets savings=[c.value for c in IncomeCategory], so clients get Rent and Refunds as savings categories and never Savings or Metlife."
+          },
+          {
+            "severity": "medium",
+            "file": "src/life_organizer/schemas/budget.py:96",
+            "title": "PATCH accepts an income category on an expense",
+            "detail": "Older code: TransactionUpdateRequest.category is a plain str, so PATCH /transactions/{id} can store Refunds on an expense row."
+          }
+        ]
+      },
+      "turns": 10,
+      "usage": {
+        "inputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 0,
+        "costUsd": 0.5
+      }
+    }
+  ],
+  "review-tests": [
+    {
+      "outcome": "done",
+      "output": {
+        "summary": "The new tests assert exact lists; nothing weakened.",
+        "coverage": [
+          {
+            "what": "TestListCategories",
+            "how": "asserts the expenses and income lists in order; savings is not asserted",
+            "status": "holds"
+          },
+          {
+            "what": "Mocks",
+            "how": "no mock: the route builds from enums alone",
+            "status": "holds"
+          }
+        ],
+        "findings": []
+      },
+      "turns": 10,
+      "usage": {
+        "inputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 0,
+        "costUsd": 0.5
+      }
+    }
+  ],
+  "review-security": [
+    {
+      "outcome": "done",
+      "output": {
+        "summary": "No new input, secret or Claude call; the route sits behind the router's API-key dependency.",
+        "coverage": [
+          {
+            "what": "Untrusted input",
+            "how": "the route takes no parameters",
+            "status": "holds"
+          },
+          {
+            "what": "Auth",
+            "how": "main.py:58: the budget router carries Depends(verify_api_key)",
+            "status": "holds"
+          },
+          {
+            "what": "Rate limit",
+            "how": "the route calls no LLM, so none is needed",
+            "status": "holds"
+          }
+        ],
+        "findings": []
+      },
+      "turns": 10,
+      "usage": {
+        "inputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 0,
+        "costUsd": 0.5
+      }
+    }
+  ],
+  "review-conventions": [
+    {
+      "outcome": "done",
+      "output": {
+        "summary": "One commit per task, Conventional Commits; one stale docstring.",
+        "coverage": [
+          {
+            "what": "Commits",
+            "how": "git log: feat(budget): list the budget categories (FAKE-1)",
+            "status": "holds"
+          },
+          {
+            "what": "Docstrings current",
+            "how": "src/life_organizer/api/routes/budget.py:406 says 'Return the expense categories.'",
+            "status": "finding"
+          }
+        ],
+        "findings": [
+          {
+            "severity": "low",
+            "file": "src/life_organizer/api/routes/budget.py:406",
+            "title": "The docstring names only the expense categories",
+            "detail": "list_categories() returns all three lists, but its docstring says 'Return the expense categories.'"
+          }
+        ]
+      },
+      "turns": 10,
+      "usage": {
+        "inputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 0,
+        "costUsd": 0.5
+      }
+    }
+  ],
+  "judge": [
+    {
+      "outcome": "done",
+      "output": {
+        "summary": "The endpoint works except for the savings list, which validation's failing test also shows; the PATCH category check is older code.",
+        "thin": [],
+        "decisions": [
+          {
+            "finding": "V1",
+            "verdict": "fix",
+            "rationale": "The failing test is the declaration-order criterion for savings.",
+            "ticket": null
+          },
+          {
+            "finding": "R1",
+            "verdict": "fix",
+            "rationale": "An acceptance criterion with no test of its own.",
+            "ticket": null
+          },
+          {
+            "finding": "R2",
+            "verdict": "fix",
+            "rationale": "A real bug in the route this change adds; the same cause as V1.",
+            "ticket": null
+          },
+          {
+            "finding": "R3",
+            "verdict": "ticket",
+            "rationale": "Real, but TransactionUpdateRequest is older code the change only exposed.",
+            "ticket": {
+              "title": "PATCH /budget/transactions accepts a category of another transaction type",
+              "description": "`TransactionUpdateRequest.category` in `src/life_organizer/schemas/budget.py` is a plain string, so a PATCH can store an income category on an expense.",
+              "type": "bug",
+              "trigger": "PATCH /api/v1/budget/transactions/{id} with {\"category\": \"Refunds\"} on an expense"
+            }
+          },
+          {
+            "finding": "R4",
+            "verdict": "fix",
+            "rationale": "A one-line docstring nit.",
+            "ticket": null
+          }
+        ]
+      },
+      "turns": 18,
+      "usage": {
+        "inputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 0,
+        "costUsd": 0.9
+      }
+    }
+  ],
+  "fix": [
+    {
+      "outcome": "done",
+      "output": {
+        "fixes": [
+          {
+            "finding": "V1",
+            "commit": "1111111111111111111111111111111111111111",
+            "note": "savings built from SavingsCategory."
+          },
+          {
+            "finding": "R1",
+            "commit": "2222222222222222222222222222222222222222",
+            "note": "A test that /categories returns 401 without the key."
+          },
+          {
+            "finding": "R2",
+            "commit": "1111111111111111111111111111111111111111",
+            "note": "Same fix as V1."
+          },
+          {
+            "finding": "R4",
+            "commit": "3333333333333333333333333333333333333333",
+            "note": "Review nits: the docstring."
+          }
+        ]
+      },
+      "turns": 40,
+      "usage": {
+        "inputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 0,
+        "costUsd": 2.1
+      }
+    }
+  ],
+  "check-fix#1": [
+    {
+      "outcome": "done",
+      "output": {
+        "items": [
+          {
+            "finding": "V1",
+            "resolved": true,
+            "detail": "savings comes from SavingsCategory; the test asserts it."
+          },
+          {
+            "finding": "R1",
+            "resolved": false,
+            "detail": "The new test overrides the dependency itself, so it passes whatever the route requires."
+          },
+          {
+            "finding": "R2",
+            "resolved": true,
+            "detail": "Same as V1."
+          },
+          {
+            "finding": "R4",
+            "resolved": true,
+            "detail": "The docstring names all three lists."
+          }
+        ],
+        "findings": []
+      },
+      "turns": 15,
+      "usage": {
+        "inputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 0,
+        "costUsd": 0.7
+      }
+    }
+  ],
+  "fix#2": [
+    {
+      "outcome": "done",
+      "output": {
+        "fixes": [
+          {
+            "finding": "R1",
+            "commit": "4444444444444444444444444444444444444444",
+            "note": "The test clears the conftest override and asserts 401."
+          }
+        ]
+      },
+      "turns": 15,
+      "usage": {
+        "inputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 0,
+        "costUsd": 0.8
+      }
+    }
+  ],
+  "check-fix#2": [
+    {
+      "outcome": "done",
+      "output": {
+        "items": [
+          {
+            "finding": "V1",
+            "resolved": true,
+            "detail": "Holds."
+          },
+          {
+            "finding": "R1",
+            "resolved": true,
+            "detail": "The test removes the override and asserts 401 without the key."
+          },
+          {
+            "finding": "R2",
+            "resolved": true,
+            "detail": "Holds."
+          },
+          {
+            "finding": "R4",
+            "resolved": true,
+            "detail": "Holds."
+          }
+        ],
+        "findings": []
+      },
+      "turns": 12,
+      "usage": {
+        "inputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 0,
+        "costUsd": 0.6
+      }
+    }
+  ],
+  "duplicates": [
+    {
+      "outcome": "done",
+      "output": {
+        "candidates": [
+          {
+            "ticketKey": "FAKE-2",
+            "confidence": 0.85,
+            "why": "Both ask for a merchant filter on GET /api/v1/budget/transactions."
+          }
+        ]
+      },
+      "turns": 4,
+      "usage": {
+        "inputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 0,
+        "costUsd": 0.1
+      }
+    }
+  ],
+  "worth": [
+    {
+      "outcome": "done",
+      "output": {
+        "verdict": "keep",
+        "confidence": 0.8,
+        "why": "Finding a merchant's transactions takes paging through every month today; the user asked for the filter.",
+        "merges": [
+          {
+            "ticketKey": "FAKE-4",
+            "confidence": 0.4,
+            "why": "The iOS filter chip calls this endpoint."
+          }
+        ]
+      },
+      "turns": 5,
+      "usage": {
+        "inputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 0,
+        "costUsd": 0.1
+      }
+    }
+  ],
+  "staleness": [
+    {
+      "outcome": "done",
+      "output": {
+        "stale": false,
+        "evidence": "git grep -n 'merchant' src/life_organizer/api/routes/budget.py finds the column in the response only; list_transactions takes no merchant parameter."
+      },
+      "turns": 5,
+      "usage": {
+        "inputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 0,
+        "costUsd": 0.1
+      }
+    }
+  ],
+  "questions": [
+    {
+      "outcome": "done",
+      "output": {
+        "questions": []
+      },
+      "turns": 4,
+      "usage": {
+        "inputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 0,
+        "costUsd": 0.1
+      }
+    }
+  ],
+  "decide": [
+    {
+      "outcome": "done",
+      "output": {
+        "summary": "FAKE-3 asks for the merchant filter FAKE-2 already describes; it is a duplicate of it.",
+        "actions": [
+          {
+            "kind": "merge",
+            "into": "FAKE-4",
+            "absorb": [
+              "FAKE-3"
+            ],
+            "description": "The merchant filter, and the iOS chip that calls it."
+          },
+          {
+            "kind": "duplicate",
+            "of": "FAKE-2"
+          },
+          {
+            "kind": "related",
+            "to": "FAKE-4"
+          },
+          {
+            "kind": "labels",
+            "set": {
+              "type": "feature",
+              "platform": "Backend"
+            }
+          }
+        ],
+        "questions": []
+      },
+      "files": {
+        "report.md": "## Grooming report\n\nFAKE-3 asks for the merchant filter FAKE-2 already describes: it is a duplicate of it.\n\n## Worth\n\nKept at 0.80 by the check: the user asked for the filter. Its work lives on in FAKE-2.\n\n## Merges\n\n- FAKE-4 at 0.40: the iOS filter chip that calls the same endpoint, another repository's work, so no merge.\n\n## Duplicates\n\n- FAKE-2 at 0.85: the same merchant filter on the transactions endpoint. Agreed.\n\n## Staleness\n\nNot stale: `list_transactions` takes no merchant parameter.\n\n## Labels\n\nIt had no type: `feature`, `Backend`.\n\n## Open questions\n\nNone.\n"
+      },
+      "messages": [
+        "Report written: FAKE-3 is a duplicate of FAKE-2."
+      ],
+      "turns": 10,
+      "usage": {
+        "inputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 0,
+        "costUsd": 0.4
+      }
+    }
   ]
 }

@@ -2,7 +2,25 @@
   "remote": "fake://codehost/life-organizer-be",
   "defaultBranch": "staging",
   "branches": {
-    "staging": "a8e55017fcb5c907d4efc7a82769b288cdb035a0"
+    "staging": "a8e55017fcb5c907d4efc7a82769b288cdb035a0",
+    "sail/FAKE-1-list-the-budget-categories-from-the-api": "83fd248734b5aeb052455cf9554e4ebc5971c5f9"
   },
-  "pullRequests": []
+  "pullRequests": [
+    {
+      "number": 7,
+      "title": "feat(budget): list the budget categories (FAKE-1)",
+      "body": "## Summary\n\nThe budget API lists its expense, income and savings categories.\n\nCloses FAKE-1",
+      "base": "staging",
+      "head": "sail/FAKE-1-list-the-budget-categories-from-the-api",
+      "headSha": "83fd248734b5aeb052455cf9554e4ebc5971c5f9",
+      "baseSha": "a8e55017fcb5c907d4efc7a82769b288cdb035a0",
+      "draft": false,
+      "state": "open",
+      "labels": [
+        "factory-be"
+      ],
+      "ticketKey": "FAKE-1",
+      "checks": []
+    }
+  ]
 }
