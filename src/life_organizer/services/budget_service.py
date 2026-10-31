@@ -10,7 +10,12 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from life_organizer.db.models.budget import BudgetPlan, BudgetTransaction
-from life_organizer.schemas.budget import ExpenseCategory, IncomeCategory, SavingsCategory
+from life_organizer.schemas.budget import (
+    ExpenseCategory,
+    IncomeCategory,
+    SavingsCategory,
+    TransactionItem,
+)
 from life_organizer.schemas.classification import ClassifiedInput
 from life_organizer.schemas.enums import ActionType
 from life_organizer.schemas.responses import ProcessingResponse
@@ -19,6 +24,20 @@ logger = logging.getLogger(__name__)
 
 # Type alias for transaction types
 TransactionType = Literal["Expenses", "Income", "Savings"]
+
+
+def _to_transaction_item(txn: BudgetTransaction) -> TransactionItem:
+    """Map a persisted BudgetTransaction to its API representation."""
+    return TransactionItem(
+        id=txn.id,
+        amount=float(txn.amount),
+        currency=txn.currency,
+        amount_eur=float(txn.amount_eur) if txn.amount_eur is not None else None,
+        date=txn.date,
+        transaction_type=txn.transaction_type,
+        category=txn.category,
+        details=txn.details,
+    )
 
 
 class PaginatedResult(TypedDict):
@@ -99,11 +118,15 @@ class BudgetService:
         """
         results: list[ProcessingResponse] = []
         transactions_to_commit: list[BudgetTransaction] = []
+        committed: list[tuple[int, BudgetTransaction]] = []
 
         async with self.session_factory() as db:
             try:
                 for classified_input in classified_inputs:
                     try:
+                        if classified_input.error:
+                            raise ValueError(classified_input.error)
+
                         # Validate required fields
                         required_fields = [
                             "amount",
@@ -193,6 +216,7 @@ class BudgetService:
 
                         db.add(transaction)
                         transactions_to_commit.append(transaction)
+                        committed.append((len(results), transaction))
 
                         results.append(
                             ProcessingResponse(
@@ -202,6 +226,7 @@ class BudgetService:
                                     f"Logged {transaction_type.lower()}: "
                                     f"{amount_eur} EUR in {category}"
                                 ),
+                                image_index=classified_input.image_index,
                             )
                         )
 
@@ -212,6 +237,7 @@ class BudgetService:
                                 success=False,
                                 action_type=ActionType.BACKEND_HANDLED,
                                 message=f"Could not process budget entry: {e!s}",
+                                image_index=classified_input.image_index,
                             )
                         )
 
@@ -222,12 +248,17 @@ class BudgetService:
                                 success=False,
                                 action_type=ActionType.BACKEND_HANDLED,
                                 message=(f"An error occurred processing your budget entry: {e!s}"),
+                                image_index=classified_input.image_index,
                             )
                         )
 
                 # Atomic commit
                 if transactions_to_commit:
                     await db.commit()
+                    for result_index, txn in committed:
+                        results[result_index] = results[result_index].model_copy(
+                            update={"transactions": [_to_transaction_item(txn)]}
+                        )
                     logger.info(f"Persisted {len(transactions_to_commit)} budget transaction(s)")
                 else:
                     logger.warning("No valid transactions to commit")
@@ -242,6 +273,7 @@ class BudgetService:
                             success=False,
                             action_type=ActionType.BACKEND_HANDLED,
                             message="Failed to save budget transaction to database",
+                            image_index=result.image_index,
                         )
 
         return results

@@ -127,6 +127,22 @@ components:
           type: string
           description: Human-readable message to display to user
           example: "Logged expenses: 234.6 BGN in Clothes"
+        transactions:
+          type: array
+          default: []
+          items:
+            $ref: '#/components/schemas/TransactionItem'
+          description: |
+            Transactions this result created, with their database ids (usable with
+            PATCH/DELETE /api/v1/budget/transactions/{id}). Filled only after the
+            commit succeeds; empty when the result is a failure.
+        image_index:
+          type: integer
+          nullable: true
+          minimum: 0
+          description: |
+            Zero-based index, in upload order, of the photo this result came from.
+            Only set by /api/v1/budget/images; null when unknown or for text input.
         app_action:
           nullable: true
           description: |
@@ -143,6 +159,46 @@ components:
       description: |
         Main response model returned from /api/v1/process endpoint.
         Check action_type to determine how to handle the response.
+
+    TransactionItem:
+      type: object
+      required:
+        - id
+        - amount
+        - currency
+        - amount_eur
+        - date
+        - transaction_type
+        - category
+        - details
+      properties:
+        id:
+          type: integer
+          description: Transaction primary key
+        amount:
+          type: number
+          description: Original transaction amount
+        currency:
+          type: string
+          description: Currency code (e.g. EUR, USD)
+        amount_eur:
+          type: number
+          nullable: true
+          description: Amount converted to EUR (null for legacy records)
+        date:
+          type: string
+          format: date
+          description: Transaction date
+        transaction_type:
+          type: string
+          description: Transaction type (Expenses, Income, or Savings)
+        category:
+          type: string
+          description: Transaction category
+        details:
+          type: string
+          nullable: true
+          description: Merchant name or description
 
     # =============================================================================
     # APP ACTION MODELS (Discriminated Union)

@@ -11,7 +11,10 @@ from life_organizer.services.budget_service import BudgetService, _convert_to_eu
 
 
 def _classified_input(
-    extracted_data: dict[str, object], raw_input: str = "test input"
+    extracted_data: dict[str, object],
+    raw_input: str = "test input",
+    image_index: int | None = None,
+    error: str | None = None,
 ) -> ClassifiedInput:
     """Helper to build ClassifiedInput objects for tests."""
     return ClassifiedInput(
@@ -20,12 +23,25 @@ def _classified_input(
         extracted_data=extracted_data,
         raw_input=raw_input,
         classifier_source="llm",
+        image_index=image_index,
+        error=error,
     )
 
 
 def _mock_session_factory() -> tuple[MagicMock, AsyncMock]:
     """Create a mock async session factory."""
     mock_session = AsyncMock()
+    added: list[object] = []
+
+    def _add(obj: object) -> None:
+        added.append(obj)
+
+    async def _commit() -> None:
+        for i, obj in enumerate(added, start=1):
+            obj.id = i  # type: ignore[attr-defined]
+
+    mock_session.add = MagicMock(side_effect=_add)
+    mock_session.commit = AsyncMock(side_effect=_commit)
     mock_factory = MagicMock()
     mock_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
     mock_factory.return_value.__aexit__ = AsyncMock(return_value=None)
@@ -300,6 +316,136 @@ class TestBudgetServiceCreateEntries:
         assert results[0].success is False
         assert "Failed to save budget transaction" in results[0].message
         mock_session.rollback.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_two_expenses_return_one_transaction_each(self) -> None:
+        """Each successful result carries its committed transaction with the assigned id."""
+        mock_factory, _ = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        first = _classified_input(
+            {
+                "amount": 120.0,
+                "currency": "EUR",
+                "transaction_type": "Expenses",
+                "category": "Clothes",
+                "merchant": "next",
+                "date": "2026-03-09",
+            }
+        )
+        second = _classified_input(
+            {
+                "amount": 250.0,
+                "currency": "EUR",
+                "transaction_type": "Income",
+                "category": "Rent",
+                "date": "2026-03-10",
+            }
+        )
+
+        results = await service.create_entries([first, second])
+
+        assert [len(r.transactions) for r in results] == [1, 1]
+        t1 = results[0].transactions[0]
+        t2 = results[1].transactions[0]
+        assert (t1.id, t2.id) == (1, 2)
+        assert t1.amount == 120.0
+        assert t1.currency == "EUR"
+        assert t1.amount_eur == 120.0
+        assert t1.date == datetime.date(2026, 3, 9)
+        assert t1.transaction_type == "Expenses"
+        assert t1.category == "Clothes"
+        assert t1.details == "next"
+        assert t2.amount == 250.0
+        assert t2.transaction_type == "Income"
+        assert t2.category == "Rent"
+        assert t2.details is None
+        assert results[0].image_index is None
+
+    @pytest.mark.asyncio
+    async def test_failed_entry_has_no_transactions(self) -> None:
+        """A validation failure carries no transactions."""
+        mock_factory, _ = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        invalid = _classified_input(
+            {
+                "amount": 50.0,
+                "currency": "EUR",
+                "transaction_type": "Gift",
+                "category": "Other",
+                "date": "2026-03-09",
+            }
+        )
+
+        results = await service.create_entries([invalid])
+
+        assert results[0].success is False
+        assert results[0].transactions == []
+
+    @pytest.mark.asyncio
+    async def test_db_error_leaves_transactions_empty(self) -> None:
+        """A commit failure turns every result into a failure with no transactions."""
+        mock_factory, mock_session = _mock_session_factory()
+        mock_session.commit = AsyncMock(side_effect=Exception("DB connection lost"))
+        service = BudgetService(session_factory=mock_factory)
+
+        data: dict[str, object] = {
+            "amount": 50.0,
+            "currency": "EUR",
+            "transaction_type": "Expenses",
+            "category": "Groceries",
+            "date": "2026-03-09",
+        }
+
+        results = await service.create_entries(
+            [_classified_input(data, image_index=0), _classified_input(data, image_index=1)]
+        )
+
+        assert [r.success for r in results] == [False, False]
+        assert [r.transactions for r in results] == [[], []]
+        assert [r.image_index for r in results] == [0, 1]
+
+    @pytest.mark.asyncio
+    async def test_image_index_copied_to_results(self) -> None:
+        """image_index passes from each input to its result, valid or not."""
+        mock_factory, _ = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        valid = _classified_input(
+            {
+                "amount": 50.0,
+                "currency": "EUR",
+                "transaction_type": "Expenses",
+                "category": "Groceries",
+                "date": "2026-03-09",
+            },
+            image_index=0,
+        )
+        invalid = _classified_input({}, image_index=1)
+
+        results = await service.create_entries([valid, invalid])
+
+        assert results[0].success is True
+        assert results[0].image_index == 0
+        assert results[1].success is False
+        assert results[1].image_index == 1
+
+    @pytest.mark.asyncio
+    async def test_error_input_returns_failure_with_reason(self) -> None:
+        """An input carrying an error becomes a failure that names the reason."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        failed = _classified_input({}, image_index=1, error="Not a Revolut screenshot")
+
+        results = await service.create_entries([failed])
+
+        assert results[0].success is False
+        assert results[0].message == "Could not process budget entry: Not a Revolut screenshot"
+        assert results[0].transactions == []
+        assert results[0].image_index == 1
+        mock_session.add.assert_not_called()
 
 
 class TestConvertToEUR:

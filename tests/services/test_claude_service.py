@@ -352,6 +352,78 @@ class TestParseBudgetImages:
         assert results[1].extracted_data["amount"] == 45.0
 
     @pytest.mark.asyncio
+    async def test_image_index_parsed_per_transaction(self, service: ClaudeService) -> None:
+        """Each item keeps the image_index the model gave it."""
+        item = (
+            '{"category": "budget", "confidence": 0.9, "extracted_data": '
+            '{"amount": %s, "currency": "EUR", "transaction_type": "Expenses", '
+            '"category": "Groceries", "merchant": "Lidl", "date": "2026-03-08"}, '
+            '"raw_input": "x", "image_index": %d}'
+        )
+        service.client.messages.create = _mock_claude_response(
+            "[" + item % (12.0, 0) + "," + item % (45.0, 1) + "]"
+        )
+
+        results = await service.parse_budget_images([(b"a", "image/png"), (b"b", "image/png")])
+
+        assert [r.image_index for r in results] == [0, 1]
+
+    @pytest.mark.asyncio
+    async def test_failed_image_item_parsed(self, service: ClaudeService) -> None:
+        """A failed-photo item keeps its error and image_index."""
+        service.client.messages.create = _mock_claude_response(
+            '[{"category": "budget", "confidence": 0.0, "extracted_data": {}, '
+            '"raw_input": "[image 2]", "image_index": 1, "error": "Blurry"}]'
+        )
+
+        results = await service.parse_budget_images([(b"a", "image/png"), (b"b", "image/png")])
+
+        assert len(results) == 1
+        assert results[0].error == "Blurry"
+        assert results[0].image_index == 1
+        assert results[0].extracted_data == {}
+
+    @pytest.mark.asyncio
+    async def test_out_of_range_image_index_dropped(self, service: ClaudeService) -> None:
+        """An image_index outside the uploaded range becomes None."""
+        service.client.messages.create = _mock_claude_response(
+            '[{"category": "budget", "confidence": 0.9, "extracted_data": '
+            '{"amount": 1.0, "currency": "EUR", "transaction_type": "Expenses", '
+            '"category": "Groceries", "date": "2026-03-08"}, '
+            '"raw_input": "x", "image_index": 5}]'
+        )
+
+        results = await service.parse_budget_images([(b"a", "image/png"), (b"b", "image/png")])
+
+        assert len(results) == 1
+        assert results[0].image_index is None
+        assert results[0].extracted_data["amount"] == 1.0
+
+    @pytest.mark.asyncio
+    async def test_unrolled_items_keep_image_index(self, service: ClaudeService) -> None:
+        """Unrolling an extracted_data array copies image_index onto each result."""
+        tx = (
+            '{"amount": %s, "currency": "EUR", "transaction_type": "Expenses", '
+            '"category": "Groceries", "date": "2026-03-08"}'
+        )
+        service.client.messages.create = _mock_claude_response(
+            '[{"category": "budget", "confidence": 0.9, "extracted_data": ['
+            + tx % 1.0
+            + ","
+            + tx % 2.0
+            + '], "raw_input": "x", "image_index": 1}]'
+        )
+
+        results = await service.parse_budget_images([(b"a", "image/png"), (b"b", "image/png")])
+
+        assert [r.image_index for r in results] == [1, 1]
+        assert [r.extracted_data["amount"] for r in results] == [1.0, 2.0]
+
+    def test_vision_prompt_mentions_image_index(self, service: ClaudeService) -> None:
+        """The vision prompt asks the model for image_index."""
+        assert "image_index" in service._get_vision_prompt_with_current_date()
+
+    @pytest.mark.asyncio
     async def test_api_error_triggers_retry_and_raises(self, service: ClaudeService) -> None:
         """API error should trigger retries and eventually raise."""
         service.client.messages.create = AsyncMock(

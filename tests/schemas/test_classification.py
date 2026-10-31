@@ -215,3 +215,20 @@ def test_extracted_data_complex_types():
     assert classified.extracted_data["amount"] == 150.0
     assert classified.extracted_data["currency"] == "EUR"
     assert isinstance(classified.extracted_data["metadata"], dict)
+
+
+def test_image_index_and_error_optional():
+    """image_index and error default to None and are kept when given."""
+    base = {
+        "category": "budget",
+        "confidence": 0.5,
+        "raw_input": "[image 2]",
+        "classifier_source": "llm",
+    }
+    default = ClassifiedInput.model_validate(base)
+    assert default.image_index is None
+    assert default.error is None
+
+    given = ClassifiedInput.model_validate({**base, "image_index": 1, "error": "Blurry"})
+    assert given.image_index == 1
+    assert given.error == "Blurry"
