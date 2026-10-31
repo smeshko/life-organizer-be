@@ -59,6 +59,19 @@ budget_service = BudgetService(session_factory=async_session_factory)
                                     "success": True,
                                     "action_type": "backend_handled",
                                     "message": "Logged expenses: 4.5 EUR in Eat out",
+                                    "transactions": [
+                                        {
+                                            "id": 101,
+                                            "amount": 4.5,
+                                            "currency": "EUR",
+                                            "amount_eur": 4.5,
+                                            "date": "2026-03-09",
+                                            "transaction_type": "Expenses",
+                                            "category": "Eat out",
+                                            "details": "coffee shop",
+                                        }
+                                    ],
+                                    "image_index": None,
                                 }
                             ],
                         },
@@ -69,11 +82,37 @@ budget_service = BudgetService(session_factory=async_session_factory)
                                     "success": True,
                                     "action_type": "backend_handled",
                                     "message": "Logged expenses: 12.0 EUR in Eat out",
+                                    "transactions": [
+                                        {
+                                            "id": 101,
+                                            "amount": 12.0,
+                                            "currency": "EUR",
+                                            "amount_eur": 12.0,
+                                            "date": "2026-03-09",
+                                            "transaction_type": "Expenses",
+                                            "category": "Eat out",
+                                            "details": "lunch",
+                                        }
+                                    ],
+                                    "image_index": None,
                                 },
                                 {
                                     "success": True,
                                     "action_type": "backend_handled",
                                     "message": "Logged expenses: 4.5 EUR in Eat out",
+                                    "transactions": [
+                                        {
+                                            "id": 102,
+                                            "amount": 4.5,
+                                            "currency": "EUR",
+                                            "amount_eur": 4.5,
+                                            "date": "2026-03-09",
+                                            "transaction_type": "Expenses",
+                                            "category": "Eat out",
+                                            "details": "coffee",
+                                        }
+                                    ],
+                                    "image_index": None,
                                 },
                             ],
                         },
@@ -84,11 +123,26 @@ budget_service = BudgetService(session_factory=async_session_factory)
                                     "success": True,
                                     "action_type": "backend_handled",
                                     "message": "Logged expenses: 50.0 EUR in Groceries",
+                                    "transactions": [
+                                        {
+                                            "id": 103,
+                                            "amount": 50.0,
+                                            "currency": "EUR",
+                                            "amount_eur": 50.0,
+                                            "date": "2026-03-09",
+                                            "transaction_type": "Expenses",
+                                            "category": "Groceries",
+                                            "details": None,
+                                        }
+                                    ],
+                                    "image_index": None,
                                 },
                                 {
                                     "success": False,
                                     "action_type": "backend_handled",
                                     "message": "Could not process budget entry: Missing required fields: amount",
+                                    "transactions": [],
+                                    "image_index": None,
                                 },
                             ],
                         },
@@ -122,7 +176,10 @@ async def process_budget(
         body: ClassifyRequest with text input (category field is ignored)
 
     Returns:
-        List of ProcessingResponse objects (one per detected transaction)
+        List of ProcessingResponse objects (one per detected transaction). Each successful
+        result carries the committed transaction in ``transactions`` (with its database id,
+        usable with PATCH/DELETE ``/transactions/{id}``); a failed result has an empty list.
+        ``image_index`` is always null for text input.
 
     Raises:
         HTTPException 422: Input validation failed or transaction limit exceeded
@@ -167,11 +224,67 @@ async def process_budget(
                                     "success": True,
                                     "action_type": "backend_handled",
                                     "message": "Logged expenses: 4.5 EUR in Eat out",
+                                    "transactions": [
+                                        {
+                                            "id": 101,
+                                            "amount": 4.5,
+                                            "currency": "EUR",
+                                            "amount_eur": 4.5,
+                                            "date": "2026-03-09",
+                                            "transaction_type": "Expenses",
+                                            "category": "Eat out",
+                                            "details": "Starbucks",
+                                        }
+                                    ],
+                                    "image_index": 0,
                                 },
                                 {
                                     "success": True,
                                     "action_type": "backend_handled",
                                     "message": "Logged expenses: 12.0 EUR in Groceries",
+                                    "transactions": [
+                                        {
+                                            "id": 102,
+                                            "amount": 12.0,
+                                            "currency": "EUR",
+                                            "amount_eur": 12.0,
+                                            "date": "2026-03-09",
+                                            "transaction_type": "Expenses",
+                                            "category": "Groceries",
+                                            "details": "Lidl",
+                                        }
+                                    ],
+                                    "image_index": 0,
+                                },
+                            ],
+                        },
+                        "failed_photo": {
+                            "summary": "Second photo could not be read",
+                            "value": [
+                                {
+                                    "success": True,
+                                    "action_type": "backend_handled",
+                                    "message": "Logged expenses: 4.5 EUR in Eat out",
+                                    "transactions": [
+                                        {
+                                            "id": 101,
+                                            "amount": 4.5,
+                                            "currency": "EUR",
+                                            "amount_eur": 4.5,
+                                            "date": "2026-03-09",
+                                            "transaction_type": "Expenses",
+                                            "category": "Eat out",
+                                            "details": "Starbucks",
+                                        }
+                                    ],
+                                    "image_index": 0,
+                                },
+                                {
+                                    "success": False,
+                                    "action_type": "backend_handled",
+                                    "message": "Could not process budget entry: Not a Revolut screenshot",
+                                    "transactions": [],
+                                    "image_index": 1,
                                 },
                             ],
                         },
@@ -199,7 +312,11 @@ async def process_budget_images(
         files: List of uploaded image files (PNG, JPEG, GIF, WebP)
 
     Returns:
-        List of ProcessingResponse objects (one per extracted transaction)
+        List of ProcessingResponse objects (one per extracted transaction). Each successful
+        result carries the committed transaction in ``transactions`` (with its database id).
+        ``image_index`` is the zero-based upload position of the source photo; an unreadable
+        photo comes back as ``success: false`` with its ``image_index`` and the reason in
+        ``message``.
 
     Raises:
         HTTPException 400: Non-image file uploaded

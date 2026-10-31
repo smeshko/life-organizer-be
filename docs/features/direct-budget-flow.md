@@ -54,6 +54,8 @@ results = await budget_service.create_entries(classified_inputs)
 1. Send a POST request to `/api/v1/budget` with JSON body `{"input": "coffee 4.50, lunch 12 eur"}`
 2. The endpoint parses the text via Claude, returning one `ProcessingResponse` per detected transaction
 3. Each response indicates `success: true/false` with a descriptive message
+   - `transactions` holds the transaction the result created, with its database `id` (the same id `PATCH`/`DELETE /api/v1/budget/transactions/{id}` take). It is filled only after the commit succeeds; a failed result, including every result of a failed commit, has `transactions: []`
+   - `image_index` is always `null` for text input
 4. For bulk exports, use `GET /api/v1/budget/export?start_date=YYYY-MM-DD` to get TSV output
 
 ## Configuration

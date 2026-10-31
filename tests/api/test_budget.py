@@ -1,6 +1,7 @@
 """Tests for budget API endpoints."""
 
 import datetime
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import anthropic
@@ -8,9 +9,19 @@ import pytest
 from fastapi import HTTPException
 from starlette.requests import Request
 
+from life_organizer.rate_limit import limiter
+from life_organizer.schemas.budget import TransactionItem, TransactionUpdateRequest
 from life_organizer.schemas.classification import ClassifiedInput
 from life_organizer.schemas.enums import ActionType, Category
 from life_organizer.schemas.responses import ProcessingResponse
+
+
+@pytest.fixture(autouse=True)
+def _reset_limiter() -> Iterator[None]:
+    """Reset rate limiter state between tests."""
+    limiter.reset()
+    yield
+    limiter.reset()
 
 
 def _make_mock_request() -> Request:
@@ -54,6 +65,20 @@ def _make_processing_response(success: bool = True) -> ProcessingResponse:
     )
 
 
+def _make_transaction_item(id: int = 42) -> TransactionItem:
+    """Create a sample TransactionItem as create_entries returns it."""
+    return TransactionItem(
+        id=id,
+        amount=4.5,
+        currency="EUR",
+        amount_eur=4.5,
+        date=datetime.date(2026, 3, 9),
+        transaction_type="Expenses",
+        category="Eat out",
+        details="coffee shop",
+    )
+
+
 class TestProcessBudget:
     """Tests for POST /api/v1/budget endpoint."""
 
@@ -75,6 +100,29 @@ class TestProcessBudget:
         assert result[0].success is True
         mock_claude.parse_budget_text.assert_awaited_once_with("coffee 4.50")
         mock_budget.create_entries.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    @patch("life_organizer.api.routes.budget.claude_service")
+    async def test_200_returns_transactions_with_ids(
+        self, mock_claude: AsyncMock, mock_budget: AsyncMock
+    ) -> None:
+        """Results keep the committed transaction ids and expose both new keys."""
+        from life_organizer.api.routes.budget import process_budget
+        from life_organizer.schemas.requests import ClassifyRequest
+
+        created = _make_processing_response().model_copy(
+            update={"transactions": [_make_transaction_item(42)]}
+        )
+        mock_claude.parse_budget_text = AsyncMock(return_value=[_make_classified_input()])
+        mock_budget.create_entries = AsyncMock(return_value=[created])
+
+        result = await process_budget(_make_mock_request(), ClassifyRequest(input="coffee 4.50"))
+
+        assert result[0].transactions[0].id == 42
+        dumped = result[0].model_dump(mode="json")
+        assert dumped["transactions"][0]["id"] == 42
+        assert dumped["image_index"] is None
 
     @pytest.mark.asyncio
     async def test_422_empty_input(self) -> None:
@@ -164,6 +212,38 @@ class TestProcessBudgetImages:
         assert result[0].success is True
         mock_claude.parse_budget_images.assert_awaited_once()
         mock_budget.create_entries.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    @patch("life_organizer.api.routes.budget.claude_service")
+    async def test_200_failed_image_identifiable(
+        self, mock_claude: AsyncMock, mock_budget: AsyncMock
+    ) -> None:
+        """A failed photo result reaches the client with its image_index."""
+        from life_organizer.api.routes.budget import process_budget_images
+
+        ok = _make_processing_response().model_copy(
+            update={"transactions": [_make_transaction_item(7)], "image_index": 0}
+        )
+        failed = ProcessingResponse(
+            success=False,
+            action_type=ActionType.BACKEND_HANDLED,
+            message="Could not process budget entry: Blurry",
+            image_index=1,
+        )
+        mock_claude.parse_budget_images = AsyncMock(return_value=[_make_classified_input()])
+        mock_budget.create_entries = AsyncMock(return_value=[ok, failed])
+
+        result = await process_budget_images(
+            _make_mock_request(),
+            files=[_make_mock_upload_file(), _make_mock_upload_file()],
+        )
+
+        assert result == [ok, failed]
+        dumped = result[1].model_dump(mode="json")
+        assert dumped["success"] is False
+        assert dumped["image_index"] == 1
+        assert dumped["transactions"] == []
 
     @pytest.mark.asyncio
     @patch("life_organizer.api.routes.budget.budget_service")
@@ -906,3 +986,28 @@ class TestPutBudgetPlan:
 
         with pytest.raises(ValidationError):
             BudgetPlanRequest(entries=[])
+
+
+class TestCapturedIdAcceptedByEditRoutes:
+    """A transaction id returned by a capture is the one PATCH and DELETE take."""
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    async def test_returned_id_accepted_by_patch_and_delete(self, mock_budget: AsyncMock) -> None:
+        """PATCH and DELETE pass a captured transaction's id to the service."""
+        from life_organizer.api.routes.budget import delete_transaction, update_transaction
+
+        captured_id = _make_transaction_item(42).id
+        mock_budget.update_transaction = AsyncMock(
+            return_value=_make_mock_transaction(id=captured_id)
+        )
+        mock_budget.delete_transaction = AsyncMock(return_value=True)
+
+        updated = await update_transaction(
+            TransactionUpdateRequest(details="edited"), transaction_id=captured_id
+        )
+        await delete_transaction(transaction_id=captured_id)
+
+        assert updated.id == 42
+        mock_budget.update_transaction.assert_awaited_once_with(42, {"details": "edited"})
+        mock_budget.delete_transaction.assert_awaited_once_with(42)

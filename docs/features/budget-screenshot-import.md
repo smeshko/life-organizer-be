@@ -69,6 +69,9 @@ message = await self.client.messages.create(
 2. Send a `POST` request to `/api/v1/budget/images` with `Content-Type: multipart/form-data`
 3. Attach screenshots as `files` form fields (multiple files supported)
 4. Each extracted transaction is returned as a `ProcessingResponse` with `success: true/false`
+   - `transactions` holds the transaction the result created, with its database `id`, filled only after the commit succeeds (`[]` on failure)
+   - `image_index` is the zero-based position, in upload order, of the photo the result came from; an index outside the uploaded range is returned as `null`
+   - A photo that is unreadable or not a Revolut screenshot comes back as one failed item: `success: false`, `transactions: []`, its `image_index`, and the model's reason in `message`
 5. The same 10/minute rate limit applies as the text endpoint
 
 ## Configuration
@@ -86,5 +89,6 @@ message = await self.client.messages.create(
 - The `/images` route is separate from `/` (text) due to FastAPI not supporting two handlers on the same path with different content types
 - Vision prompt uses the same date injection mechanism (`_inject_dates_into_prompt()`) as the text prompt
 - The vision prompt includes the same merchant-to-category reference table as the text prompt for consistent categorization
-- Empty array response from Claude (no transactions found) is surfaced as HTTP 422 to the client
+- An empty array response from Claude (no photo gave anything at all) is surfaced as HTTP 422 to the client; an unreadable or non-Revolut photo is reported as a failed item instead
+- When overlapping screenshots are deduplicated, a transaction is tagged with the first photo it appears in
 - Retry behavior (3 attempts, exponential backoff) matches the text parsing path
