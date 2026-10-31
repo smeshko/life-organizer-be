@@ -1,6 +1,6 @@
-# life-organizer-be's sail config. Every port is on its fake until a workflow is proven at $0 on the seeds under
-# .sail/fake/; then switch them one at a time (Linear team LIFE, GitHub smeshko/life-organizer-be, Claude Code, git
-# worktrees). LIFE is shared with the iOS and web repositories, so this repository's labels carry `be`.
+# life-organizer-be's sail config: the factory runs on tickets from Linear team LIFE labelled factory-be and opens its
+# pull requests on GitHub, into staging. Set every port back to `fake` to run on the seeds under .sail/fake/ at no cost.
+# LIFE is shared with the iOS and web repositories, so this repository's labels carry `be`.
 
 # The repository's name, unique among this machine's watchers.
 name: life-organizer-be
@@ -11,15 +11,18 @@ label: factory-be
 # The workflow `sail <ticket>` runs when --workflow is left out.
 defaultWorkflow: factory
 
-# Which adapter fills each port. Every port starts on its fake, which reads a seed file under .sail/fake/.
+# Which adapter fills each port.
 adapters:
-  ticketSource: { use: fake } # then: { use: linear, team: LIFE, inReview: In Review }
-  codeHost: { use: fake } # then: { use: github }
-  harness: { use: fake } # then: { use: claude-code }
-  workspace: { use: fake } # then: { use: git-worktree, setup: uv sync --all-extras }
-  # Jev answers check-tasks before its agent runs, and file-follow-ups' duplicate check. Without it both fall back: the
-  # agent checks every task, and follow-ups are filed unchecked.
-  jev: { use: fake } # then: { use: typesafe }, with TYPESAFE_API_KEY
+  # Open moves the ticket to In Review once its pull request is up.
+  ticketSource: { use: linear, team: LIFE, inReview: In Review }
+  codeHost: { use: github }
+  harness: { use: claude-code }
+  # Each run's workspace is a fresh worktree off staging (GitHub's default branch here is main), and its setup builds
+  # the .venv the gate runs in, before any stage runs.
+  workspace: { use: git-worktree, defaultBranch: staging, setup: uv sync --all-extras }
+  # Jev answers check-tasks before its agent runs, and file-follow-ups' duplicate check. Without TYPESAFE_API_KEY both
+  # fall back: the agent checks every task, and follow-ups are filed unchecked.
+  jev: { use: typesafe }
 
 models:
   default: claude-sonnet-5-5
