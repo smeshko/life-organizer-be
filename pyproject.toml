@@ -1,11 +1,11 @@
 [project]
 name = "life-organizer"
 version = "0.1.0"
-description = "Voice-first intelligent agent that captures everyday life events and routes them to organizational systems"
+description = "Budget capture and query API for the Life Organizer iOS app"
 readme = "README.md"
 requires-python = ">=3.13"
 authors = [
-    { name = "Life Organizer Team" }
+    { name = "Ivo Tsonev" }
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
