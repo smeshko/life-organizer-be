@@ -207,3 +207,5 @@ PORT=8001 make run
 ```
 
 Or edit `.env` and change the `PORT` value.
+
+See [ci.md](ci.md) for what CI runs and how to reproduce it locally.

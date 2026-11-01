@@ -1,0 +1,40 @@
+# CI for pull requests into staging and pushes to it.
+#   gate   runs scripts/gate.sh (ruff, mypy, unit tests) on the committed uv.lock; it is staging's required check.
+#   docker builds the image only, never runs it: its CMD runs `alembic upgrade head`, which needs a database.
+# No secrets are used, so integration tests (they need ANTHROPIC_API_KEY) stay out.
+name: CI
+
+on:
+  pull_request:
+    branches: [staging]
+  push:
+    branches: [staging]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: gate
+    runs-on: ubuntu-latest
+    env:
+      UV_FROZEN: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.8.22"
+          enable-cache: true
+      - run: uv sync --frozen --all-extras
+      - run: scripts/gate.sh
+
+  docker:
+    name: docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker build .

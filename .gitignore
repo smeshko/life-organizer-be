@@ -30,11 +30,9 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-.python-version
 
 # uv
 .uv/
-uv.lock
 
 # IDEs
 .idea/
