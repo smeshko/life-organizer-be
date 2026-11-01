@@ -74,7 +74,7 @@ def test_meals_endpoints_removed():
 
 
 def test_app_description_describes_budget_api():
-    """The app description names the budget API, not the old voice-first pitch."""
+    """The app description names the budget API, not a voice assistant."""
     description = app.description.lower()
     assert "budget" in description
     assert "voice" not in description

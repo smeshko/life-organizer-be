@@ -32,5 +32,5 @@ models:
   fast: claude-haiku-5-5
 # No dollar cap on the run: each agent stage carries its own. Minutes are wall time.
 budgets: { run: { maxMinutes: 240 } }
-# The conventions appended to every prompt: .sail/conventions.md until the root AGENTS.md exists.
-conventions: [.sail/conventions.md]
+# The conventions appended to every prompt.
+conventions: [AGENTS.md]
