@@ -77,10 +77,6 @@ const REPOSITORY = [
   // CI and the project's Claude Code settings.
   '.github/**',
   '.claude/**',
-  // The abandoned tooling LIFE-39 deletes.
-  '_bmad/**',
-  '_bmad-output/**',
-  '.adw/**',
   '.vscode',
   '.vscode/**',
   'AGENTS.md',
