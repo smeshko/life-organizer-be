@@ -8,16 +8,16 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.8.22 /uv /usr/local/bin/uv
 
 # Set working directory
 WORKDIR /app
 
 # Copy dependency files
-COPY pyproject.toml README.md ./
+COPY pyproject.toml uv.lock README.md ./
 
-# Install dependencies (without --frozen since we don't have uv.lock)
-RUN uv sync --no-dev
+# Install exactly what the committed uv.lock pins
+RUN uv sync --frozen --no-dev
 
 # Runtime stage
 FROM python:3.13-slim
