@@ -86,7 +86,7 @@ life-organizer-be/
 |----------|----------|-------------|
 | README | `README.md` | Project readme with quick start |
 | Docker Guide | `DOCKER.md` | Docker setup instructions |
-| PRD | `docs/product/initial-prd.md` | Product requirements |
+| PRD | `docs/archive/initial-prd.md` | Product requirements |
 | Architecture | `docs/architecture/` | Architecture decisions |
 | Dev Setup | `docs/development/setup.md` | Development setup |
 | Work Items | `docs/planning/work/` | Feature planning |
