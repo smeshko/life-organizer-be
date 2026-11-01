@@ -2,7 +2,7 @@
 # The gate: the one way to verify a change. Runs, in order and each one regardless of the last:
 #   ruff check · ruff format --check · mypy src · pytest -m "not integration"
 # and exits 1 when any of them failed, 0 when all passed. Ruff checks the Python trees by name (src, tests, alembic):
-# uv.lock is not committed, so a fresh worktree may resolve a newer ruff, which also formats Markdown code blocks.
+# this keeps it off docs/, .sail/ and Markdown. uv.lock is committed, so every run resolves the same tool versions.
 #
 #   scripts/gate.sh                  run every step
 #   scripts/gate.sh --base <commit>  skip every step when the change since <commit> (committed, staged, unstaged and
