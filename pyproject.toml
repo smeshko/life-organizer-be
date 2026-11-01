@@ -1,6 +1,6 @@
 [project]
 name = "life-organizer"
-version = "1.0.0"
+version = "1.1.0"
 description = "Budget capture and query API for the Life Organizer iOS app"
 readme = "README.md"
 requires-python = ">=3.14"

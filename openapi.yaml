@@ -15,7 +15,7 @@ info:
 
     ## Authentication
     Currently no authentication is required (will be added in future versions).
-  version: 1.0.0
+  version: 1.1.0
   contact:
     name: Life Organizer API Support
   license:
