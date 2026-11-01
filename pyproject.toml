@@ -3,7 +3,7 @@ name = "life-organizer"
 version = "0.1.0"
 description = "Voice-first intelligent agent that captures everyday life events and routes them to organizational systems"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 authors = [
     { name = "Life Organizer Team" }
 ]
@@ -11,7 +11,7 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: End Users/Desktop",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 
 dependencies = [
@@ -52,7 +52,7 @@ packages = ["src/life_organizer"]
 # Ruff Configuration
 [tool.ruff]
 line-length = 100
-target-version = "py313"
+target-version = "py314"
 src = ["src"]
 
 [tool.ruff.lint]
@@ -74,6 +74,9 @@ ignore = [
     "E501",   # line too long (handled by formatter)
     "B008",   # do not perform function calls in argument defaults
     "UP007",  # Use `X | Y` for type annotations (prefer Optional for clarity)
+    "TC001",  # Pydantic, FastAPI and SQLAlchemy evaluate annotations at runtime
+    "TC002",  # same
+    "TC003",  # same
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -90,7 +93,7 @@ line-ending = "auto"
 
 # MyPy Configuration
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.14"
 strict = true
 warn_return_any = true
 warn_unused_configs = true

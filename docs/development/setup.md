@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Python 3.13 or higher
+- Python 3.14 or higher
 - [uv](https://github.com/astral-sh/uv) package manager
 - Git
 
@@ -20,7 +20,7 @@
    ```
 
    This will:
-   - Create a virtual environment with Python 3.13
+   - Create a virtual environment with Python 3.14
    - Install all dependencies (production + development)
    - Install pre-commit hooks
 

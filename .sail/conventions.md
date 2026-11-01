@@ -11,7 +11,7 @@ iOS and web clients. It is not distributed beyond that one person.
 
 ## Code
 
-- Python 3.13, typed throughout: mypy runs `strict` over `src/`. Ruff lints and formats, line length 100.
+- Python 3.14, typed throughout: mypy runs `strict` over `src/`. Ruff lints and formats, line length 100.
 - One package, `src/life_organizer/`:
   - `api/routes/<domain>.py`: a FastAPI `APIRouter` per domain (`budget`, `meals`, `feedback`), included in `main.py`.
     Routes stay thin: they validate, call a service, and map its result or error to a response.

@@ -17,7 +17,7 @@ uv sync --frozen --all-extras && scripts/gate.sh
 docker build .
 ```
 
-`uv.lock` and `.python-version` (3.13) are committed. Change dependencies with `uv add` / `uv lock` and commit the
+`uv.lock` and `.python-version` (3.14) are committed. Change dependencies with `uv add` / `uv lock` and commit the
 new lock.
 
 ## Require `gate` on `staging`
