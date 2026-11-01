@@ -352,6 +352,8 @@ class ClaudeService:
             List of ClassifiedInput objects
 
         Raises:
+            ClaudeRefusalError: If Claude refused the request
+            ValueError: If the response has no text block or is not a JSON array
             json.JSONDecodeError: If response is not valid JSON
             ValidationError: If response doesn't match ClassifiedInput schema
         """

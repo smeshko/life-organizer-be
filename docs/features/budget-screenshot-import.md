@@ -85,7 +85,7 @@ message = await self.client.beta.messages.create(
 | `CLAUDE_EFFORT` | env var | `low` | Claude output effort (`low`, `medium`, `high`, `xhigh`, `max`) |
 | Max file size | hardcoded | 20 MB | Per-image size limit (Anthropic API limit) |
 | Allowed types | hardcoded | PNG, JPEG, GIF, WebP | Accepted image MIME types |
-| Max tokens | hardcoded | 4000 | Response token limit for vision (vs 2000 for text) |
+| Max tokens | hardcoded | 16000 | Response token limit, thinking included (same as text) |
 
 ## Notes
 
