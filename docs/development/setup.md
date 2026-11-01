@@ -90,7 +90,7 @@ make clean       # Remove generated files and caches
 | `make test` | Run all tests with coverage |
 | `make test-unit` | Unit tests only (no API calls) |
 | `make test-integration` | Integration tests (requires an API key) |
-| `make docker-build` / `docker-up` / `docker-down` | Build, start and stop the Docker services (see [DOCKER.md](../../DOCKER.md)) |
+| `make docker-build` / `docker-up` / `docker-down` | Build, start and stop the Docker services (see [docker.md](docker.md)) |
 | `make docker-logs` / `docker-shell` / `docker-db` | Logs, an app shell and a PostgreSQL shell |
 
 ### Git Branching
