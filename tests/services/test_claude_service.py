@@ -8,7 +8,7 @@ import pytest
 from fastapi import HTTPException
 
 from life_organizer.schemas.enums import Category
-from life_organizer.services.claude_service import ClaudeService
+from life_organizer.services.claude_service import _REQUEST_TIMEOUT_SECONDS, ClaudeService
 
 
 @pytest.fixture
@@ -152,21 +152,18 @@ class TestParseBudgetText:
         assert "Maximum 15 transactions" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
-    async def test_claude_api_error_retries(self, service: ClaudeService) -> None:
-        """A Claude API error is retried once (2 attempts in total)."""
-        success = _mock_claude_response(_BUDGET_JSON).return_value
+    async def test_claude_api_error_raises_without_retry(self, service: ClaudeService) -> None:
+        """A Claude API error is raised after a single attempt."""
         service.client.beta.messages.create = AsyncMock(
-            side_effect=[
-                anthropic.APIError(message="Service unavailable", request=MagicMock(), body=None),
-                success,
-            ]
+            side_effect=anthropic.APIError(
+                message="Service unavailable", request=MagicMock(), body=None
+            )
         )
 
-        results = await service.parse_budget_text("test 5")
+        with pytest.raises(anthropic.APIError):
+            await service.parse_budget_text("test 5")
 
-        assert service.client.beta.messages.create.call_count == 2
-        assert len(results) == 1
-        assert results[0].extracted_data["amount"] == 5.0
+        assert service.client.beta.messages.create.call_count == 1
 
     @pytest.mark.asyncio
     async def test_thinking_block_before_text_parses(self, service: ClaudeService) -> None:
@@ -227,11 +224,11 @@ class TestParseBudgetText:
         assert kwargs["fallbacks"] == "default"
         assert kwargs["betas"] == ["server-side-fallback-2026-07-01"]
 
-    def test_client_has_no_sdk_retries_and_bounded_timeout(self, service: ClaudeService) -> None:
-        """Only tenacity retries, and the worst case stays under 60 seconds."""
+    def test_client_has_one_attempt_with_long_timeout(self, service: ClaudeService) -> None:
+        """One attempt gets most of the iOS client's 60 s, and never exceeds it."""
         assert service.client.max_retries == 0
-        assert service.client.timeout == 25.0
-        assert 2 * 25.0 + 1.0 < 60
+        assert service.client.timeout == _REQUEST_TIMEOUT_SECONDS
+        assert 50 <= _REQUEST_TIMEOUT_SECONDS < 60
 
     @pytest.mark.asyncio
     async def test_json_parse_error_returns_unknown(self, service: ClaudeService) -> None:
@@ -526,8 +523,8 @@ class TestParseBudgetImages:
         assert "image_index" in service._get_vision_prompt_with_current_date()
 
     @pytest.mark.asyncio
-    async def test_api_error_triggers_retry_and_raises(self, service: ClaudeService) -> None:
-        """API error should trigger retries and eventually raise."""
+    async def test_api_error_raises_without_retry(self, service: ClaudeService) -> None:
+        """An API error is raised after a single attempt."""
         service.client.beta.messages.create = AsyncMock(
             side_effect=anthropic.APIError(
                 message="Service unavailable",
@@ -539,7 +536,7 @@ class TestParseBudgetImages:
         with pytest.raises(anthropic.APIError):
             await service.parse_budget_images([(b"fake-png-bytes", "image/png")])
 
-        assert service.client.beta.messages.create.call_count == 2
+        assert service.client.beta.messages.create.call_count == 1
 
     @pytest.mark.asyncio
     async def test_malformed_json_returns_unknown(self, service: ClaudeService) -> None:

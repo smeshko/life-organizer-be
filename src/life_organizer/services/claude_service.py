@@ -11,7 +11,6 @@ import anthropic
 from anthropic.types.beta import BetaMessage
 from fastapi import HTTPException
 from pydantic import ValidationError
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from life_organizer.config import ClaudeEffort
 from life_organizer.schemas.classification import ClassifiedInput
@@ -20,9 +19,8 @@ from life_organizer.schemas.enums import Category
 logger = logging.getLogger(__name__)
 
 _MAX_TOKENS = 16000
-# Worst case is 2 attempts x 25 s + 1 s backoff = 51 s, under the iOS client's 60 s timeout.
-_REQUEST_TIMEOUT_SECONDS = 25.0
-_MAX_ATTEMPTS = 2
+# One attempt, no retries: an Opus 5.5 response gets 55 s, under the iOS client's 60 s timeout.
+_REQUEST_TIMEOUT_SECONDS = 55.0
 _FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
 
@@ -165,11 +163,6 @@ class ClaudeService:
 
         return result_dict
 
-    @retry(
-        stop=stop_after_attempt(_MAX_ATTEMPTS),
-        wait=wait_exponential(multiplier=1, min=1, max=5),
-        reraise=True,
-    )
     async def parse_budget_text(self, text: str) -> list[ClassifiedInput]:
         """Parse natural language budget text into structured ClassifiedInput objects.
 
@@ -181,7 +174,7 @@ class ClaudeService:
 
         Raises:
             HTTPException: If input exceeds transaction limit (422)
-            anthropic.APIError: On API communication errors (after 2 attempts)
+            anthropic.APIError: On API communication errors (not retried)
         """
         # Empty input check
         if not text or not text.strip():
@@ -250,11 +243,6 @@ class ClaudeService:
                 )
             ]
 
-    @retry(
-        stop=stop_after_attempt(_MAX_ATTEMPTS),
-        wait=wait_exponential(multiplier=1, min=1, max=5),
-        reraise=True,
-    )
     async def parse_budget_images(self, images: list[tuple[bytes, str]]) -> list[ClassifiedInput]:
         """Parse Revolut screenshot images into structured ClassifiedInput objects.
 
@@ -268,7 +256,7 @@ class ClaudeService:
             List of ClassifiedInput objects with parsed budget data
 
         Raises:
-            anthropic.APIError: On API communication errors (after 2 attempts)
+            anthropic.APIError: On API communication errors (not retried)
         """
         if not images:
             logger.warning("Empty image list provided to parse_budget_images")
