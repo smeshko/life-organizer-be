@@ -15,7 +15,7 @@ info:
 
     ## Authentication
     Currently no authentication is required (will be added in future versions).
-  version: 0.1.0
+  version: 1.0.0
   contact:
     name: Life Organizer API Support
   license:
@@ -61,7 +61,7 @@ paths:
                     example: Life Organizer Backend API
                   version:
                     type: string
-                    example: 0.1.0
+                    example: 1.0.0
                   api_version:
                     type: string
                     example: v1
@@ -406,7 +406,7 @@ components:
           example: life-organizer-backend
         version:
           type: string
-          example: 0.1.0
+          example: 1.0.0
 
     # Classification Schema (Internal, not exposed in public API)
     ClassifiedInput:

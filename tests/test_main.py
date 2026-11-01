@@ -1,10 +1,15 @@
 """Tests for the main FastAPI application."""
 
+from importlib.metadata import version
+
 from fastapi.testclient import TestClient
 
+import life_organizer
 from life_organizer.main import app
 
 client = TestClient(app)
+
+PACKAGE_VERSION = version("life-organizer")
 
 
 def test_root_endpoint():
@@ -13,8 +18,7 @@ def test_root_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert data["message"] == "Life Organizer Backend API"
-    assert "version" in data
-    assert "api_version" in data
+    assert data["version"] == PACKAGE_VERSION
     assert "api_version" in data
 
 
@@ -25,7 +29,7 @@ def test_health_check():
     data = response.json()
     assert data["status"] == "healthy"
     assert data["service"] == "life-organizer-backend"
-    assert "version" in data
+    assert data["version"] == PACKAGE_VERSION
 
 
 def test_health_check_versioned():
@@ -34,6 +38,21 @@ def test_health_check_versioned():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"
+
+
+def test_health_check_versioned_reports_package_version():
+    """The versioned health endpoint reports the installed package version."""
+    assert client.get("/api/v1/health").json()["version"] == PACKAGE_VERSION
+
+
+def test_app_version_is_package_version():
+    """The FastAPI app carries the installed package version."""
+    assert app.version == PACKAGE_VERSION
+
+
+def test_package_dunder_version_is_package_version():
+    """life_organizer.__version__ comes from package metadata."""
+    assert life_organizer.__version__ == PACKAGE_VERSION
 
 
 def test_api_status():
