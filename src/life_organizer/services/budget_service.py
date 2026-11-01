@@ -66,6 +66,8 @@ class AggregationResult(TypedDict):
 
 # Constants
 USD_TO_EUR_RATE = 0.92
+# Bulgaria adopted the euro on 2026-01-01; the conversion rate is irrevocably fixed.
+BGN_PER_EUR_RATE = 1.95583
 
 
 def _convert_to_eur(amount: float, currency: str) -> float:
@@ -73,7 +75,7 @@ def _convert_to_eur(amount: float, currency: str) -> float:
 
     Args:
         amount: Amount in source currency
-        currency: Currency code (EUR, USD)
+        currency: Currency code (EUR, USD, BGN)
 
     Returns:
         Amount in EUR
@@ -82,6 +84,8 @@ def _convert_to_eur(amount: float, currency: str) -> float:
         return round(amount, 2)
     elif currency == "USD":
         return round(amount * USD_TO_EUR_RATE, 2)
+    elif currency == "BGN":
+        return round(amount / BGN_PER_EUR_RATE, 2)
     else:
         logger.warning(f"Unknown currency '{currency}', assuming EUR")
         return round(amount, 2)
@@ -503,7 +507,9 @@ class BudgetService:
 
         Args:
             transaction_id: Primary key of the transaction
-            updates: Dict of field names to new values (only non-None fields)
+            updates: Dict of field names to new values (only non-None fields).
+                amount_eur is recomputed from the stored amount and currency
+                whenever either one is updated.
 
         Returns:
             Updated BudgetTransaction instance, or None if not found
@@ -518,7 +524,6 @@ class BudgetService:
             for field, value in updates.items():
                 if field == "amount":
                     txn.amount = Decimal(str(value))
-                    txn.amount_eur = Decimal(str(value))
                 elif field == "currency":
                     txn.currency = str(value)
                 elif field == "date":
@@ -529,6 +534,9 @@ class BudgetService:
                     txn.category = str(value)
                 elif field == "details":
                     txn.details = str(value) if value else None
+
+            if "amount" in updates or "currency" in updates:
+                txn.amount_eur = Decimal(str(_convert_to_eur(float(txn.amount), txn.currency)))
 
             await db.commit()
             await db.refresh(txn)

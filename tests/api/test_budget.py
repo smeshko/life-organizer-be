@@ -1011,3 +1011,22 @@ class TestCapturedIdAcceptedByEditRoutes:
         assert updated.id == 42
         mock_budget.update_transaction.assert_awaited_once_with(42, {"details": "edited"})
         mock_budget.delete_transaction.assert_awaited_once_with(42)
+
+    @pytest.mark.asyncio
+    @patch("life_organizer.api.routes.budget.budget_service")
+    async def test_patch_amount_passes_amount_to_service(self, mock_budget: AsyncMock) -> None:
+        """PATCH forwards an amount edit unchanged and returns the stored amount_eur."""
+        from life_organizer.api.routes.budget import update_transaction
+
+        mock_budget.update_transaction = AsyncMock(
+            return_value=_make_mock_transaction(
+                id=42, amount=100.0, currency="BGN", amount_eur=51.13
+            )
+        )
+
+        updated = await update_transaction(
+            TransactionUpdateRequest(amount=100.0), transaction_id=42
+        )
+
+        mock_budget.update_transaction.assert_awaited_once_with(42, {"amount": 100.0})
+        assert updated.amount_eur == 51.13
