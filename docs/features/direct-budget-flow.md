@@ -26,7 +26,11 @@ Replaces the ClassifierOrchestrator + ClaudeClassifier pattern with a direct two
 
 - **Module-level prompt loading**: The budget system prompt is loaded once at import time from `prompts/budget_system_prompt_v2.txt`. Date placeholders are injected per-request via `_get_system_prompt_with_current_date()`.
 
-- **Tenacity retry with exponential backoff**: `parse_budget_text()` uses `@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=5))` for Claude API resilience.
+- **Tenacity retry with exponential backoff**: `parse_budget_text()` uses `@retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, min=1, max=5))`. The client has `max_retries=0` and a 25 s timeout, so the worst case is about 51 s, under the iOS 60 s timeout.
+
+- **Beta messages call**: `client.beta.messages.create` with `betas=["server-side-fallback-2026-07-01"]`, `fallbacks="default"`, `output_config={"effort": CLAUDE_EFFORT}` and `max_tokens=16000`. The first `text` block is parsed, so thinking blocks are skipped.
+
+- **Refusals**: `stop_reason == "refusal"` is logged with its category and returned as an `UNKNOWN` input carrying an error, which `BudgetService` turns into a `success: false` row.
 
 - **Prompt caching**: The system prompt is sent with `cache_control: {"type": "ephemeral"}` to reduce API costs on repeated calls.
 

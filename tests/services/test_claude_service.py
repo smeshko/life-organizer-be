@@ -1,5 +1,6 @@
 """Tests for ClaudeService budget text and image parsing."""
 
+import logging
 from unittest.mock import AsyncMock, MagicMock
 
 import anthropic
@@ -16,17 +17,36 @@ def service() -> ClaudeService:
     return ClaudeService(api_key="test-key", model="claude-opus-5-5", effort="low")
 
 
-def _mock_claude_response(response_text: str) -> AsyncMock:
-    """Create a mock Anthropic messages.create response."""
-    text_block = MagicMock()
-    text_block.text = response_text
-    # Make isinstance check work for TextBlock
-    text_block.__class__ = anthropic.types.TextBlock
+def _block(block_type: str, text: str = "") -> MagicMock:
+    """Create a mock content block of the given type."""
+    block = MagicMock()
+    block.type = block_type
+    block.text = text
+    return block
 
+
+def _mock_claude_response(
+    response_text: str,
+    *,
+    stop_reason: str = "end_turn",
+    leading_blocks: tuple[MagicMock, ...] = (),
+    refusal_category: str | None = None,
+) -> AsyncMock:
+    """Create a mock Anthropic beta messages.create response."""
     message = MagicMock()
-    message.content = [text_block]
-
+    message.content = [*leading_blocks, _block("text", response_text)]
+    message.stop_reason = stop_reason
+    message.model = "claude-opus-5-5"
+    if stop_reason == "refusal":
+        message.stop_details.category = refusal_category
     return AsyncMock(return_value=message)
+
+
+_BUDGET_JSON = (
+    '[{"category": "budget", "confidence": 0.9, "extracted_data": {"amount": 5.0, '
+    '"currency": "EUR", "transaction_type": "Expenses", "category": "Other", '
+    '"date": "2026-03-09"}, "raw_input": "test"}]'
+)
 
 
 class TestParseBudgetText:
@@ -49,7 +69,7 @@ class TestParseBudgetText:
             "raw_input": "coffee 4.50"
         }]"""
 
-        service.client.messages.create = _mock_claude_response(response_json)
+        service.client.beta.messages.create = _mock_claude_response(response_json)
 
         results = await service.parse_budget_text("coffee 4.50")
 
@@ -92,7 +112,7 @@ class TestParseBudgetText:
             }
         ]"""
 
-        service.client.messages.create = _mock_claude_response(response_json)
+        service.client.beta.messages.create = _mock_claude_response(response_json)
 
         results = await service.parse_budget_text("lunch 12 eur, coffee 4.50")
 
@@ -133,38 +153,90 @@ class TestParseBudgetText:
 
     @pytest.mark.asyncio
     async def test_claude_api_error_retries(self, service: ClaudeService) -> None:
-        """Claude API errors should trigger retries (up to 3 attempts)."""
-        # Mock to fail twice then succeed
-        call_count = 0
-
-        async def side_effect(*args: object, **kwargs: object) -> MagicMock:
-            nonlocal call_count
-            call_count += 1
-            if call_count < 3:
-                raise anthropic.APIError(
-                    message="Service unavailable",
-                    request=MagicMock(),
-                    body=None,
-                )
-            text_block = MagicMock()
-            text_block.text = '[{"category": "budget", "confidence": 0.9, "extracted_data": {"amount": 5.0, "currency": "EUR", "transaction_type": "Expenses", "category": "Other", "date": "2026-03-09"}, "raw_input": "test"}]'
-            text_block.__class__ = anthropic.types.TextBlock
-            message = MagicMock()
-            message.content = [text_block]
-            return message
-
-        service.client.messages.create = AsyncMock(side_effect=side_effect)
+        """A Claude API error is retried once (2 attempts in total)."""
+        success = _mock_claude_response(_BUDGET_JSON).return_value
+        service.client.beta.messages.create = AsyncMock(
+            side_effect=[
+                anthropic.APIError(message="Service unavailable", request=MagicMock(), body=None),
+                success,
+            ]
+        )
 
         results = await service.parse_budget_text("test 5")
 
-        assert call_count == 3
+        assert service.client.beta.messages.create.call_count == 2
         assert len(results) == 1
         assert results[0].extracted_data["amount"] == 5.0
 
     @pytest.mark.asyncio
+    async def test_thinking_block_before_text_parses(self, service: ClaudeService) -> None:
+        """A leading thinking block is skipped and the text block is parsed."""
+        service.client.beta.messages.create = _mock_claude_response(
+            _BUDGET_JSON, leading_blocks=(_block("thinking", "let me think"),)
+        )
+
+        results = await service.parse_budget_text("test 5")
+
+        assert len(results) == 1
+        assert results[0].category == Category.BUDGET
+        assert results[0].extracted_data["amount"] == 5.0
+
+    @pytest.mark.asyncio
+    async def test_refusal_returns_unknown_with_error(
+        self, service: ClaudeService, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A refusal becomes an UNKNOWN input carrying an error, and logs the category."""
+        service.client.beta.messages.create = _mock_claude_response(
+            "", stop_reason="refusal", refusal_category="general_harms"
+        )
+
+        with caplog.at_level(logging.WARNING):
+            results = await service.parse_budget_text("test 5")
+
+        assert len(results) == 1
+        assert results[0].category == Category.UNKNOWN
+        assert results[0].error == "Claude declined to process this input"
+        assert "general_harms" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_no_text_block_returns_unknown(self, service: ClaudeService) -> None:
+        """A response without any text block becomes UNKNOWN with no error."""
+        message = MagicMock()
+        message.content = [_block("thinking", "hmm")]
+        message.stop_reason = "end_turn"
+        service.client.beta.messages.create = AsyncMock(return_value=message)
+
+        results = await service.parse_budget_text("test 5")
+
+        assert len(results) == 1
+        assert results[0].category == Category.UNKNOWN
+        assert results[0].error is None
+
+    @pytest.mark.asyncio
+    async def test_request_uses_model_effort_and_fallback(self, service: ClaudeService) -> None:
+        """The request carries the model, effort, fallback and beta flag."""
+        mock_create = _mock_claude_response(_BUDGET_JSON)
+        service.client.beta.messages.create = mock_create
+
+        await service.parse_budget_text("test 5")
+
+        kwargs = mock_create.call_args.kwargs
+        assert kwargs["model"] == "claude-opus-5-5"
+        assert kwargs["max_tokens"] == 16000
+        assert kwargs["output_config"] == {"effort": "low"}
+        assert kwargs["fallbacks"] == "default"
+        assert kwargs["betas"] == ["server-side-fallback-2026-07-01"]
+
+    def test_client_has_no_sdk_retries_and_bounded_timeout(self, service: ClaudeService) -> None:
+        """Only tenacity retries, and the worst case stays under 60 seconds."""
+        assert service.client.max_retries == 0
+        assert service.client.timeout == 25.0
+        assert 2 * 25.0 + 1.0 < 60
+
+    @pytest.mark.asyncio
     async def test_json_parse_error_returns_unknown(self, service: ClaudeService) -> None:
         """Invalid JSON response should return UNKNOWN classification."""
-        service.client.messages.create = _mock_claude_response("not valid json")
+        service.client.beta.messages.create = _mock_claude_response("not valid json")
 
         results = await service.parse_budget_text("coffee 5")
 
@@ -177,7 +249,7 @@ class TestParseBudgetText:
         """Markdown code fences should be stripped from response."""
         response_json = '```json\n[{"category": "budget", "confidence": 0.9, "extracted_data": {"amount": 10.0, "currency": "EUR", "transaction_type": "Expenses", "category": "Groceries", "date": "2026-03-09"}, "raw_input": "groceries 10"}]\n```'
 
-        service.client.messages.create = _mock_claude_response(response_json)
+        service.client.beta.messages.create = _mock_claude_response(response_json)
 
         results = await service.parse_budget_text("groceries 10")
 
@@ -210,7 +282,7 @@ class TestParseBudgetText:
             "raw_input": "groceries 45,50"
         }]"""
 
-        service.client.messages.create = _mock_claude_response(response_json)
+        service.client.beta.messages.create = _mock_claude_response(response_json)
 
         results = await service.parse_budget_text("groceries 45,50")
 
@@ -223,7 +295,7 @@ class TestParseBudgetText:
         """All returned items should have category=BUDGET regardless of LLM response."""
         response_json = '[{"category": "unknown", "confidence": 0.5, "extracted_data": {"amount": 5.0, "currency": "EUR", "transaction_type": "Expenses", "category": "Other", "date": "2026-03-09"}, "raw_input": "test"}]'
 
-        service.client.messages.create = _mock_claude_response(response_json)
+        service.client.beta.messages.create = _mock_claude_response(response_json)
 
         results = await service.parse_budget_text("test 5")
 
@@ -282,6 +354,36 @@ class TestParseBudgetImages:
     """Tests for parse_budget_images method."""
 
     @pytest.mark.asyncio
+    async def test_thinking_block_before_text_parses(self, service: ClaudeService) -> None:
+        """A leading thinking block is skipped and the text block is parsed."""
+        service.client.beta.messages.create = _mock_claude_response(
+            _BUDGET_JSON, leading_blocks=(_block("thinking", "let me think"),)
+        )
+
+        results = await service.parse_budget_images([(b"fake-png-bytes", "image/png")])
+
+        assert len(results) == 1
+        assert results[0].category == Category.BUDGET
+        assert results[0].extracted_data["amount"] == 5.0
+
+    @pytest.mark.asyncio
+    async def test_refusal_returns_unknown_with_error(
+        self, service: ClaudeService, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A refusal becomes an UNKNOWN input carrying an error, and logs the category."""
+        service.client.beta.messages.create = _mock_claude_response(
+            "", stop_reason="refusal", refusal_category="cyber"
+        )
+
+        with caplog.at_level(logging.WARNING):
+            results = await service.parse_budget_images([(b"fake-png-bytes", "image/png")])
+
+        assert len(results) == 1
+        assert results[0].category == Category.UNKNOWN
+        assert results[0].error == "Claude declined to process this input"
+        assert "cyber" in caplog.text
+
+    @pytest.mark.asyncio
     async def test_single_image_returns_classified_inputs(self, service: ClaudeService) -> None:
         """Single image should return list of ClassifiedInput objects."""
         response_json = """[{
@@ -298,7 +400,7 @@ class TestParseBudgetImages:
             "raw_input": "Starbucks - €4.50"
         }]"""
 
-        service.client.messages.create = _mock_claude_response(response_json)
+        service.client.beta.messages.create = _mock_claude_response(response_json)
 
         results = await service.parse_budget_images([(b"fake-png-bytes", "image/png")])
 
@@ -341,7 +443,7 @@ class TestParseBudgetImages:
             }
         ]"""
 
-        service.client.messages.create = _mock_claude_response(response_json)
+        service.client.beta.messages.create = _mock_claude_response(response_json)
 
         results = await service.parse_budget_images(
             [(b"image1-bytes", "image/png"), (b"image2-bytes", "image/jpeg")]
@@ -360,7 +462,7 @@ class TestParseBudgetImages:
             '"category": "Groceries", "merchant": "Lidl", "date": "2026-03-08"}, '
             '"raw_input": "x", "image_index": %d}'
         )
-        service.client.messages.create = _mock_claude_response(
+        service.client.beta.messages.create = _mock_claude_response(
             "[" + item % (12.0, 0) + "," + item % (45.0, 1) + "]"
         )
 
@@ -371,7 +473,7 @@ class TestParseBudgetImages:
     @pytest.mark.asyncio
     async def test_failed_image_item_parsed(self, service: ClaudeService) -> None:
         """A failed-photo item keeps its error and image_index."""
-        service.client.messages.create = _mock_claude_response(
+        service.client.beta.messages.create = _mock_claude_response(
             '[{"category": "budget", "confidence": 0.0, "extracted_data": {}, '
             '"raw_input": "[image 2]", "image_index": 1, "error": "Blurry"}]'
         )
@@ -386,7 +488,7 @@ class TestParseBudgetImages:
     @pytest.mark.asyncio
     async def test_out_of_range_image_index_dropped(self, service: ClaudeService) -> None:
         """An image_index outside the uploaded range becomes None."""
-        service.client.messages.create = _mock_claude_response(
+        service.client.beta.messages.create = _mock_claude_response(
             '[{"category": "budget", "confidence": 0.9, "extracted_data": '
             '{"amount": 1.0, "currency": "EUR", "transaction_type": "Expenses", '
             '"category": "Groceries", "date": "2026-03-08"}, '
@@ -406,7 +508,7 @@ class TestParseBudgetImages:
             '{"amount": %s, "currency": "EUR", "transaction_type": "Expenses", '
             '"category": "Groceries", "date": "2026-03-08"}'
         )
-        service.client.messages.create = _mock_claude_response(
+        service.client.beta.messages.create = _mock_claude_response(
             '[{"category": "budget", "confidence": 0.9, "extracted_data": ['
             + tx % 1.0
             + ","
@@ -426,7 +528,7 @@ class TestParseBudgetImages:
     @pytest.mark.asyncio
     async def test_api_error_triggers_retry_and_raises(self, service: ClaudeService) -> None:
         """API error should trigger retries and eventually raise."""
-        service.client.messages.create = AsyncMock(
+        service.client.beta.messages.create = AsyncMock(
             side_effect=anthropic.APIError(
                 message="Service unavailable",
                 request=MagicMock(),
@@ -437,13 +539,12 @@ class TestParseBudgetImages:
         with pytest.raises(anthropic.APIError):
             await service.parse_budget_images([(b"fake-png-bytes", "image/png")])
 
-        # Should have been called 3 times (initial + 2 retries)
-        assert service.client.messages.create.call_count == 3
+        assert service.client.beta.messages.create.call_count == 2
 
     @pytest.mark.asyncio
     async def test_malformed_json_returns_unknown(self, service: ClaudeService) -> None:
         """Malformed JSON response should return unknown classification."""
-        service.client.messages.create = _mock_claude_response("not valid json at all")
+        service.client.beta.messages.create = _mock_claude_response("not valid json at all")
 
         results = await service.parse_budget_images([(b"fake-png-bytes", "image/png")])
 

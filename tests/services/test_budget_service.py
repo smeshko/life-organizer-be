@@ -471,6 +471,28 @@ class TestBudgetServiceCreateEntries:
         assert results[0].image_index == 1
         mock_session.add.assert_not_called()
 
+    @pytest.mark.asyncio
+    async def test_refused_input_is_failure_row(self) -> None:
+        """An UNKNOWN input carrying the refusal error becomes success=False, no commit."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        refused = ClassifiedInput(
+            category=Category.UNKNOWN,
+            confidence=0.0,
+            extracted_data={},
+            raw_input="test input",
+            classifier_source="llm",
+            error="Claude declined to process this input",
+        )
+
+        results = await service.create_entries([refused])
+
+        assert results[0].success is False
+        assert "declined" in results[0].message
+        mock_session.add.assert_not_called()
+        mock_session.commit.assert_not_called()
+
 
 class TestConvertToEUR:
     """Unit tests for currency conversion helper."""
