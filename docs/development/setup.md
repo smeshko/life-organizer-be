@@ -38,6 +38,21 @@
    make type-check  # Check types
    ```
 
+## Environment Variables
+
+Settings are read from the environment and `.env` (see `src/life_organizer/config.py` and `.env.example`).
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `API_KEY` | Yes | - | Key clients send to authenticate requests |
+| `CLAUDE_API_KEY` | Yes | - | Anthropic Claude API key |
+| `DEBUG` | No | `false` | Enable debug mode |
+| `LOG_LEVEL` | No | `INFO` | Logging level |
+| `HOST` | No | `0.0.0.0` | Server host |
+| `PORT` | No | `8000` | Server port |
+| `DATABASE_URL` | No | local PostgreSQL | PostgreSQL connection URL |
+| `CORS_ORIGINS` | No | see `config.py` | Allowed CORS origins |
+
 ## Development Workflow
 
 ### Running the Server
@@ -63,7 +78,26 @@ make format      # Auto-format code
 make lint        # Check for issues
 make type-check  # Type checking
 make pre-commit  # Run all pre-commit hooks
+make clean       # Remove generated files and caches
 ```
+
+### Available Commands
+
+| Command | Description |
+|---------|-------------|
+| `make dev` | Install all dependencies and dev tools |
+| `make run` / `make stop` / `make restart` | Start, stop or restart the dev server (`run` stops an existing one first) |
+| `make test` | Run all tests with coverage |
+| `make test-unit` | Unit tests only (no API calls) |
+| `make test-integration` | Integration tests (requires an API key) |
+| `make docker-build` / `docker-up` / `docker-down` | Build, start and stop the Docker services (see [DOCKER.md](../../DOCKER.md)) |
+| `make docker-logs` / `docker-shell` / `docker-db` | Logs, an app shell and a PostgreSQL shell |
+
+### Git Branching
+
+- `main` - production-ready code
+- `staging` - development integration; pull requests go here
+- Feature branches: `feature/`, `refactoring/`, `documentation/`, `hotfix/`
 
 ### Making Changes
 
@@ -92,6 +126,45 @@ make pre-commit  # Run all pre-commit hooks
    ```bash
    git push origin feature/your-feature
    ```
+
+### Commit Message Format
+
+Use conventional commits:
+- `feat(scope): description` - new feature
+- `fix(scope): description` - bug fix
+- `docs(scope): description` - documentation
+- `refactor(scope): description` - refactoring
+- `test(scope): description` - tests
+- `chore(scope): description` - maintenance
+
+## Pre-commit Hooks
+
+Hooks run automatically on `git commit`:
+
+- Trailing whitespace removal
+- YAML/JSON/TOML syntax check
+- Large file detection (max 1MB)
+- Merge conflict detection
+- Private key detection
+- Ruff linting and formatting
+- MyPy type checking
+- OpenAPI spec validation
+
+## Database Migrations
+
+```bash
+# Run migrations
+alembic upgrade head
+
+# Create new migration
+alembic revision --autogenerate -m "description"
+
+# Check current version
+alembic current
+
+# Rollback one migration
+alembic downgrade -1
+```
 
 ## IDE Setup
 
