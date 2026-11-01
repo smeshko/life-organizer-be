@@ -16,12 +16,6 @@ make run                # serve on http://localhost:8000
 
 With `DEBUG=true` the interactive docs are at `http://localhost:8000/api/v1/docs`.
 
-Export budget data:
-
-```
-https://org.ivot.dev/api/v1/budget/export?start_date=2025-11-01
-```
-
 ## Checks
 
 ```bash

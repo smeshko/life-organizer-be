@@ -270,10 +270,7 @@ All environment variables can be set in:
 
 Production runs on the maintainer's own machine behind Cloudflare at `https://org.ivot.dev`; see [deployment-guide.md](deployment-guide.md).
 
-Docker Compose is recommended for:
-- Local development
-- Testing
-- Self-hosted deployments
+This Docker Compose setup is for local development and testing.
 
 ## Architecture
 
