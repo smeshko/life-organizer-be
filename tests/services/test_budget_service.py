@@ -1,6 +1,7 @@
 """Tests for BudgetService budget entry persistence."""
 
 import datetime
+from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -76,6 +77,28 @@ class TestBudgetServiceCreateEntries:
         assert results[0].message == "Logged expenses: 120.0 EUR in Clothes"
         mock_session.add.assert_called_once()
         mock_session.commit.assert_awaited_once()
+
+    async def test_bgn_capture_stores_converted_amount_eur(self) -> None:
+        """A BGN capture stores the EUR value of the amount."""
+        mock_factory, mock_session = _mock_session_factory()
+        service = BudgetService(session_factory=mock_factory)
+
+        classified = _classified_input(
+            {
+                "amount": 100.0,
+                "currency": "BGN",
+                "transaction_type": "Expenses",
+                "category": "Groceries",
+                "merchant": "billa",
+                "date": "2026-03-09",
+            }
+        )
+
+        await service.create_entries([classified])
+
+        added = mock_session.add.call_args[0][0]
+        assert added.amount_eur == Decimal("51.13")
+        assert added.currency == "BGN"
 
     @pytest.mark.asyncio
     async def test_income_entry(self) -> None:
@@ -458,6 +481,14 @@ class TestConvertToEUR:
     def test_usd_to_eur(self) -> None:
         """100 USD should convert to 92.00 EUR."""
         assert _convert_to_eur(100.0, "USD") == pytest.approx(92.0)
+
+    def test_bgn_to_eur(self) -> None:
+        """100 BGN should convert to 51.13 EUR."""
+        assert _convert_to_eur(100.0, "BGN") == 51.13
+
+    def test_bgn_peg_is_exact(self) -> None:
+        """1.95583 BGN is exactly 1 EUR."""
+        assert _convert_to_eur(1.95583, "BGN") == 1.0
 
     def test_unknown_currency_defaults_to_eur(self) -> None:
         """Unknown currencies are treated as EUR."""

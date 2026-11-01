@@ -66,10 +66,11 @@ results = await budget_service.create_entries(classified_inputs)
 | Claude model | constructor arg | `claude-haiku-4-5` | Model used for parsing |
 | Max transactions | hardcoded | 15 | Maximum transactions per request |
 | USD_TO_EUR_RATE | constant | 0.92 | Static conversion rate |
+| BGN_PER_EUR_RATE | constant | 1.95583 | Fixed euro peg (BGN per EUR) |
 
 ## Notes
 
 - The `ClassifiedInput` schema is retained as the internal contract between ClaudeService and BudgetService
-- Currency conversion uses a static rate (`USD_TO_EUR_RATE = 0.92`); only EUR and USD are supported, other currencies default to EUR
+- Currency conversion uses a static USD rate (`USD_TO_EUR_RATE = 0.92`) and the fixed BGN peg (`BGN_PER_EUR_RATE = 1.95583`); EUR, USD and BGN are supported, other currencies default to EUR
 - The `BudgetTransaction` DB model is unchanged from the previous implementation
 - Transaction count is estimated via comma/and heuristics before calling the API to fail fast on oversized inputs

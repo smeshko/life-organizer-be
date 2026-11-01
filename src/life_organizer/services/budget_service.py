@@ -66,6 +66,8 @@ class AggregationResult(TypedDict):
 
 # Constants
 USD_TO_EUR_RATE = 0.92
+# Bulgaria adopted the euro on 2026-01-01; the conversion rate is irrevocably fixed.
+BGN_PER_EUR_RATE = 1.95583
 
 
 def _convert_to_eur(amount: float, currency: str) -> float:
@@ -73,7 +75,7 @@ def _convert_to_eur(amount: float, currency: str) -> float:
 
     Args:
         amount: Amount in source currency
-        currency: Currency code (EUR, USD)
+        currency: Currency code (EUR, USD, BGN)
 
     Returns:
         Amount in EUR
@@ -82,6 +84,8 @@ def _convert_to_eur(amount: float, currency: str) -> float:
         return round(amount, 2)
     elif currency == "USD":
         return round(amount * USD_TO_EUR_RATE, 2)
+    elif currency == "BGN":
+        return round(amount / BGN_PER_EUR_RATE, 2)
     else:
         logger.warning(f"Unknown currency '{currency}', assuming EUR")
         return round(amount, 2)
