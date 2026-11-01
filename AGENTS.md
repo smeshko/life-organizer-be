@@ -47,7 +47,7 @@ One package, `src/life_organizer/`:
 
 ## Conventions
 
-- Python 3.13, typed throughout: mypy runs `strict` over `src/`. Ruff lints and formats, line length 100.
+- Python 3.14, typed throughout: mypy runs `strict` over `src/`. Ruff lints and formats, line length 100.
 - Async SQLAlchemy 2.0 with every call awaited, and Pydantic v2.
 - Protected routes depend on `auth.py`. Routes that call Claude carry `@limiter.limit(...)` from `rate_limit.py`.
 - Migrations are Alembic, written with both `upgrade()` and `downgrade()`. A model change ships with its migration in

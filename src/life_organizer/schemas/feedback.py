@@ -36,7 +36,7 @@ class FeedbackRequest(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def categories_must_differ(self) -> "FeedbackRequest":
+    def categories_must_differ(self) -> FeedbackRequest:
         """Validate that wrong_category and correct_category are different."""
         if self.wrong_category == self.correct_category:
             msg = "wrong_category and correct_category must differ"

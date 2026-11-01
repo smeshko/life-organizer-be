@@ -25,9 +25,9 @@
 
 ### Technical Constraints & Dependencies
 
-- **Existing stack:** Python 3.13, FastAPI, PostgreSQL 16, async SQLAlchemy 2.0, Claude API
+- **Existing stack:** Python 3.14, FastAPI, PostgreSQL 16, async SQLAlchemy 2.0, Claude API
 - **Brownfield:** Must preserve working budget flow while removing orchestrator
-- **Claude API dependency:** Text completions (Haiku 4.5) + Vision API for screenshots + generative for meals
+- **Claude API dependency:** Text completions (Opus 5.5 by default, set by `CLAUDE_MODEL`) + Vision API for screenshots + generative for meals
 - **No authentication:** Personal tool, rate limiting is sole abuse protection
 - **iOS client dependency:** Budget text input format must remain compatible
 
@@ -50,7 +50,7 @@
 
 | Decision | Choice | Version |
 |----------|--------|---------|
-| **Language & Runtime** | Python | 3.13 |
+| **Language & Runtime** | Python | 3.14 |
 | **Framework** | FastAPI | latest |
 | **Database** | PostgreSQL | 16 |
 | **ORM** | SQLAlchemy (async) | 2.0 |

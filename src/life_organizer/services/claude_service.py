@@ -8,15 +8,25 @@ from pathlib import Path
 from typing import Any
 
 import anthropic
-from anthropic.types import TextBlock
+from anthropic.types.beta import BetaMessage
 from fastapi import HTTPException
 from pydantic import ValidationError
-from tenacity import retry, stop_after_attempt, wait_exponential
 
+from life_organizer.config import ClaudeEffort
 from life_organizer.schemas.classification import ClassifiedInput
 from life_organizer.schemas.enums import Category
 
 logger = logging.getLogger(__name__)
+
+_MAX_TOKENS = 16000
+# One attempt, no retries: an Opus 5.5 response gets 55 s, under the iOS client's 60 s timeout.
+_REQUEST_TIMEOUT_SECONDS = 55.0
+_FALLBACK_BETA = "server-side-fallback-2026-07-01"
+
+
+class ClaudeRefusalError(ValueError):
+    """Claude declined to process the input."""
+
 
 # Load budget system prompt at module level
 _PROMPT_DIR = Path(__file__).parent.parent / "prompts"
@@ -53,16 +63,20 @@ except FileNotFoundError:
 class ClaudeService:
     """Service for parsing natural language budget text using Claude LLM."""
 
-    def __init__(self, api_key: str, model: str = "claude-haiku-4-5") -> None:
+    def __init__(self, api_key: str, *, model: str, effort: ClaudeEffort) -> None:
         """Initialize Claude service.
 
         Args:
             api_key: Anthropic API key
             model: Claude model identifier
+            effort: Claude output effort
         """
-        self.client = anthropic.AsyncAnthropic(api_key=api_key, timeout=10.0)
+        self.client = anthropic.AsyncAnthropic(
+            api_key=api_key, timeout=_REQUEST_TIMEOUT_SECONDS, max_retries=0
+        )
         self.model = model
-        logger.info(f"Initialized ClaudeService with model: {model}")
+        self.effort = effort
+        logger.info(f"Initialized ClaudeService with model: {model}, effort: {effort}")
 
     @staticmethod
     def _inject_dates_into_prompt(prompt: str) -> str:
@@ -149,11 +163,6 @@ class ClaudeService:
 
         return result_dict
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=1, max=5),
-        reraise=True,
-    )
     async def parse_budget_text(self, text: str) -> list[ClassifiedInput]:
         """Parse natural language budget text into structured ClassifiedInput objects.
 
@@ -165,7 +174,7 @@ class ClaudeService:
 
         Raises:
             HTTPException: If input exceeds transaction limit (422)
-            anthropic.APIError: On API communication errors (after 3 retries)
+            anthropic.APIError: On API communication errors (not retried)
         """
         # Empty input check
         if not text or not text.strip():
@@ -199,9 +208,9 @@ class ClaudeService:
             system_prompt = self._get_system_prompt_with_current_date()
 
             # Call Claude API with prompt caching
-            message = await self.client.messages.create(
+            message = await self.client.beta.messages.create(
                 model=self.model,
-                max_tokens=2000,
+                max_tokens=_MAX_TOKENS,
                 system=[
                     {
                         "type": "text",
@@ -210,6 +219,9 @@ class ClaudeService:
                     }
                 ],
                 messages=[{"role": "user", "content": text}],
+                output_config={"effort": self.effort},
+                fallbacks="default",
+                betas=[_FALLBACK_BETA],
             )
 
             return self._parse_llm_response(message, raw_input_fallback=text)
@@ -227,14 +239,10 @@ class ClaudeService:
                     extracted_data={},
                     raw_input=text,
                     classifier_source="llm",
+                    error=str(e) if isinstance(e, ClaudeRefusalError) else None,
                 )
             ]
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=1, max=5),
-        reraise=True,
-    )
     async def parse_budget_images(self, images: list[tuple[bytes, str]]) -> list[ClassifiedInput]:
         """Parse Revolut screenshot images into structured ClassifiedInput objects.
 
@@ -248,7 +256,7 @@ class ClaudeService:
             List of ClassifiedInput objects with parsed budget data
 
         Raises:
-            anthropic.APIError: On API communication errors (after 3 retries)
+            anthropic.APIError: On API communication errors (not retried)
         """
         if not images:
             logger.warning("Empty image list provided to parse_budget_images")
@@ -284,9 +292,9 @@ class ClaudeService:
         )
 
         try:
-            message = await self.client.messages.create(
+            message = await self.client.beta.messages.create(
                 model=self.model,
-                max_tokens=4000,
+                max_tokens=_MAX_TOKENS,
                 system=[
                     {
                         "type": "text",
@@ -295,6 +303,9 @@ class ClaudeService:
                     }
                 ],
                 messages=[{"role": "user", "content": content_blocks}],
+                output_config={"effort": self.effort},
+                fallbacks="default",
+                betas=[_FALLBACK_BETA],
             )
 
             parsed = self._parse_llm_response(message, raw_input_fallback="[screenshot]")
@@ -320,12 +331,13 @@ class ClaudeService:
                     extracted_data={},
                     raw_input="[screenshot]",
                     classifier_source="llm",
+                    error=str(e) if isinstance(e, ClaudeRefusalError) else None,
                 )
             ]
 
     def _parse_llm_response(
         self,
-        message: Any,
+        message: BetaMessage,
         raw_input_fallback: str,
     ) -> list[ClassifiedInput]:
         """Parse an Anthropic API message response into ClassifiedInput objects.
@@ -340,15 +352,21 @@ class ClaudeService:
             List of ClassifiedInput objects
 
         Raises:
+            ClaudeRefusalError: If Claude refused the request
+            ValueError: If the response has no text block or is not a JSON array
             json.JSONDecodeError: If response is not valid JSON
             ValidationError: If response doesn't match ClassifiedInput schema
         """
-        # Extract response text
-        first_block = message.content[0]
-        if not isinstance(first_block, TextBlock):
-            logger.error(f"Unexpected response block type: {type(first_block)}")
-            raise ValueError(f"Expected TextBlock, got {type(first_block)}")
-        response_text = first_block.text
+        if message.stop_reason == "refusal":
+            category = message.stop_details.category if message.stop_details else None
+            logger.warning(f"Claude refused (model={message.model}, category={category})")
+            raise ClaudeRefusalError("Claude declined to process this input")
+
+        text_block = next((b for b in message.content if b.type == "text"), None)
+        if text_block is None:
+            logger.error("No text block in Claude response")
+            raise ValueError("No text block in Claude response")
+        response_text = text_block.text
         logger.debug(
             f"Raw LLM response: {response_text[:200]}..."
             if len(response_text) > 200

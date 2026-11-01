@@ -1,9 +1,12 @@
 """Configuration management using Pydantic Settings."""
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+ClaudeEffort = Literal["low", "medium", "high", "xhigh", "max"]
 
 
 class Settings(BaseSettings):
@@ -37,6 +40,8 @@ class Settings(BaseSettings):
     # External Services (to be configured later)
     openai_api_key: str | None = Field(default=None, description="OpenAI API key")
     claude_api_key: str = Field(..., description="Anthropic Claude API key")
+    claude_model: str = Field(default="claude-opus-5-5", description="Claude model id")
+    claude_effort: ClaudeEffort = Field(default="low", description="Claude output effort")
 
     # Database
     database_url: str = Field(

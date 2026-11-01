@@ -56,10 +56,12 @@ for image_bytes, media_type in images:
     })
 content_blocks.append({"type": "text", "text": "Extract all transactions..."})
 
-message = await self.client.messages.create(
-    model=self.model, max_tokens=4000,
+message = await self.client.beta.messages.create(
+    model=self.model, max_tokens=16000,
     system=[{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}],
     messages=[{"role": "user", "content": content_blocks}],
+    output_config={"effort": self.effort}, fallbacks="default",
+    betas=["server-side-fallback-2026-07-01"],
 )
 ```
 
@@ -79,10 +81,11 @@ message = await self.client.messages.create(
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `CLAUDE_API_KEY` | env var | (required) | Anthropic API key for Claude Vision |
-| Claude model | constructor arg | `claude-haiku-4-5` | Model used for vision extraction |
+| `CLAUDE_MODEL` | env var | `claude-opus-5-5` | Model used for vision extraction |
+| `CLAUDE_EFFORT` | env var | `low` | Claude output effort (`low`, `medium`, `high`, `xhigh`, `max`) |
 | Max file size | hardcoded | 20 MB | Per-image size limit (Anthropic API limit) |
 | Allowed types | hardcoded | PNG, JPEG, GIF, WebP | Accepted image MIME types |
-| Max tokens | hardcoded | 4000 | Response token limit for vision (vs 2000 for text) |
+| Max tokens | hardcoded | 16000 | Response token limit, thinking included (same as text) |
 
 ## Notes
 
@@ -91,4 +94,6 @@ message = await self.client.messages.create(
 - The vision prompt includes the same merchant-to-category reference table as the text prompt for consistent categorization
 - An empty array response from Claude (no photo gave anything at all) is surfaced as HTTP 422 to the client; an unreadable or non-Revolut photo is reported as a failed item instead
 - When overlapping screenshots are deduplicated, a transaction is tagged with the first photo it appears in
-- Retry behavior (3 attempts, exponential backoff) matches the text parsing path
+- The call uses the beta messages API with server-side fallback (`fallbacks="default"`), `CLAUDE_EFFORT` as `output_config.effort` and `max_tokens=16000`; the first `text` block is parsed and thinking blocks are skipped
+- Like the text path, the call is made once with no retries and a 55 s client timeout, under the iOS 60 s timeout, so a long Opus 5.5 extraction over several screenshots has room to finish
+- A refusal (`stop_reason == "refusal"`) is logged with its category and returned as an `UNKNOWN` input carrying an error, which becomes a `success: false` row: "Could not process budget entry: Claude declined to process this input"
