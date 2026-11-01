@@ -38,6 +38,7 @@ uv.lock
 
 # IDEs
 .idea/
+.claude/settings.local.json
 *.swp
 *.swo
 *~
@@ -88,13 +89,7 @@ Thumbs.db
 # Project specific
 *.pyc
 .ruff_cache/
-.worktrees/
 .vscode/
-docs/planning/work/*
-.linear
-
-# ADW worktree directory
-trees/
 budget_export.json
 .sail-runs/
 .sail/sail.d.ts

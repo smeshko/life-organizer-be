@@ -352,7 +352,7 @@ HANDLERS = [
 - `README.md` - Project overview and setup instructions
 - `docs/architecture/backend-architecture-high-level-design.md` - System architecture documentation
 - `docs/development/setup.md` - Development environment setup guide
-- `docs/product/initial-prd.md` - Product requirements and specifications
+- `docs/archive/initial-prd.md` - Product requirements and specifications
 
 ### Source Code - Schemas
 - `src/life_organizer/__init__.py` - Package initialization
@@ -415,7 +415,7 @@ After merge to staging:
 
 - Planning documents: `docs/planning/work/project-scaffold-models/`
 - Architecture: `docs/architecture/backend-architecture-high-level-design.md`
-- Product requirements: `docs/product/initial-prd.md`
+- Product requirements: `docs/archive/initial-prd.md`
 
 ## Commits
 
