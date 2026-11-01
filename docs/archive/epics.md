@@ -1,14 +1,3 @@
----
-stepsCompleted: ['step-01', 'step-02', 'step-03', 'step-04']
-status: 'complete'
-inputDocuments:
-  - '_bmad-output/prd.md'
-  - '_bmad-output/architecture.md'
-project_name: 'life-organizer-be'
-user_name: 'Ivo'
-date: '2026-03-09'
----
-
 # life-organizer-be - Epic Breakdown
 
 ## Overview

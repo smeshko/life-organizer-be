@@ -1,19 +1,3 @@
----
-stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-skippedSteps: [5, 6]
-inputDocuments:
-  - '_bmad-output/index.md'
-documentCounts:
-  briefs: 0
-  research: 0
-  brainstorming: 0
-  projectDocs: 1
-workflowType: 'prd'
-lastStep: 11
-project_name: 'life-organizer-be'
-user_name: 'Ivo'
-date: '2026-03-09'
----
 
 # Product Requirements Document - life-organizer-be
 

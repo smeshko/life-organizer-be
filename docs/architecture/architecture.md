@@ -1,21 +1,6 @@
----
-stepsCompleted: [1, 2, 3, 4, 5, 6, 7]
-inputDocuments:
-  - '_bmad-output/prd.md'
-  - '_bmad-output/index.md'
-workflowType: 'architecture'
-lastStep: 7
-project_name: 'life-organizer-be'
-user_name: 'Ivo'
-date: '2026-03-09'
-status: 'complete'
-projectType: 'brownfield'
----
-
 # Architecture Decision Document - life-organizer-be
 
 > Personal backend API: budget tracking + meal planning, powered by Claude LLM
-> Generated via BMAD Architecture Workflow
 
 ## Project Context Analysis
 
