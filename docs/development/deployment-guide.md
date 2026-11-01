@@ -2,16 +2,16 @@
 
 ## Deployment Options
 
-### 1. Railway (Production)
+### 1. Production
 
-The project is deployed to Railway:
-- **URL**: `https://life-organizer-be-production.up.railway.app`
+Production runs on the maintainer's own machine behind Cloudflare at `https://org.ivot.dev`
+(health: `https://org.ivot.dev/health`).
 
 ### 2. Docker Compose (Local/Self-Hosted)
 
 Docker Compose setup, service management, logs, database access, migrations, hot reload,
 running tests in a container, shell access and troubleshooting are covered in
-[DOCKER.md](../../DOCKER.md).
+[docker.md](docker.md).
 
 ## Environment Configuration
 
