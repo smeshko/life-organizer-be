@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The gate: the one way to verify a change. Runs, in order and each one regardless of the last:
-#   ruff check · ruff format --check · mypy src · pytest -m "not integration"
+#   ruff check · ruff format --check · mypy src · pytest -m "not integration" · scripts/test-version.sh
 # and exits 1 when any of them failed, 0 when all passed. Ruff checks the Python trees by name (src, tests, alembic):
 # this keeps it off docs/, .sail/ and Markdown. uv.lock is committed, so every run resolves the same tool versions.
 #
@@ -64,9 +64,10 @@ step 'ruff format' uv run ruff format --check "${python[@]}"
 step 'mypy' uv run mypy src
 step 'pytest' env API_KEY=gate-placeholder CLAUDE_API_KEY=gate-placeholder \
   uv run pytest -m 'not integration' -q -rfE --no-cov -p no:cacheprovider
+step 'version' scripts/test-version.sh
 
 if [ ${#failed[@]} -gt 0 ]; then
   echo "gate: FAILED: $(IFS=,; echo "${failed[*]}" | sed 's/,/, /g')"
   exit 1
 fi
-echo "gate: passed: ruff check, ruff format, mypy, pytest"
+echo "gate: passed: ruff check, ruff format, mypy, pytest, version"
