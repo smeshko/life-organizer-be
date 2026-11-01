@@ -99,7 +99,7 @@ components:
           type: string
           minLength: 1
           maxLength: 1000
-          description: Text input to classify (voice transcription or typed text)
+          description: Text input to classify
           example: "spent 120eur at next"
         category:
           $ref: '#/components/schemas/Category'

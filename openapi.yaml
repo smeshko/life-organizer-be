@@ -2,9 +2,9 @@ openapi: 3.1.0
 info:
   title: Life Organizer Backend API
   description: |
-    Voice-first intelligent agent for life organization.
+    Intelligent agent for life organization.
 
-    This API provides endpoints for processing user voice/text input and converting it into actionable items.
+    This API provides endpoints for processing user text input and converting it into actionable items.
     The backend classifies inputs into categories (budget, reminder, shopping, calendar) and either handles
     them directly or returns actions for the iOS app to perform.
 
@@ -138,7 +138,7 @@ paths:
     post:
       summary: Process user input (supports multi-transaction)
       description: |
-        Classify user voice or text input and execute the appropriate handler.
+        Classify user text input and execute the appropriate handler.
 
         **Supports multiple transactions in a single request** (up to 15 transactions).
 
