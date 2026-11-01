@@ -381,6 +381,21 @@ class TestParseBudgetImages:
         assert "cyber" in caplog.text
 
     @pytest.mark.asyncio
+    async def test_request_uses_model_effort_and_fallback(self, service: ClaudeService) -> None:
+        """The request carries the model, effort, fallback and beta flag."""
+        mock_create = _mock_claude_response(_BUDGET_JSON)
+        service.client.beta.messages.create = mock_create
+
+        await service.parse_budget_images([(b"fake-png-bytes", "image/png")])
+
+        kwargs = mock_create.call_args.kwargs
+        assert kwargs["model"] == "claude-opus-5-5"
+        assert kwargs["max_tokens"] == 16000
+        assert kwargs["output_config"] == {"effort": "low"}
+        assert kwargs["fallbacks"] == "default"
+        assert kwargs["betas"] == ["server-side-fallback-2026-07-01"]
+
+    @pytest.mark.asyncio
     async def test_single_image_returns_classified_inputs(self, service: ClaudeService) -> None:
         """Single image should return list of ClassifiedInput objects."""
         response_json = """[{
