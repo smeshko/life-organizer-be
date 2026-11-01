@@ -147,4 +147,3 @@ the async engine and uses `asyncio.run()`.
 - **Never edit applied migrations**: Create a new migration instead
 - **Always test rollback**: Ensure `downgrade()` works before deploying
 - **Schema creation**: First migration includes `CREATE SCHEMA` statements
-- **Railway deployment**: Migrations run automatically via start command

@@ -268,12 +268,9 @@ All environment variables can be set in:
 
 ## Production Deployment
 
-For production deployment, see the main README.md for Railway deployment instructions.
+Production runs on the maintainer's own machine behind Cloudflare at `https://org.ivot.dev`; see [deployment-guide.md](deployment-guide.md).
 
-Docker Compose is recommended for:
-- Local development
-- Testing
-- Self-hosted deployments
+This Docker Compose setup is for local development and testing.
 
 ## Architecture
 
@@ -302,4 +299,4 @@ Docker Compose is recommended for:
 3. Check database: `docker-compose exec db psql -U life_organizer`
 4. View logs: `docker-compose logs -f`
 
-For more information, see the main README.md.
+For more information, see the main [README.md](../../README.md).

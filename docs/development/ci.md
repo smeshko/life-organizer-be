@@ -8,7 +8,7 @@ stale run (concurrency group per PR). It uses no secrets, so integration tests s
 - `gate`: uv 0.8.22, `uv sync --frozen --all-extras`, then `scripts/gate.sh` with `UV_FROZEN=1` so every `uv run`
   uses the committed `uv.lock`.
 - `docker`: `docker build .` only. The image's CMD runs `alembic upgrade head`, which needs a database, so the image is
-  never run in CI; check `/health` on the Railway staging deploy after merge.
+  never run in CI; check `https://org.ivot.dev/health` once production runs the change.
 
 ## Reproduce locally
 

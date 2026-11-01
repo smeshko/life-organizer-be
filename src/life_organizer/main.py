@@ -69,7 +69,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 # Disable docs/openapi in production to avoid leaking API schema
 app = FastAPI(
     title="Life Organizer Backend",
-    description="Voice-first intelligent agent for life organization",
+    description="Budget capture and query API for the Life Organizer iOS app",
     version="0.1.0",
     lifespan=lifespan,
     docs_url=f"/api/{settings.api_version}/docs" if settings.debug else None,
