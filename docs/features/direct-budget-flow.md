@@ -63,7 +63,8 @@ results = await budget_service.create_entries(classified_inputs)
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `CLAUDE_API_KEY` | env var | (required) | Anthropic API key for Claude |
-| Claude model | constructor arg | `claude-haiku-4-5` | Model used for parsing |
+| `CLAUDE_MODEL` | env var | `claude-opus-5-5` | Model used for parsing |
+| `CLAUDE_EFFORT` | env var | `low` | Claude output effort (`low`, `medium`, `high`, `xhigh`, `max`) |
 | Max transactions | hardcoded | 15 | Maximum transactions per request |
 | USD_TO_EUR_RATE | constant | 0.92 | Static conversion rate |
 | BGN_PER_EUR_RATE | constant | 1.95583 | Fixed euro peg (BGN per EUR) |

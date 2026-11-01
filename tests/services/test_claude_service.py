@@ -13,7 +13,7 @@ from life_organizer.services.claude_service import ClaudeService
 @pytest.fixture
 def service() -> ClaudeService:
     """Create a ClaudeService instance with a fake API key."""
-    return ClaudeService(api_key="test-key")
+    return ClaudeService(api_key="test-key", model="claude-opus-5-5", effort="low")
 
 
 def _mock_claude_response(response_text: str) -> AsyncMock:

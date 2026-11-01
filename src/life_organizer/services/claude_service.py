@@ -13,6 +13,7 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from life_organizer.config import ClaudeEffort
 from life_organizer.schemas.classification import ClassifiedInput
 from life_organizer.schemas.enums import Category
 
@@ -53,16 +54,18 @@ except FileNotFoundError:
 class ClaudeService:
     """Service for parsing natural language budget text using Claude LLM."""
 
-    def __init__(self, api_key: str, model: str = "claude-haiku-4-5") -> None:
+    def __init__(self, api_key: str, *, model: str, effort: ClaudeEffort) -> None:
         """Initialize Claude service.
 
         Args:
             api_key: Anthropic API key
             model: Claude model identifier
+            effort: Claude output effort
         """
         self.client = anthropic.AsyncAnthropic(api_key=api_key, timeout=10.0)
         self.model = model
-        logger.info(f"Initialized ClaudeService with model: {model}")
+        self.effort = effort
+        logger.info(f"Initialized ClaudeService with model: {model}, effort: {effort}")
 
     @staticmethod
     def _inject_dates_into_prompt(prompt: str) -> str:

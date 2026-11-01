@@ -13,6 +13,7 @@ Cost: ~$0.001-0.002 per test case (Claude Haiku pricing)
 
 import pytest
 
+from life_organizer.config import get_settings
 from life_organizer.schemas.enums import Category
 from life_organizer.services.claude_service import ClaudeService
 from tests.config.prompt_validation_config import (
@@ -34,7 +35,10 @@ def real_classifier():
     if not api_key:
         pytest.skip("API key not available")
 
-    return ClaudeService(api_key=api_key)
+    settings = get_settings()
+    return ClaudeService(
+        api_key=api_key, model=settings.claude_model, effort=settings.claude_effort
+    )
 
 
 @pytest.fixture

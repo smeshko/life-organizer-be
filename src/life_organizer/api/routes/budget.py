@@ -38,7 +38,11 @@ router = APIRouter()
 
 # Initialize services
 settings = get_settings()
-claude_service = ClaudeService(api_key=settings.claude_api_key)
+claude_service = ClaudeService(
+    api_key=settings.claude_api_key,
+    model=settings.claude_model,
+    effort=settings.claude_effort,
+)
 budget_service = BudgetService(session_factory=async_session_factory)
 
 

@@ -79,7 +79,8 @@ message = await self.client.messages.create(
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `CLAUDE_API_KEY` | env var | (required) | Anthropic API key for Claude Vision |
-| Claude model | constructor arg | `claude-haiku-4-5` | Model used for vision extraction |
+| `CLAUDE_MODEL` | env var | `claude-opus-5-5` | Model used for vision extraction |
+| `CLAUDE_EFFORT` | env var | `low` | Claude output effort (`low`, `medium`, `high`, `xhigh`, `max`) |
 | Max file size | hardcoded | 20 MB | Per-image size limit (Anthropic API limit) |
 | Allowed types | hardcoded | PNG, JPEG, GIF, WebP | Accepted image MIME types |
 | Max tokens | hardcoded | 4000 | Response token limit for vision (vs 2000 for text) |
