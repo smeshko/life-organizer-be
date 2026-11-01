@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from life_organizer.db.models.budget import BudgetTransaction
 from life_organizer.schemas.classification import ClassifiedInput
 from life_organizer.schemas.enums import ActionType, Category
 from life_organizer.services.budget_service import BudgetService, _convert_to_eur
@@ -1050,3 +1051,72 @@ class TestUpsertPlan:
             await service.upsert_plan(2026, entries)
 
         mock_session.rollback.assert_awaited_once()
+
+
+def _real_transaction(amount: str, currency: str, amount_eur: str) -> BudgetTransaction:
+    """Build a real BudgetTransaction row without a session."""
+    return BudgetTransaction(
+        id=1,
+        amount=Decimal(amount),
+        currency=currency,
+        amount_bgn=Decimal("0"),
+        amount_eur=Decimal(amount_eur),
+        date=datetime.date(2026, 1, 15),
+        transaction_type="Expenses",
+        category="Groceries",
+        details="Kaufland",
+    )
+
+
+async def _run_update(
+    txn: BudgetTransaction | None, updates: dict[str, object]
+) -> tuple[BudgetTransaction | None, AsyncMock]:
+    mock_factory, mock_session = _mock_session_factory()
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = txn
+    mock_session.execute = AsyncMock(return_value=result)
+    mock_session.refresh = AsyncMock()
+    service = BudgetService(session_factory=mock_factory)
+    return await service.update_transaction(1, updates), mock_session
+
+
+class TestUpdateTransaction:
+    """Tests for BudgetService.update_transaction amount_eur recompute."""
+
+    async def test_amount_edit_on_bgn_converts(self) -> None:
+        txn = _real_transaction("50", "BGN", "25.56")
+        updated, _ = await _run_update(txn, {"amount": 100.0})
+        assert updated is not None
+        assert updated.amount == Decimal("100.0")
+        assert updated.amount_eur == Decimal("51.13")
+
+    async def test_amount_edit_on_eur_keeps_amount_eur_equal(self) -> None:
+        txn = _real_transaction("50", "EUR", "50")
+        updated, _ = await _run_update(txn, {"amount": 75.5})
+        assert updated is not None
+        assert updated.amount_eur == Decimal("75.5")
+        assert updated.amount_eur == updated.amount
+
+    async def test_currency_only_edit_recomputes(self) -> None:
+        txn = _real_transaction("50", "EUR", "50")
+        updated, _ = await _run_update(txn, {"currency": "BGN"})
+        assert updated is not None
+        assert updated.amount_eur == Decimal("25.56")
+
+    async def test_amount_and_currency_edit_uses_new_currency(self) -> None:
+        txn = _real_transaction("50", "EUR", "50")
+        updated, _ = await _run_update(txn, {"amount": 100.0, "currency": "BGN"})
+        assert updated is not None
+        assert updated.amount_eur == Decimal("51.13")
+
+    async def test_unrelated_edit_leaves_amount_eur(self) -> None:
+        txn = _real_transaction("50", "BGN", "25.56")
+        updated, _ = await _run_update(txn, {"details": "x"})
+        assert updated is not None
+        assert updated.amount_eur == Decimal("25.56")
+        assert updated.details == "x"
+
+    async def test_missing_transaction_returns_none(self) -> None:
+        updated, session = await _run_update(None, {"amount": 10.0})
+        assert updated is None
+        session.commit.assert_not_awaited()
