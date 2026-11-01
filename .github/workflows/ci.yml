@@ -92,7 +92,7 @@ jobs:
           scripts/version.sh --write
           git add pyproject.toml uv.lock openapi.yaml
           git commit -m "chore(release): v$VERSION"
-          git push origin HEAD:staging
           git tag "v$VERSION"
-          git push origin "v$VERSION"
+          # One atomic push, so staging never carries a bump commit without its tag.
+          git push --atomic origin HEAD:staging "v$VERSION"
           gh release create "v$VERSION" --title "v$VERSION" --notes-file "$RUNNER_TEMP/notes.md"

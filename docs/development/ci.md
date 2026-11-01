@@ -60,8 +60,8 @@ After `gate` passes on a push to `staging`, the `release` job:
 1. Skips with a notice when `staging` has moved on since the push (the newer push's run releases everything), when no
    `v*` tag exists, or when nothing bumps (a docs-only merge creates no tag).
 2. Runs `scripts/version.sh --write` (`pyproject.toml`, `uv.lock`, `openapi.yaml`), commits `chore(release): vX.Y.Z` as
-   `github-actions[bot]`, pushes it to `staging`, tags `vX.Y.Z` and creates a GitHub Release whose notes are
-   `scripts/version.sh --notes` (New / Fixed / Improved).
+   `github-actions[bot]`, tags it `vX.Y.Z`, pushes the commit and the tag in one atomic push and creates a GitHub
+   Release whose notes are `scripts/version.sh --notes` (New / Fixed / Improved).
 
 The pushes use `GITHUB_TOKEN`, which starts no workflow, so the bump commit triggers no further CI run. The running
 service reports the version from package metadata at `/health`.
