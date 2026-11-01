@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
+from life_organizer import __version__
 from life_organizer.api.routes import budget, feedback
 from life_organizer.auth import verify_api_key
 from life_organizer.config import get_settings
@@ -70,7 +71,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 app = FastAPI(
     title="Life Organizer Backend",
     description="Budget capture and query API for the Life Organizer iOS app",
-    version="0.1.0",
+    version=__version__,
     lifespan=lifespan,
     docs_url=f"/api/{settings.api_version}/docs" if settings.debug else None,
     redoc_url=f"/api/{settings.api_version}/redoc" if settings.debug else None,
@@ -126,7 +127,7 @@ async def root() -> JSONResponse:
     return JSONResponse(
         content={
             "message": "Life Organizer Backend API",
-            "version": "0.1.0",
+            "version": __version__,
             "api_version": settings.api_version,
         }
     )
@@ -143,7 +144,7 @@ async def health_check() -> JSONResponse:
         content={
             "status": "healthy",
             "service": "life-organizer-backend",
-            "version": "0.1.0",
+            "version": __version__,
         }
     )
 

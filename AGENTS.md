@@ -38,7 +38,10 @@ One package, `src/life_organizer/`:
   at the machine, never for a sail run.
 - `scripts/gate.sh`: the one way to verify a change: `ruff check`, `ruff format --check`, `mypy src` and
   `pytest -m "not integration"`, with placeholder keys and no `.env`. `scripts/gate.sh --base <commit>` skips it when
-  only docs or `.sail/` changed.
+  only docs or `.sail/` changed. It also runs `scripts/test-version.sh`.
+- `scripts/version.sh`: prints the next semantic version from the Conventional Commits since the last `v*` tag;
+  `--write` sets it in `pyproject.toml`, `uv.lock` and `openapi.yaml`, `--notes` prints the release notes. CI's
+  `release` job uses it on `staging`.
 - `make test-integration`: the tests that call the real Anthropic API; needs `ANTHROPIC_API_KEY` (or
   `CLAUDE_API_KEY`).
 - Migrations: `make db-migrate` (or `PYTHONPATH=src uv run alembic upgrade head`) applies them, and
